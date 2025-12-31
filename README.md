@@ -19,10 +19,12 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 
 | Platform | Status | USB Support |
 |----------|--------|-------------|
-| macOS (Intel + Apple Silicon) | ✅ | libusb |
-| iPad Pro (M1+) | ✅ | DriverKit |
-| Android Tablets | ✅ | USB Host API |
+| macOS (Intel + Apple Silicon) | 🚧 In Development | libusb |
+| iPad Pro (M1+) | 🚧 In Development | DriverKit |
+| Android Tablets | 🚧 In Development | USB Host API |
 | Windows | 🔜 Planned | - |
+
+> **Development Status**: The physics engine and core data models are complete. Visualization, UI, and native USB plugins are in progress. See [todo.md](todo.md) for current status.
 
 ## Quick Start
 
@@ -51,6 +53,8 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 | Document | Description |
 |----------|-------------|
 | [CLAUDE.md](CLAUDE.md) | Claude Code reference |
+| [plan.md](plan.md) | Implementation prompt plan |
+| [todo.md](todo.md) | Development progress tracking |
 | [docs/PRD.md](docs/PRD.md) | Product requirements |
 | [docs/TRD.md](docs/TRD.md) | Technical architecture |
 | [docs/PHYSICS.md](docs/PHYSICS.md) | Ball flight physics |

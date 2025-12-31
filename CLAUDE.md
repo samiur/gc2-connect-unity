@@ -1,48 +1,10 @@
-# CLAUDE.md - GC2 Connect Unity
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-**GC2 Connect Unity** is a cross-platform driving range simulator built with Unity that connects to the Foresight GC2 launch monitor via USB. It provides GSPro-quality 3D visualization of ball flight with physics-accurate trajectory simulation.
-
-### Target Platforms
-- **macOS** (Intel + Apple Silicon) - Primary development platform
-- **iPad** (M1+ with iPadOS 16+) - Via DriverKit USB
-- **Android tablets** (8.0+ with USB Host) - Via USB Host API
-
-### Key Features
-- Native USB connection to GC2 launch monitor on all platforms
-- Physics-accurate ball flight (Nathan model)
-- GSPro-quality 3D driving range environment
-- Optional GSPro relay mode (send shots to GSPro via TCP)
-- Offline practice capability
-
----
-
-## Quick Reference
-
-### GC2 USB Identifiers
-```
-Vendor ID:  0x2C79 (11385)
-Product ID: 0x0110 (272)
-```
-
-### GSPro Connection
-```
-Default Port: 921
-Protocol: TCP JSON (GSPro Open Connect API v1)
-```
-
-### Key Documentation
-| Document | Location | Purpose |
-|----------|----------|---------|
-| PRD | `docs/PRD.md` | Product requirements |
-| TRD | `docs/TRD.md` | Technical architecture |
-| Physics Spec | `docs/PHYSICS.md` | Ball flight physics |
-| GSPro API | `docs/GSPRO_API.md` | GSPro Open Connect protocol |
-| GC2 Protocol | `docs/GC2_PROTOCOL.md` | GC2 USB data format |
-| USB Plugins | `docs/USB_PLUGINS.md` | Native plugin guide |
-
----
+**GC2 Connect Unity** is a cross-platform driving range simulator that connects to the Foresight GC2 launch monitor via USB. It runs on macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), and Android tablets (USB Host API).
 
 ## Architecture
 
@@ -67,11 +29,20 @@ Protocol: TCP JSON (GSPro Open Connect API v1)
 └─────────────────────────────────────────────────────────────┘
 ```
 
----
+### Data Flow
+1. Native USB plugin receives raw data from GC2 (`KEY=VALUE\n` format)
+2. `GC2Protocol.Parse()` converts to `GC2ShotData`
+3. `ShotProcessor.ProcessShot()` validates and runs physics simulation
+4. `TrajectorySimulator.Simulate()` returns `ShotResult` with trajectory points
+5. `BallController` animates ball through trajectory
+6. UI components update with shot metrics
 
-## Code Conventions
+### Key Interfaces
+- **IGC2Connection** - Platform-agnostic USB connection interface. All platform plugins implement this.
+- **GC2ConnectionFactory** - Uses `#if` directives to create platform-specific connection at runtime.
 
-### Namespaces
+## Namespaces
+
 ```csharp
 OpenRange.Core          // GameManager, ShotProcessor, SessionManager
 OpenRange.GC2           // USB connection, protocol parsing
@@ -81,72 +52,26 @@ OpenRange.UI            // All UI components
 OpenRange.Network       // GSPro TCP client
 ```
 
-### File Naming
-- Scripts: `PascalCase.cs` (e.g., `TrajectorySimulator.cs`)
-- Interfaces: `IPascalCase.cs` (e.g., `IGC2Connection.cs`)
-- Native plugins: Platform prefix (e.g., `GC2MacPlugin.mm`)
-
-### Unity Conventions
-- Use `[SerializeField]` for inspector-exposed private fields
-- Prefer composition over inheritance
-- Use ScriptableObjects for configuration data
-- Use events/delegates for loose coupling
-
----
-
-## Key Classes
-
-### Core
-- `GameManager` - Main application controller, scene management
-- `ShotProcessor` - Receives shots, triggers physics and visualization
-- `SessionManager` - Tracks session state, shot history
-- `SettingsManager` - Persistent settings via JSON
-
-### GC2 Connection
-- `IGC2Connection` - Platform-agnostic interface
-- `GC2ConnectionFactory` - Creates platform-specific implementation
-- `GC2Protocol` - Parses GC2 text protocol to `GC2ShotData`
-- `GC2ShotData` - Shot data model (ball + club data)
-
-### Physics
-- `TrajectorySimulator` - Main physics engine (RK4 integration)
-- `Aerodynamics` - Drag/lift coefficients, Reynolds number
-- `GroundPhysics` - Bounce and roll simulation
-- `PhysicsConstants` - Ball properties, atmosphere, tables
-
-### Visualization
-- `BallController` - Ball instantiation and animation
-- `TrajectoryRenderer` - Line renderer for ball path
-- `CameraController` - Camera modes (follow, static, overhead)
-- `EnvironmentManager` - Range environment switching
-
-### UI
-- `ShotDataBar` - Bottom data display (GSPro style)
-- `ClubDataPanel` - HMT club metrics (right panel)
-- `SessionInfoPanel` - Time, shot count (top left)
-- `ConnectionStatusUI` - GC2/GSPro connection state
-
----
-
 ## Build Commands
 
 ```bash
-# Unity Editor (open project)
+# Open in Unity Editor
 # File > Build Settings > Select Platform > Build
 
-# Command line (requires Unity installed)
-/Applications/Unity/Hub/Editor/2022.3.x/Unity.app/Contents/MacOS/Unity \
+# Command line build (macOS)
+/Applications/Unity/Hub/Editor/2022.3.*/Unity.app/Contents/MacOS/Unity \
   -batchmode -quit -projectPath . \
   -buildTarget StandaloneOSX \
   -buildOSXUniversalPlayer Builds/macOS/OpenRange.app
+
+# Native plugins (must build before Unity)
+cd NativePlugins/macOS && ./build_mac_plugin.sh
+cd NativePlugins/Android && ./gradlew assembleRelease
 ```
 
----
+## Physics Validation
 
-## Testing
-
-### Physics Validation
-The physics engine must pass these validation tests (Nathan model):
+The physics engine must match the Nathan model within tolerance:
 
 | Ball Speed | Launch | Spin | Expected Carry | Tolerance |
 |------------|--------|------|----------------|-----------|
@@ -155,66 +80,59 @@ The physics engine must pass these validation tests (Nathan model):
 | 120 mph | 16.3° | 7097 rpm | 172 yds | ±5% |
 | 102 mph | 24.2° | 9304 rpm | 136 yds | ±5% |
 
-### Manual Testing
-1. Connect GC2 via USB
-2. Verify connection status shows "Connected"
-3. Hit a shot on GC2
-4. Verify ball flight animates correctly
-5. Verify data bar shows correct metrics
-6. Verify carry distance within tolerance
+## GC2 Protocol Reference
 
----
+```
+Vendor ID:  0x2C79 (11385)
+Product ID: 0x0110 (272)
+Endpoint:   0x81 (Bulk IN)
 
-## Common Tasks
+Message format: KEY=VALUE pairs, newline-separated, double-newline terminated
+Key fields: SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, SPIN_RPM, BACK_RPM, SIDE_RPM
+HMT fields: CLUBSPEED_MPH, HPATH_DEG, VPATH_DEG, FACE_T_DEG, LOFT_DEG
+```
 
-### Adding a New Platform
-1. Create native plugin in `NativePlugins/{platform}/`
-2. Implement platform-specific USB communication
-3. Create C# bridge in `Assets/Scripts/GC2/Platforms/{Platform}/`
-4. Implement `IGC2Connection` interface
-5. Update `GC2ConnectionFactory` with platform directive
+## GSPro Integration
 
-### Modifying Physics
-1. Edit `Assets/Scripts/Physics/` classes
-2. Run validation tests against Nathan model
-3. Verify in-game behavior matches expectations
+```
+Protocol: TCP JSON (GSPro Open Connect API v1)
+Port: 921
+Heartbeat: Every 2 seconds when idle
+```
 
-### Adding UI Elements
-1. Create component in `Assets/Scripts/UI/`
-2. Create prefab in `Assets/Prefabs/UI/`
-3. Wire up in scene hierarchy
-4. Use `ResponsiveLayout` for multi-device support
+## Key Documentation
 
----
+| Document | Purpose |
+|----------|---------|
+| `docs/PRD.md` | Product requirements, success metrics |
+| `docs/TRD.md` | Technical architecture, component design |
+| `docs/PHYSICS.md` | Nathan model, aerodynamic coefficients |
+| `docs/GSPRO_API.md` | GSPro Open Connect JSON format |
+| `docs/GC2_PROTOCOL.md` | GC2 USB text protocol specification |
+| `docs/USB_PLUGINS.md` | Native plugin implementation per platform |
+| `plan.md` | Prompt-based implementation plan |
+| `todo.md` | Current development state tracking |
+
+## Current Implementation Status
+
+**Implemented:**
+- Physics engine (TrajectorySimulator, Aerodynamics, GroundPhysics)
+- GC2 data models and protocol parser
+- GameManager with connection lifecycle
+- MainThreadDispatcher for native callbacks
+
+**Not yet implemented:**
+- ShotProcessor, SessionManager, SettingsManager
+- All visualization (ball, camera, effects)
+- All UI components
+- Native USB plugins
+- GSPro relay client
+- Unity scenes
 
 ## Dependencies
 
-### Unity Packages (via Package Manager)
-- Universal Render Pipeline (URP)
-- TextMeshPro
-- Input System
-- Newtonsoft JSON (com.unity.nuget.newtonsoft-json)
-
-### Native Dependencies
-- **macOS**: libusb (bundled)
-- **iPad**: DriverKit framework (system)
+- Unity 2022.3 LTS with URP
+- TextMeshPro, Input System, Newtonsoft JSON
+- **macOS**: libusb 1.0.26 (bundled in plugin)
+- **iPad**: DriverKit (requires Apple entitlement approval)
 - **Android**: USB Host API (system)
-
----
-
-## Known Issues / TODO
-
-- [ ] iPad DriverKit requires Apple entitlement approval
-- [ ] Android USB permission flow needs testing on various devices
-- [ ] Quality tier auto-detection needs refinement
-- [ ] GSPro relay mode not yet implemented
-
----
-
-## Resources
-
-- [Unity URP Documentation](https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@latest)
-- [Prof. Alan Nathan's Trajectory Calculator](http://baseball.physics.illinois.edu/trajectory-calculator.html)
-- [GSPro Open Connect API](https://gsprogolf.com/openconnect)
-- [Apple DriverKit Documentation](https://developer.apple.com/documentation/driverkit)
-- [Android USB Host](https://developer.android.com/guide/topics/connectivity/usb/host)
