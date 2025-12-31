@@ -3,7 +3,7 @@
 ## Current Status
 **Phase**: 1 - Core Services
 **Last Updated**: 2025-12-31
-**Next Prompt**: 2 (SessionManager)
+**Next Prompt**: 3 (SettingsManager)
 
 ---
 
@@ -41,13 +41,13 @@ These components exist and don't need to be rebuilt:
   - [x] Events (OnShotProcessed, OnShotRejected)
   - [x] Unit tests
 
-- [ ] **Prompt 2**: SessionManager Service
-  - [ ] Create SessionManager.cs
-  - [ ] Session tracking
-  - [ ] Shot history
-  - [ ] Statistics calculation
-  - [ ] Events
-  - [ ] Unit tests
+- [x] **Prompt 2**: SessionManager Service (PR #2)
+  - [x] Create SessionManager.cs
+  - [x] Session tracking
+  - [x] Shot history
+  - [x] Statistics calculation
+  - [x] Events
+  - [x] Unit tests
 
 - [ ] **Prompt 3**: SettingsManager Service
   - [ ] Create SettingsManager.cs
