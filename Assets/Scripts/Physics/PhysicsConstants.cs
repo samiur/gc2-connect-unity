@@ -111,26 +111,26 @@ namespace OpenRange.Physics
         /// <summary>
         /// Lift coefficient vs spin factor (S = ωr/V).
         /// Format: (SpinFactor, Cl)
-        /// Based on Nathan/Bearman-Harvey model for golf balls.
+        /// Based on Nathan model with diminishing returns at high spin factors.
         /// </summary>
         public static readonly Vector2[] ClTable = new Vector2[]
         {
             new Vector2(0.00f, 0.000f),
-            new Vector2(0.05f, 0.100f),
-            new Vector2(0.10f, 0.150f),
-            new Vector2(0.15f, 0.185f),
-            new Vector2(0.20f, 0.210f),
-            new Vector2(0.25f, 0.230f),
-            new Vector2(0.30f, 0.245f),
-            new Vector2(0.35f, 0.258f),
-            new Vector2(0.40f, 0.268f),
-            new Vector2(0.45f, 0.276f),
-            new Vector2(0.50f, 0.282f),
-            new Vector2(0.55f, 0.286f),
+            new Vector2(0.05f, 0.090f),
+            new Vector2(0.10f, 0.130f),
+            new Vector2(0.15f, 0.155f),
+            new Vector2(0.20f, 0.172f),
+            new Vector2(0.25f, 0.183f),
+            new Vector2(0.30f, 0.190f),
+            new Vector2(0.35f, 0.195f),
+            new Vector2(0.40f, 0.199f),
+            new Vector2(0.45f, 0.202f),
+            new Vector2(0.50f, 0.204f),
+            new Vector2(0.55f, 0.205f),
         };
 
         /// <summary>Maximum lift coefficient</summary>
-        public const float ClMax = 0.286f;
+        public const float ClMax = 0.205f;
 
         #endregion
     }
