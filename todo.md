@@ -2,8 +2,8 @@
 
 ## Current Status
 **Phase**: 1 - Core Services
-**Last Updated**: 2024-12-31
-**Next Prompt**: 1 (ShotProcessor)
+**Last Updated**: 2025-12-31
+**Next Prompt**: 2 (SessionManager)
 
 ---
 
@@ -33,13 +33,13 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 1: Complete Core Services
 
-- [ ] **Prompt 1**: ShotProcessor Service
-  - [ ] Create ShotProcessor.cs
-  - [ ] ProcessShot() method
-  - [ ] Physics integration
-  - [ ] GSPro mode support
-  - [ ] Events (OnShotProcessed, OnShotRejected)
-  - [ ] Unit tests
+- [x] **Prompt 1**: ShotProcessor Service (PR #1)
+  - [x] Create ShotProcessor.cs
+  - [x] ProcessShot() method
+  - [x] Physics integration
+  - [x] GSPro mode support
+  - [x] Events (OnShotProcessed, OnShotRejected)
+  - [x] Unit tests
 
 - [ ] **Prompt 2**: SessionManager Service
   - [ ] Create SessionManager.cs
