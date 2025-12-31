@@ -59,7 +59,7 @@ OpenRange.Network       // GSPro TCP client
 # File > Build Settings > Select Platform > Build
 
 # Command line build (macOS)
-/Applications/Unity/Hub/Editor/2022.3.*/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.0.*/Unity.app/Contents/MacOS/Unity \
   -batchmode -quit -projectPath . \
   -buildTarget StandaloneOSX \
   -buildOSXUniversalPlayer Builds/macOS/OpenRange.app
@@ -131,7 +131,7 @@ Heartbeat: Every 2 seconds when idle
 
 ## Dependencies
 
-- Unity 2022.3 LTS with URP
+- Unity 6 (6000.0.x) with URP
 - TextMeshPro, Input System, Newtonsoft JSON
 - **macOS**: libusb 1.0.26 (bundled in plugin)
 - **iPad**: DriverKit (requires Apple entitlement approval)
