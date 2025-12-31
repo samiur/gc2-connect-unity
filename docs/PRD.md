@@ -1,541 +1,483 @@
 # Product Requirements Document (PRD)
-# Open Range Unity - Cross-Platform Edition
+# GC2 Connect Unity - Cross-Platform Driving Range
 
-## Overview
-
-### Product Name
-Open Range Unity (Cross-Platform)
-
-### Version
-2.0.0
-
-### Last Updated
-December 2024
-
-### Author
-Samiur Rahman
+## Document Info
+| Field | Value |
+|-------|-------|
+| Version | 2.0.0 |
+| Last Updated | December 2024 |
+| Author | Samiur Rahman |
+| Status | Draft |
 
 ---
 
-## Executive Summary
+## 1. Executive Summary
 
-Open Range Unity Cross-Platform is a unified driving range simulator built with Unity that runs natively on macOS, iPad, and Android tablets. By using Unity across all platforms, we achieve consistent GSPro-quality visuals everywhere while sharing 95%+ of the codebase.
+GC2 Connect Unity is a cross-platform driving range simulator that connects to the Foresight GC2 launch monitor via USB and visualizes ball flight with physics-accurate trajectories in a beautiful 3D environment. Built with Unity, it delivers consistent GSPro-quality visuals across macOS, iPad, and Android tablets.
 
-This replaces the previous multi-technology approach (Python/NiceGUI for desktop, React Native for mobile) with a single Unity application that handles both visualization AND GC2 USB communication via native plugins.
-
----
-
-## Problem Statement
-
-### Current Multi-Technology Approach
-
-| Platform | Current Tech | Limitations |
-|----------|--------------|-------------|
-| macOS | Python + NiceGUI + Three.js | Web-based 3D, limited quality |
-| iPad | React Native + SceneKit/WebView | Two rendering paths, inconsistent |
-| Android | React Native + WebView | Weakest visuals, performance issues |
-
-### Pain Points
-1. **Inconsistent visuals**: Each platform looks different
-2. **Maintenance burden**: Three separate codebases to maintain
-3. **Feature parity**: Hard to keep features synchronized
-4. **Quality ceiling**: Web-based rendering limits visual fidelity
-5. **Performance**: WebView overhead on mobile
-
-### Unity Advantage
-1. **Single codebase**: Write once, deploy everywhere
-2. **Consistent quality**: Same renderer on all platforms
-3. **Native performance**: Compiled code, GPU optimization
-4. **Mature mobile support**: Unity excels at mobile games
-5. **Asset reuse**: Same 3D assets across all platforms
+### Value Proposition
+- **For GC2 owners**: Practice without GSPro subscription or Windows PC
+- **For Mac users**: Native solution without Parallels/Boot Camp
+- **For mobile users**: True portable practice with tablet + GC2
+- **For everyone**: Offline capability, no network required
 
 ---
 
-## Goals & Success Metrics
+## 2. Problem Statement
+
+### Current Pain Points
+
+| Pain Point | Description | Impact |
+|------------|-------------|--------|
+| GSPro dependency | Need $250/year subscription just for range | High cost |
+| Windows requirement | GSPro only runs on Windows | Mac users excluded |
+| Network dependency | Current solutions need WiFi | No outdoor practice |
+| Setup complexity | Multiple apps, cables, configurations | User friction |
+| Inconsistent quality | Different apps look/work differently | Poor experience |
+
+### Opportunity
+Create a single, beautiful, native application that:
+- Connects directly to GC2 via USB (no companion app)
+- Works offline (no network required)
+- Runs on Mac, iPad, and Android
+- Provides GSPro-level visual quality
+- Is completely free
+
+---
+
+## 3. Goals & Success Metrics
 
 ### Primary Goals
-1. Unified GSPro-quality visuals on Mac, iPad, and Android
-2. Single codebase with platform-specific USB plugins
-3. Native performance on all target devices
-4. Offline capability (no network required for Open Range)
+1. **Unified Experience**: Same app, same visuals, all platforms
+2. **Native USB**: Direct GC2 connection without intermediaries
+3. **Offline First**: Full functionality without network
+4. **Visual Quality**: Match or exceed GSPro driving range
 
 ### Success Metrics
 
-| Metric | Mac (M1+) | iPad Pro M1 | Android Tablet |
-|--------|-----------|-------------|----------------|
-| Frame Rate | 120 FPS | 60 FPS | 30-60 FPS |
-| Visual Quality | High | High | Medium-High |
-| Shot Latency | < 50ms | < 75ms | < 100ms |
-| Battery/Hour | N/A | < 15% | < 20% |
-| App Size | < 200MB | < 150MB | < 150MB |
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Physics accuracy | ±5% of Nathan model | Automated tests |
+| Frame rate (Mac M1) | 120 FPS | Unity profiler |
+| Frame rate (iPad) | 60 FPS | Unity profiler |
+| Frame rate (Android) | 30+ FPS | Unity profiler |
+| Shot latency | <100ms | Timestamp delta |
+| App size | <200MB | Build output |
+| User satisfaction | >4.5/5 | App store rating |
 
 ---
 
-## Platform Support Matrix
+## 4. Target Users
+
+### Primary: Home Simulator Owner
+- **Profile**: Golf enthusiast, 30-55, owns GC2
+- **Technical**: Low to moderate
+- **Goal**: Quick practice without full sim setup
+- **Quote**: "I just want to hit some balls, not boot up Windows"
+
+### Secondary: Mac-Only User
+- **Profile**: Apple ecosystem user, owns GC2
+- **Technical**: Moderate
+- **Goal**: Use GC2 without Windows
+- **Quote**: "I bought a GC2 but can't use it with my Mac"
+
+### Tertiary: Mobile Practicer
+- **Profile**: Travels, practices outdoors, takes lessons
+- **Technical**: Low
+- **Goal**: Portable GC2 setup
+- **Quote**: "I want to practice in my backyard with just my iPad"
+
+---
+
+## 5. Platform Requirements
 
 ### Supported Platforms
 
-| Platform | USB Method | Min Spec | Status |
-|----------|------------|----------|--------|
-| **macOS** | Native plugin (libusb) | macOS 11+, Intel/M1 | Primary |
-| **iPad Pro** | DriverKit native plugin | iPadOS 16+, M1+ | Primary |
-| **Android Tablet** | USB Host API plugin | Android 8+, USB Host | Primary |
-| **iPhone** | Not supported | - | Apple restriction |
-| **Windows** | Native plugin | Windows 10+ | Future v2.1 |
+| Platform | Min Version | USB Support | Priority |
+|----------|-------------|-------------|----------|
+| macOS | 11.0 (Big Sur) | libusb | P0 |
+| iPad | iPadOS 16.0, M1+ | DriverKit | P0 |
+| Android | 8.0 (API 26) | USB Host | P0 |
+| Windows | 10 | libusb | P1 (future) |
+| iPhone | - | Not possible | N/A |
 
-### USB Integration Strategy
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Unity Application                             │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              Cross-Platform C# Code (95%)                 │   │
-│  │  • Physics Engine      • UI/UX        • Shot Processing  │   │
-│  │  • 3D Visualization    • Settings     • Session Mgmt     │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                              │                                   │
-│                              ▼                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              USB Abstraction Layer (C#)                   │   │
-│  │                    IGCB2Connection                        │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│           │                  │                    │              │
-│           ▼                  ▼                    ▼              │
-│  ┌────────────────┐ ┌────────────────┐ ┌────────────────────┐   │
-│  │ macOS Plugin   │ │ iPad Plugin    │ │ Android Plugin     │   │
-│  │ (Obj-C/Swift)  │ │ (Swift)        │ │ (Java/Kotlin)      │   │
-│  │ libusb wrapper │ │ DriverKit      │ │ USB Host API       │   │
-│  └────────┬───────┘ └────────┬───────┘ └──────────┬─────────┘   │
-└───────────┼──────────────────┼────────────────────┼─────────────┘
-            │                  │                    │
-            ▼                  ▼                    ▼
-      ┌──────────┐       ┌──────────┐        ┌──────────┐
-      │   GC2    │       │   GC2    │        │   GC2    │
-      │  (USB)   │       │  (USB)   │        │  (USB)   │
-      └──────────┘       └──────────┘        └──────────┘
-```
+### Why No iPhone?
+Apple restricts USB accessory communication on iPhone. DriverKit (required for custom USB devices) is only available on iPadOS and macOS, not iOS. This is a platform limitation, not a technical oversight.
 
 ---
 
-## Features & Requirements
+## 6. Features & Requirements
 
 ### P0 - Must Have (MVP)
 
-#### F1: Cross-Platform GC2 USB Connection
-- **Description**: Native USB communication on all platforms
-- **Requirements**:
-  - Unified C# interface for USB operations
-  - Platform-specific native plugins
-  - Auto-detect GC2 (VID: 0x2C79, PID: 0x0110)
-  - Handle permissions per platform
-  - Graceful disconnect/reconnect
-- **Platform-Specific**:
-  - macOS: libusb via native Objective-C plugin
-  - iPad: DriverKit extension with Swift bridge
-  - Android: USB Host API via Java plugin
-- **Acceptance Criteria**:
-  - GC2 detected within 3 seconds on all platforms
-  - No missed shots
-  - Clean permission flow
+#### F1: Native USB Connection
+Connect to GC2 directly via USB on all platforms.
 
-#### F2: GSPro-Quality 3D Environment
-- **Description**: Beautiful driving range matching GSPro aesthetics
-- **Requirements**:
-  - Coastal/marina environment (primary)
-  - High-quality lighting (HDR, shadows)
-  - Realistic water rendering
-  - Volumetric clouds/atmosphere
-  - Distance markers and target greens
-  - Decorative elements (boats, mountains)
-- **Quality Tiers**:
-  - High: Mac, iPad Pro (full effects)
-  - Medium: Older iPad, high-end Android
-  - Low: Mid-range Android (reduced effects)
-- **Acceptance Criteria**:
-  - Visually comparable to GSPro
-  - Automatic quality detection
-  - Manual quality override option
+**Requirements:**
+- Auto-detect GC2 (VID: 0x2C79, PID: 0x0110)
+- Handle platform-specific permissions
+- Display connection status clearly
+- Graceful disconnect/reconnect handling
+- No dropped shots
+
+**Acceptance Criteria:**
+- [ ] GC2 detected within 3 seconds
+- [ ] Permission flow clear on each platform
+- [ ] Status updates in real-time
+- [ ] Reconnects automatically if cable unplugged/replugged
+
+#### F2: 3D Driving Range Environment
+Beautiful, GSPro-quality range visualization.
+
+**Requirements:**
+- Coastal/marina setting (primary environment)
+- High-quality lighting and shadows
+- Distance markers (50, 100, 150, 200, 250, 300 yards)
+- Target greens at key distances
+- Decorative elements (boats, mountains, clouds)
+- Quality tiers for different hardware
+
+**Acceptance Criteria:**
+- [ ] Visually comparable to GSPro driving range
+- [ ] Maintains target frame rate per platform
+- [ ] No visible artifacts or pop-in
+- [ ] Quality auto-adjusts to hardware
 
 #### F3: Physics-Accurate Ball Flight
-- **Description**: Nathan model physics (shared across platforms)
-- **Requirements**:
-  - Same C# physics engine everywhere
-  - WSU aerodynamic coefficients
-  - Atmospheric corrections
-  - Wind effects (optional)
-  - Trajectory visualization
-- **Acceptance Criteria**:
-  - Identical physics results on all platforms
-  - Within 5% of validation data
+Realistic trajectory based on launch data.
 
-#### F4: Ball Animation & Effects
-- **Description**: Smooth, visually appealing ball flight
-- **Requirements**:
-  - High-quality ball model with dimples
-  - Spin visualization
-  - Trail/tracer effect
-  - Landing impact effect (dust/divot)
-  - Bounce and roll animation
-- **Acceptance Criteria**:
-  - 60 FPS animation on primary devices
-  - Visually satisfying flight
+**Requirements:**
+- Nathan model physics engine
+- WSU aerodynamic coefficients (Cd/Cl tables)
+- Spin effects (draw/fade, rise/drop)
+- Atmospheric corrections (temp, elevation, humidity)
+- Wind effects (optional)
 
-#### F5: Comprehensive Shot Data UI
-- **Description**: GSPro-style data display
-- **Requirements**:
-  - Bottom data bar (Ball Speed, Direction, Angle, Spin, Apex, Offline, Carry, Run, Total)
-  - Right panel for HMT data (Path, Attack, Loft, Face)
-  - Top-left session info (Time, Shots)
-  - Responsive layout for different screen sizes
-- **Acceptance Criteria**:
-  - All metrics displayed correctly
-  - Readable on all screen sizes
-  - Immediate updates on shot
+**Acceptance Criteria:**
+- [ ] Carry distances within ±5% of validation data
+- [ ] Spin effects visually correct
+- [ ] Same results on all platforms
 
-#### F6: Touch & Mouse/Keyboard Input
-- **Description**: Platform-appropriate controls
-- **Requirements**:
-  - Touch gestures on mobile (pinch zoom, swipe rotate)
-  - Mouse/keyboard on Mac
-  - Large touch targets on mobile
-  - Consistent interaction patterns
-- **Acceptance Criteria**:
-  - Intuitive controls on each platform
-  - No accidental inputs
+#### F4: Ball Animation
+Smooth, satisfying ball flight visualization.
+
+**Requirements:**
+- High-quality golf ball model
+- Visible spin rotation
+- Trajectory trail/tracer
+- Landing impact effect
+- Bounce and roll animation
+
+**Acceptance Criteria:**
+- [ ] 60 FPS animation (30 on low-end Android)
+- [ ] Ball clearly visible throughout flight
+- [ ] Natural-looking movement
+
+#### F5: Shot Data Display
+GSPro-style comprehensive data presentation.
+
+**Requirements:**
+- Bottom bar: Ball Speed, Direction, Angle, Back Spin, Side Spin, Apex, Offline, Carry, Run, Total
+- Right panel (HMT): Path, Attack Angle, D.Loft, Face to Target
+- Top-left: Session time, shot count
+- Responsive layout for different screens
+
+**Acceptance Criteria:**
+- [ ] All metrics update immediately
+- [ ] Readable on all screen sizes
+- [ ] Matches GSPro visual style
+
+#### F6: Platform-Appropriate Input
+Natural controls for each platform.
+
+**Requirements:**
+- Touch gestures on mobile (pinch zoom, pan)
+- Mouse/keyboard on Mac
+- Large touch targets on tablets
+- Consistent interaction patterns
+
+**Acceptance Criteria:**
+- [ ] Controls feel native to each platform
+- [ ] No accidental inputs
+- [ ] Camera manipulation intuitive
 
 ### P1 - Should Have
 
-#### F7: GSPro Mode (Network Relay)
-- **Description**: Send shots to GSPro instead of local range
-- **Requirements**:
-  - Mode selector: "Open Range" vs "GSPro"
-  - TCP client to GSPro
-  - Queue shots if temporarily disconnected
-  - Works alongside local visualization
-- **Acceptance Criteria**:
-  - Seamless mode switching
-  - < 150ms network latency
-  - Reliable delivery
+#### F7: GSPro Relay Mode
+Send shots to GSPro in addition to local visualization.
 
-#### F8: Club Selector
-- **Description**: Visual club selection
-- **Requirements**:
-  - Club bag visualization
-  - Quick-select buttons
-  - Tee/ground toggle
-  - Affects test shot generation
-- **Acceptance Criteria**:
-  - One-tap selection
-  - Visual feedback
+**Requirements:**
+- Mode selector: "Open Range" vs "GSPro"
+- TCP connection to GSPro (port 921)
+- GSPro Open Connect API v1 format
+- Queue shots if temporarily disconnected
 
-#### F9: Shot History
-- **Description**: Review previous shots
-- **Requirements**:
-  - Scrollable list of session shots
-  - Tap to replay trajectory
-  - Key metrics per shot
-- **Acceptance Criteria**:
-  - All shots recorded
-  - Smooth replay
+**Acceptance Criteria:**
+- [ ] Shots appear in GSPro within 150ms
+- [ ] Mode switch is instant
+- [ ] Connection status clearly shown
+
+#### F8: Shot History
+Review previous shots in session.
+
+**Requirements:**
+- Scrollable list of all session shots
+- Key metrics per shot
+- Tap to replay trajectory
+- Session totals/averages
+
+**Acceptance Criteria:**
+- [ ] All shots recorded
+- [ ] Replay animation smooth
+- [ ] Performance good with 100+ shots
+
+#### F9: Club Selector
+Visual club selection for test mode.
+
+**Requirements:**
+- Club bag visualization
+- Common clubs: DR, 3W, 5i-PW, SW
+- Tee/ground toggle
+- Affects test shot parameters
+
+**Acceptance Criteria:**
+- [ ] One-tap selection
+- [ ] Visual feedback clear
 
 #### F10: Multiple Environments
-- **Description**: Different range settings
-- **Requirements**:
-  - Marina/Coastal (default)
-  - Mountain
-  - Desert
-  - Links
-- **Acceptance Criteria**:
-  - Each environment polished
-  - Quick switching
+Different range settings.
+
+**Requirements:**
+- Marina/Coastal (default)
+- Mountain
+- Links/Ocean
+- (Stretch) Indoor
+
+**Acceptance Criteria:**
+- [ ] Each environment polished
+- [ ] Quick switching (<3 sec)
 
 #### F11: Settings & Preferences
-- **Description**: Configurable options
-- **Requirements**:
-  - Graphics quality
-  - Units (yards/meters)
-  - Conditions (temp, elevation, wind)
-  - Connection settings
-  - Audio volume
-- **Acceptance Criteria**:
-  - Settings persist
-  - Platform-appropriate UI
+User configuration options.
+
+**Requirements:**
+- Units (yards/meters, mph/km/h)
+- Graphics quality override
+- Environmental conditions (temp, elevation)
+- Audio volume
+- GSPro connection settings
+
+**Acceptance Criteria:**
+- [ ] Settings persist between sessions
+- [ ] Changes apply immediately
 
 ### P2 - Nice to Have
 
-#### F12: Demo/Test Mode
-- **Description**: Simulated shots without GC2
-- **Requirements**:
-  - Generate realistic test shots
-  - Great for demos
-- **Acceptance Criteria**:
-  - Believable shots
+#### F12: Test/Demo Mode
+Simulated shots without GC2.
 
 #### F13: Dispersion View
-- **Description**: Top-down shot pattern
-- **Requirements**:
-  - Overhead camera
-  - Landing spot markers
-  - Dispersion ellipse
-- **Acceptance Criteria**:
-  - Clear visualization
+Top-down shot pattern visualization.
 
 #### F14: Audio
-- **Description**: Immersive sound
-- **Requirements**:
-  - Ball landing sounds
-  - Ambient environment
-  - UI feedback
-- **Acceptance Criteria**:
-  - High quality audio
+Ball landing, ambient sounds.
 
-#### F15: Haptic Feedback (Mobile)
-- **Description**: Tactile response
-- **Requirements**:
-  - Vibration on ball landing (iPad, Android)
-- **Acceptance Criteria**:
-  - Subtle, not annoying
+#### F15: Haptic Feedback
+Vibration on ball landing (mobile).
+
+#### F16: Session Statistics
+Averages, trends, club comparisons.
 
 ---
 
-## User Flows
+## 7. User Flows
 
-### Flow 1: iPad/Android - Direct USB
-1. User connects GC2 to tablet via USB-C
-2. System shows permission dialog (platform-specific)
-3. User grants permission
-4. App detects GC2, shows "Connected"
-5. User hits a shot
-6. Ball flight visualizes in 3D
-7. Data bar shows results
-8. Shot added to history
+### Flow 1: First Launch (Any Platform)
+```
+1. User installs app
+2. App shows welcome screen with platform-specific USB instructions
+3. User connects GC2 via USB
+4. Platform shows permission dialog
+5. User grants permission
+6. App shows "GC2 Connected" ✓
+7. User hits a shot
+8. Ball flight animates beautifully
+9. Data bar shows results
+```
 
-### Flow 2: Mac - Direct USB
-1. User connects GC2 to Mac
-2. App detects GC2 automatically (libusb)
-3. User hits a shot
-4. Beautiful visualization
-5. No companion app needed
+### Flow 2: Typical Session
+```
+1. User opens app
+2. GC2 auto-connects (previously approved)
+3. Range loads in <3 seconds
+4. User practices
+5. All shots visualized and recorded
+6. User reviews history (optional)
+7. User closes app
+```
 
-### Flow 3: Any Platform - GSPro Mode
-1. User selects "GSPro" mode
-2. Enters GSPro PC IP address
-3. App connects via TCP
+### Flow 3: GSPro Mode
+```
+1. User taps mode selector → "GSPro"
+2. User enters GSPro PC IP (first time only)
+3. App connects to GSPro
 4. User hits a shot
-5. Shot sent to GSPro AND visualized locally
+5. Shot visualizes locally AND appears in GSPro
 6. Best of both worlds
+```
 
 ### Flow 4: Offline Practice (Mobile)
-1. User takes tablet outdoors (no WiFi)
-2. Connects GC2 via USB
-3. Opens app in Open Range mode
+```
+1. User is outdoors (no WiFi)
+2. Connects GC2 to tablet via USB-C
+3. Opens app → already in Open Range mode
 4. Practices with full visualization
-5. No network required
+5. No network ever needed
+```
 
 ---
 
-## Visual Design
+## 8. Visual Design
+
+### Reference: GSPro Style
+Based on GSPro's driving range aesthetic:
+
+**Environment:**
+- Waterfront marina setting
+- Colorful sailboats, luxury yacht
+- Mountains in distance
+- Blue sky with cumulus clouds
+- Manicured fairway with mowing patterns
+- Target greens with flags
+
+**UI Panels:**
+- Semi-transparent dark backgrounds (#1a1a2e)
+- Clean sans-serif typography
+- Green accent for headers (#2d5a27)
+- White text on dark
+- Coral red for "Total" distance (#ff6b6b)
+
+**Data Bar Layout (Bottom):**
+```
+┌────────┬──────────┬───────┬──────────┬──────────┬───────┬─────────┬───────┬─────┬───────┐
+│ BALL   │DIRECTION │ ANGLE │ BACK     │ SIDE     │ APEX  │ OFFLINE │ CARRY │ RUN │ TOTAL │
+│ SPEED  │          │       │ SPIN     │ SPIN     │       │         │       │     │       │
+├────────┼──────────┼───────┼──────────┼──────────┼───────┼─────────┼───────┼─────┼───────┤
+│ 104.5  │   L4.0   │ 24.0  │  4,121   │   R311   │ 30.7  │   L7.2  │ 150.0 │ 4.6 │ 154.6 │
+│  mph   │   deg    │  deg  │   rpm    │   rpm    │  yd   │    yd   │   yd  │ yd  │   yd  │
+└────────┴──────────┴───────┴──────────┴──────────┴───────┴─────────┴───────┴─────┴───────┘
+```
 
 ### Quality Tiers
 
-**High Quality (Mac, iPad Pro M1+)**
-- Full HDR lighting
-- Real-time shadows (soft)
-- Screen-space reflections
-- Volumetric fog/atmosphere
-- High-resolution textures (2K)
-- Anti-aliasing (MSAA 4x)
-- Post-processing (bloom, color grading)
-
-**Medium Quality (iPad Air, High-end Android)**
-- HDR lighting
-- Hard shadows
-- Planar reflections (water only)
-- Standard fog
-- Medium textures (1K)
-- Anti-aliasing (FXAA)
-- Reduced post-processing
-
-**Low Quality (Mid-range Android)**
-- Standard lighting
-- No real-time shadows (baked)
-- No reflections
-- Simple fog
-- Low textures (512px)
-- No anti-aliasing
-- Minimal post-processing
-
-### Responsive UI
-
-**iPad/Large Tablet (10"+)**
-- Full GSPro-style layout
-- Side panels visible
-- Large data tiles
-
-**Small Tablet (8-10")**
-- Compact data bar
-- Collapsible panels
-- Slightly smaller tiles
-
-**Mac (Windowed)**
-- Resizable window
-- Adapts like tablet sizes
-- Keyboard shortcuts
+| Tier | Devices | Features |
+|------|---------|----------|
+| High | Mac M1+, iPad Pro | Full shadows, reflections, post-processing, 2K textures |
+| Medium | iPad Air, Good Android | Hard shadows, water reflections, 1K textures |
+| Low | Mid-range Android | Baked shadows, simple water, 512px textures |
 
 ---
 
-## Technical Constraints
+## 9. Technical Constraints
 
-### Unity Version
-- Unity 2022.3 LTS or newer
-- Universal Render Pipeline (URP)
-- IL2CPP scripting backend
+### Unity Configuration
+- Version: 2022.3 LTS
+- Render Pipeline: Universal (URP)
+- Scripting Backend: IL2CPP
+- API Level: .NET Standard 2.1
 
-### Platform Requirements
+### Platform-Specific
 
-| Platform | Min OS | Min Hardware | USB Support |
-|----------|--------|--------------|-------------|
-| macOS | 11.0 | Intel i5 / M1 | libusb |
-| iPad | 16.0 | M1 chip | DriverKit |
-| Android | 8.0 | USB Host capable | USB Host API |
+| Platform | Build Target | Architecture | Notes |
+|----------|--------------|--------------|-------|
+| macOS | Standalone | Universal (x64 + ARM64) | Notarization required |
+| iPad | iOS | ARM64 | DriverKit entitlements required |
+| Android | Android | ARM64 + ARMv7 | USB Host manifest entry |
 
-### Native Plugin Requirements
+### Performance Budgets
 
-**macOS Plugin**
-- Objective-C/Swift
-- libusb integration
-- Bundled as .bundle
-
-**iPad Plugin**
-- Swift + DriverKit
-- System extension
-- Requires entitlements
-
-**Android Plugin**
-- Java/Kotlin
-- Uses Android USB Host API
-- AAR library format
+| Platform | FPS | Draw Calls | Memory | Battery/hr |
+|----------|-----|------------|--------|------------|
+| Mac M1 | 120 | <100 | <500MB | N/A |
+| iPad Pro | 60 | <80 | <300MB | <15% |
+| Android High | 60 | <80 | <300MB | <20% |
+| Android Mid | 30 | <50 | <200MB | <20% |
 
 ---
 
-## Out of Scope (v2.0)
+## 10. Out of Scope (v2.0)
 
-- iPhone support (Apple restriction on DriverKit)
+- iPhone support (Apple platform restriction)
 - Full course simulation
-- Multiplayer/online
+- Multiplayer/online features
 - VR support (future v3.0)
 - Club fitting analysis
-- Video recording (future)
+- Video recording
+- Apple Watch / Wear OS
 
 ---
 
-## Timeline
+## 11. Timeline
 
-### Phase 1: Core Unity App (Weeks 1-3)
-- Unity project setup with URP
-- Cross-platform architecture
-- 3D environment (Marina)
-- Physics engine (C# port)
-- Ball visualization
+| Phase | Duration | Deliverables |
+|-------|----------|--------------|
+| 1. Core App | Weeks 1-3 | Unity project, environment, physics, visualization |
+| 2. macOS USB | Weeks 3-4 | Native plugin, integration, testing |
+| 3. Android USB | Weeks 4-5 | Native plugin, integration, testing |
+| 4. iPad USB | Weeks 5-7 | DriverKit driver, integration (depends on Apple) |
+| 5. UI & Polish | Weeks 7-9 | Complete UI, quality tiers, settings |
+| 6. Testing | Weeks 9-10 | Cross-platform testing, bug fixes |
+| 7. Release | Weeks 10-11 | App store submissions, documentation |
 
-### Phase 2: macOS USB Plugin (Weeks 3-4)
-- Native Objective-C plugin
-- libusb integration
-- Unity bridge
-- Testing with GC2
-
-### Phase 3: Android USB Plugin (Weeks 4-5)
-- Java native plugin
-- USB Host API integration
-- Unity bridge
-- Testing on tablets
-
-### Phase 4: iPad USB Plugin (Weeks 5-7)
-- DriverKit entitlement request
-- Swift driver implementation
-- Unity bridge
-- Testing on iPad Pro
-
-### Phase 5: UI & Polish (Weeks 7-9)
-- Complete UI implementation
-- Quality tier optimization
-- Settings and preferences
-- GSPro mode integration
-
-### Phase 6: Testing & Release (Weeks 9-11)
-- Cross-platform testing
-- Performance optimization
-- App store submissions
-- Documentation
+**Total: ~11 weeks** (iPad timeline depends on Apple entitlement approval)
 
 ---
 
-## Risks & Mitigations
+## 12. Risks & Mitigations
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
-| iPad DriverKit approval delayed | High | Medium | Start process early; have Mac+Android ready |
-| Unity mobile performance issues | Medium | Low | Aggressive quality tiers; profiling |
-| USB plugin complexity | Medium | Medium | Incremental development; fallback to TCP |
-| Different Unity behavior per platform | Medium | Low | CI/CD testing on all platforms |
-| App Store rejection (iPad) | Medium | Low | Follow guidelines; appeal if needed |
+| iPad DriverKit approval delayed | High | Medium | Start early; have Mac+Android ready first |
+| USB plugin complexity | Medium | Medium | Incremental development; TCP fallback |
+| Unity performance on Android | Medium | Low | Aggressive quality tiers; profiling |
+| App Store rejection | Medium | Low | Follow guidelines; appeal process |
+| GC2 protocol changes | Low | Low | Protocol is stable; version checking |
 
 ---
 
-## Success Criteria
+## 13. Success Criteria
 
-### Launch Criteria
-- [ ] Identical physics on all platforms (validated)
-- [ ] 60 FPS on iPad Pro M1
+### Launch Criteria (All Required)
+- [ ] Physics validated against Nathan model (±5%)
+- [ ] 60+ FPS on iPad Pro M1
 - [ ] 30+ FPS on Samsung Galaxy Tab S8
-- [ ] 120 FPS on M1 Mac
-- [ ] USB working on all three platforms
+- [ ] USB working on Mac, iPad, Android
 - [ ] All P0 features complete
+- [ ] No critical bugs
 - [ ] Apps approved for distribution
 
-### Post-Launch Metrics (60 days)
-- User rating > 4.5/5 (all platforms)
-- < 20 crash reports total
-- 60%+ prefer Unity version over previous
-- Feature parity maintained across platforms
+### Post-Launch (30 days)
+- User rating >4.5/5
+- <20 crash reports
+- 50%+ users prefer over previous solution
 
 ---
 
-## Migration Path
+## Appendix A: Competitive Analysis
 
-### From Existing Apps
-
-**GC2 Connect Desktop (Python) Users**
-- Can continue using Python app → TCP → Unity
-- Or switch to native USB in Unity app
-- No forced migration
-
-**GC2 Connect Mobile (React Native) Users**
-- Replace with Unity app
-- Same or better functionality
-- Much better visuals
+| Solution | Platforms | Quality | USB Direct | Cost |
+|----------|-----------|---------|------------|------|
+| GSPro | Windows | ⭐⭐⭐⭐⭐ | No (SDK) | $250/yr |
+| FSX Pro | Windows | ⭐⭐⭐⭐ | Yes | Included |
+| E6 Connect | Windows | ⭐⭐⭐⭐ | No | $300/yr |
+| **GC2 Connect Unity** | **Mac/iPad/Android** | **⭐⭐⭐⭐** | **Yes** | **Free** |
 
 ---
 
-## Appendix
+## Appendix B: Related Documents
 
-### Comparison: React Native vs Unity for Mobile
-
-| Aspect | React Native + WebView | Unity |
-|--------|------------------------|-------|
-| Visual Quality | ⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Performance | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Code Sharing | ⭐⭐⭐ (limited) | ⭐⭐⭐⭐⭐ (95%+) |
-| USB Integration | ⭐⭐⭐ (native modules) | ⭐⭐⭐ (native plugins) |
-| Dev Experience | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| App Size | ⭐⭐⭐⭐⭐ (small) | ⭐⭐⭐ (larger) |
-| Battery | ⭐⭐⭐⭐ | ⭐⭐⭐ |
-
-**Verdict**: Unity wins on visual quality and code sharing, which are priorities for this project.
-
-### Related Documents
-- Open Range Unity macOS PRD/TRD
-- GC2 Connect Mobile PRD/TRD (legacy)
-- GC2 USB Protocol Specification
-- DriverKit Implementation Guide
+- Technical Requirements Document (TRD): `docs/TRD.md`
+- Physics Specification: `docs/PHYSICS.md`
+- GSPro API Specification: `docs/GSPRO_API.md`
+- GC2 Protocol Specification: `docs/GC2_PROTOCOL.md`
+- USB Plugin Guide: `docs/USB_PLUGINS.md`

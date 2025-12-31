@@ -1,263 +1,317 @@
-# Open Range Unity - Development Todo
+# GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: Not Started
+**Phase**: 1 - Core Services
 **Last Updated**: 2024-12-31
+**Next Prompt**: 1 (ShotProcessor)
 
 ---
 
-## Phase 1: Unity Project Foundation
+## Already Implemented (Skeleton)
 
-- [ ] **Prompt 1**: Unity Project Setup
-  - [ ] Create Unity 2022.3 LTS project
-  - [ ] Set up folder structure per TRD
-  - [ ] Configure build targets (macOS, iOS, Android)
-  - [ ] Create URP quality tier assets
-  - [ ] Create placeholder scenes
-  - [ ] Configure project settings
-  - [ ] Add .gitignore and README
+These components exist and don't need to be rebuilt:
 
-- [ ] **Prompt 2**: Core Data Models
-  - [ ] Create GC2ShotData.cs
-  - [ ] Create GC2DeviceInfo.cs
-  - [ ] Create GC2Protocol.cs with parsing
-  - [ ] Write unit tests for data models
+- [x] **Physics Engine** (complete)
+  - [x] TrajectorySimulator.cs - RK4 integration
+  - [x] Aerodynamics.cs - Nathan model
+  - [x] GroundPhysics.cs - Bounce and roll
+  - [x] PhysicsConstants.cs - Constants
+  - [x] UnitConversions.cs - Unit helpers
+  - [x] ShotResult.cs - Result model
 
-- [ ] **Prompt 3**: GC2 Connection Interface
-  - [ ] Create IGC2Connection interface
-  - [ ] Create GC2ConnectionFactory
-  - [ ] Create GC2MockConnection for testing
-  - [ ] Create platform placeholder classes
-  - [ ] Write unit tests
+- [x] **GC2 Data Layer** (complete)
+  - [x] GC2ShotData.cs - Shot data model
+  - [x] IGC2Connection.cs - Interface
+  - [x] GC2ConnectionFactory.cs - Factory
+  - [x] GC2Protocol.cs - Protocol parser
 
-- [ ] **Prompt 4**: Core Game Manager
-  - [ ] Create GameManager singleton
-  - [ ] Create ShotProcessor
-  - [ ] Create SessionManager
-  - [ ] Create MainThreadDispatcher
-  - [ ] Create PlatformManager
-  - [ ] Set up Bootstrap scene
-  - [ ] Write unit tests
+- [x] **Core Framework** (partial)
+  - [x] GameManager.cs - App controller
+  - [x] MainThreadDispatcher.cs - Thread safety
 
 ---
 
-## Phase 2: Physics Engine
+## Phase 1: Complete Core Services
 
-- [ ] **Prompt 5**: Physics Constants and Units
-  - [ ] Create PhysicsConstants.cs
-  - [ ] Create UnitConversions.cs
-  - [ ] Create AtmosphericModel.cs
-  - [ ] Write unit tests
+- [ ] **Prompt 1**: ShotProcessor Service
+  - [ ] Create ShotProcessor.cs
+  - [ ] ProcessShot() method
+  - [ ] Physics integration
+  - [ ] GSPro mode support
+  - [ ] Events (OnShotProcessed, OnShotRejected)
+  - [ ] Unit tests
 
-- [ ] **Prompt 6**: Aerodynamics Model
-  - [ ] Create Aerodynamics.cs (Nathan model)
-  - [ ] Create SpinDecay.cs
-  - [ ] Create SpinAxisCalculator.cs
-  - [ ] Write unit tests with validation data
+- [ ] **Prompt 2**: SessionManager Service
+  - [ ] Create SessionManager.cs
+  - [ ] Session tracking
+  - [ ] Shot history
+  - [ ] Statistics calculation
+  - [ ] Events
+  - [ ] Unit tests
 
-- [ ] **Prompt 7**: Trajectory Simulator
-  - [ ] Create TrajectorySimulator.cs
-  - [ ] Create TrajectoryInput.cs
-  - [ ] Create TrajectoryResult.cs
-  - [ ] Implement RK4 integration
-  - [ ] Write tests for known trajectories
-
-- [ ] **Prompt 8**: Ground Physics
-  - [ ] Create GroundPhysics.cs
-  - [ ] Create RollResult.cs
-  - [ ] Create GroundResult.cs
-  - [ ] Write unit tests
+- [ ] **Prompt 3**: SettingsManager Service
+  - [ ] Create SettingsManager.cs
+  - [ ] All settings categories
+  - [ ] PlayerPrefs persistence
+  - [ ] Default values
+  - [ ] Events
+  - [ ] Unit tests
 
 ---
 
-## Phase 3: 3D Visualization
+## Phase 2: Scenes & Bootstrap
 
-- [ ] **Prompt 9**: Ball Prefab and Controller
+- [ ] **Prompt 4**: Unity Scene Structure
+  - [ ] Create Bootstrap.unity
+  - [ ] Create MainMenu.unity
+  - [ ] Create Ranges/Marina.unity (placeholder)
+  - [ ] Create BootstrapLoader.cs
+  - [ ] Create SceneLoader.cs
+  - [ ] Configure build settings
+  - [ ] Play mode tests
+
+- [ ] **Prompt 5**: PlatformManager and QualityManager
+  - [ ] Create PlatformManager.cs
+  - [ ] Create QualityManager.cs
+  - [ ] Create URP quality assets
+  - [ ] Platform detection
+  - [ ] Quality tier switching
+  - [ ] Tests
+
+---
+
+## Phase 3: Ball Visualization
+
+- [ ] **Prompt 6**: Golf Ball Prefab and Materials
   - [ ] Create GolfBall.prefab
-  - [ ] Create BallController.cs
-  - [ ] Create TrajectoryRenderer.cs
-  - [ ] Create LandingMarker.cs
-  - [ ] Write play mode tests
+  - [ ] Create GolfBall.mat
+  - [ ] Create BallTrail.prefab
+  - [ ] Create BallVisuals.cs
+  - [ ] Tests
 
-- [ ] **Prompt 10**: Camera System
+- [ ] **Prompt 7**: BallController Animation System
+  - [ ] Create BallController.cs
+  - [ ] Animation system
+  - [ ] Playback controls
+  - [ ] Events
+  - [ ] Create BallSpinner.cs
+  - [ ] Tests
+
+- [ ] **Prompt 8**: TrajectoryRenderer
+  - [ ] Create TrajectoryRenderer.cs
+  - [ ] Line renderer setup
+  - [ ] Quality tier variants
+  - [ ] Create TrajectoryLine.prefab
+  - [ ] Tests
+
+- [ ] **Prompt 9**: Camera System
   - [ ] Create CameraController.cs
   - [ ] Create FollowCamera.cs
   - [ ] Create OrbitCamera.cs
-  - [ ] Create CameraRig prefab
-  - [ ] Write play mode tests
+  - [ ] Create ICameraMode.cs
+  - [ ] Create CameraRig.prefab
+  - [ ] Tests
 
-- [ ] **Prompt 11**: Marina Range Environment
-  - [ ] Build Marina.unity scene
-  - [ ] Create EnvironmentManager.cs
-  - [ ] Set up terrain, water, props
-  - [ ] Configure lighting
-  - [ ] Performance testing
+---
 
-- [ ] **Prompt 12**: Visual Effects
-  - [ ] Create BallTrail.prefab
+## Phase 4: Marina Environment
+
+- [ ] **Prompt 10**: Landing Marker and Effects
+  - [ ] Create LandingMarker.cs
+  - [ ] Create LandingMarker.prefab
+  - [ ] Create ImpactEffect.cs
   - [ ] Create LandingDust.prefab
-  - [ ] Create WaterSplash.prefab
   - [ ] Create EffectsManager.cs
-  - [ ] Write tests
+  - [ ] Tests
+
+- [ ] **Prompt 11**: Marina Environment Setup
+  - [ ] Expand Marina.unity scene
+  - [ ] Create EnvironmentManager.cs
+  - [ ] Create DistanceMarker.prefab
+  - [ ] Create TargetGreen.prefab
+  - [ ] Create TeeMat.prefab
+  - [ ] Environment materials
+  - [ ] Play mode tests
 
 ---
 
-## Phase 4: USB Abstraction Layer
+## Phase 5: UI System
 
-- [ ] **Prompt 13**: USB Connection Events
-  - [ ] Create GC2ConnectionManager.cs
-  - [ ] Create ConnectionState enum
-  - [ ] Create GC2ConnectionConfig.cs
-  - [ ] Create GC2PermissionHandler.cs
-  - [ ] Write unit tests
-
-- [ ] **Prompt 14**: TCP Connection Implementation
-  - [ ] Create GC2TCPConnection.cs
-  - [ ] Create GSProClient.cs
-  - [ ] Create GC2TCPListener.cs
-  - [ ] Write unit tests
-
-- [ ] **Prompt 15**: Protocol Parser Hardening
-  - [ ] Enhance GC2Protocol.cs
-  - [ ] Create GC2DataBuffer.cs
-  - [ ] Improve validation
-  - [ ] Create test data files
-  - [ ] Write extensive tests
-
----
-
-## Phase 5: macOS Native Plugin
-
-- [ ] **Prompt 16**: macOS Plugin Header and Interface
-  - [ ] Create GC2MacPlugin.h
-  - [ ] Set up Xcode project
-  - [ ] Configure libusb dependency
-  - [ ] Create build script
-  - [ ] Stub implementation
-
-- [ ] **Prompt 17**: macOS Plugin Implementation
-  - [ ] Implement GC2MacPlugin.mm
-  - [ ] Device detection with libusb
-  - [ ] USB read loop
-  - [ ] Protocol parsing
-  - [ ] Build and test
-
-- [ ] **Prompt 18**: macOS C# Bridge
-  - [ ] Create GC2MacConnection.cs
-  - [ ] DllImport declarations
-  - [ ] Callback handling
-  - [ ] Create editor test window
-  - [ ] Write integration tests
-
----
-
-## Phase 6: Android Native Plugin
-
-- [ ] **Prompt 19**: Android Plugin Interface
-  - [ ] Create Gradle project
-  - [ ] Set up manifest and filters
-  - [ ] Create GC2Plugin.kt
-  - [ ] Create GC2Device.kt
-  - [ ] Create build script
-
-- [ ] **Prompt 20**: Android Plugin Implementation
-  - [ ] USB permission handling
-  - [ ] USB Host API integration
-  - [ ] Read thread
-  - [ ] Protocol parsing
-  - [ ] Test on devices
-
-- [ ] **Prompt 21**: Android C# Bridge
-  - [ ] Create GC2AndroidConnection.cs
-  - [ ] AndroidJavaObject calls
-  - [ ] Message handlers
-  - [ ] Create prefab
-  - [ ] Write tests
-
----
-
-## Phase 7: iPad Native Plugin (DriverKit)
-
-- [ ] **Prompt 22**: iPad Plugin Interface
-  - [ ] Create GC2iOSPlugin project
-  - [ ] Create GC2Driver.dext structure
-  - [ ] Set up entitlements
-  - [ ] Placeholder implementation
-
-- [ ] **Prompt 23**: iPad DriverKit Implementation
-  - [ ] Implement GC2Driver
-  - [ ] Implement GC2UserClient
-  - [ ] Implement GC2iOSPlugin framework
-  - [ ] Build and sign
-
-- [ ] **Prompt 24**: iPad C# Bridge
-  - [ ] Create GC2iPadConnection.cs
-  - [ ] DriverKit state handling
-  - [ ] User guidance UI
-  - [ ] Write tests
-
----
-
-## Phase 8: UI System
-
-- [ ] **Prompt 25**: Shot Data UI
+- [ ] **Prompt 12**: UIManager and Layout System
   - [ ] Create UIManager.cs
+  - [ ] Create ResponsiveLayout.cs
+  - [ ] Create SafeAreaHandler.cs
+  - [ ] Create UITheme.cs
+  - [ ] Create UICanvas.prefab
+  - [ ] Create Toast.prefab
+  - [ ] Tests
+
+- [ ] **Prompt 13**: Shot Data Bar (Bottom Panel)
   - [ ] Create ShotDataBar.cs
   - [ ] Create DataTile.cs
-  - [ ] Create prefabs
-  - [ ] Write tests
+  - [ ] Create DataTile.prefab
+  - [ ] Create ShotDataBar.prefab
+  - [ ] Value formatting
+  - [ ] Animation
+  - [ ] Tests
 
-- [ ] **Prompt 26**: Club Data Panel (HMT)
+- [ ] **Prompt 14**: Club Data Panel (HMT)
   - [ ] Create ClubDataPanel.cs
   - [ ] Create SwingPathIndicator.cs
   - [ ] Create AttackAngleIndicator.cs
-  - [ ] Create prefabs
-  - [ ] Write tests
+  - [ ] Create ClubDataPanel.prefab
+  - [ ] Create SwingPathIndicator.prefab
+  - [ ] Tests
 
-- [ ] **Prompt 27**: Connection Status UI
+- [ ] **Prompt 15**: Connection Status UI
   - [ ] Create ConnectionStatusUI.cs
   - [ ] Create ConnectionPanel.cs
   - [ ] Create ConnectionToast.cs
-  - [ ] Create prefabs
-  - [ ] Write tests
+  - [ ] Create ConnectionStatus.prefab
+  - [ ] Create ConnectionPanel.prefab
+  - [ ] Tests
 
-- [ ] **Prompt 28**: Settings Panel
+- [ ] **Prompt 16**: Session Info Panel
+  - [ ] Create SessionInfoPanel.cs
+  - [ ] Create ShotHistoryPanel.cs
+  - [ ] Create ShotHistoryItem.cs
+  - [ ] Create ShotDetailModal.cs
+  - [ ] Create prefabs
+  - [ ] Tests
+
+- [ ] **Prompt 17**: Settings Panel
   - [ ] Create SettingsPanel.cs
-  - [ ] Create SettingsManager.cs
-  - [ ] Create setting input prefabs
-  - [ ] Write tests
+  - [ ] Create SettingToggle.cs
+  - [ ] Create SettingSlider.cs
+  - [ ] Create SettingDropdown.cs
+  - [ ] Create SettingsPanel.prefab
+  - [ ] Tests
 
 ---
 
-## Phase 9: Integration & Polish
+## Phase 6: TCP/Network Layer
 
-- [ ] **Prompt 29**: Session Info Panel
-  - [ ] Create SessionInfoPanel.cs
-  - [ ] Create ShotHistoryPanel.cs
-  - [ ] Create ShotDetailModal.cs
-  - [ ] Enhance SessionManager
-  - [ ] Write tests
+- [ ] **Prompt 18**: TCP Connection for Testing
+  - [ ] Create GC2TCPConnection.cs
+  - [ ] Create GC2TCPListener.cs
+  - [ ] Create GC2TestWindow.cs (Editor)
+  - [ ] Tests
 
-- [ ] **Prompt 30**: Responsive Layout System
-  - [ ] Create ResponsiveLayout.cs
-  - [ ] Create ResponsiveElement.cs
-  - [ ] Create SafeAreaHandler.cs
-  - [ ] Test at various resolutions
+- [ ] **Prompt 19**: GSPro Client
+  - [ ] Create GSProClient.cs
+  - [ ] Create GSProMessage.cs
+  - [ ] Heartbeat system
+  - [ ] Create GSProModeUI.cs
+  - [ ] Tests
 
-- [ ] **Prompt 31**: Quality Tier System
-  - [ ] Enhance QualityManager.cs
-  - [ ] Create URP assets for each tier
-  - [ ] Implement dynamic adjustment
-  - [ ] Write tests
+---
 
-- [ ] **Prompt 32**: Full Integration and Polish
-  - [ ] Wire up Marina.unity
-  - [ ] Implement boot sequence
-  - [ ] Create MainMenu.unity
-  - [ ] Full shot flow testing
-  - [ ] Error handling
-  - [ ] Final polish
-  - [ ] Platform testing
+## Phase 7: macOS Native Plugin
+
+- [ ] **Prompt 20**: macOS Plugin Header and Project
+  - [ ] Create GC2MacPlugin.h
+  - [ ] Create Xcode project
+  - [ ] Configure build settings
+  - [ ] Create build script
+  - [ ] Stub implementation
+  - [ ] Verification tests
+
+- [ ] **Prompt 21**: macOS Plugin Implementation
+  - [ ] Complete GC2MacPlugin.mm
+  - [ ] libusb integration
+  - [ ] Device detection
+  - [ ] Read loop
+  - [ ] Protocol parsing
+  - [ ] Tests (hardware required)
+
+- [ ] **Prompt 22**: macOS C# Bridge
+  - [ ] Create GC2MacConnection.cs
+  - [ ] DllImport declarations
+  - [ ] Callback handling
+  - [ ] Update factory
+  - [ ] Tests
+
+---
+
+## Phase 8: Android Native Plugin
+
+- [ ] **Prompt 23**: Android Plugin Project
+  - [ ] Create Gradle project
+  - [ ] Configure manifest
+  - [ ] USB device filter
+  - [ ] Kotlin stubs
+  - [ ] Build script
+  - [ ] Verification tests
+
+- [ ] **Prompt 24**: Android Plugin Implementation
+  - [ ] Complete GC2Plugin.kt
+  - [ ] USB permission handling
+  - [ ] Device enumeration
+  - [ ] Read thread
+  - [ ] Protocol parsing
+  - [ ] Tests (device required)
+
+- [ ] **Prompt 25**: Android C# Bridge
+  - [ ] Create GC2AndroidConnection.cs
+  - [ ] AndroidJavaObject calls
+  - [ ] Message handlers
+  - [ ] Update factory
+  - [ ] Create prefab
+  - [ ] Tests
+
+---
+
+## Phase 9: iPad Native Plugin (DriverKit)
+
+- [ ] **Prompt 26**: iPad Plugin Structure
+  - [ ] Create GC2iOSPlugin project
+  - [ ] Create GC2Driver structure
+  - [ ] Configure entitlements
+  - [ ] Stub implementation
+  - [ ] Documentation
+  - [ ] Verification
+
+- [ ] **Prompt 27**: iPad DriverKit Implementation
+  - [ ] Implement GC2Driver
+  - [ ] Implement GC2UserClient
+  - [ ] Implement GC2iOSPlugin
+  - [ ] System extension handling
+  - [ ] Tests (hardware + entitlements required)
+
+- [ ] **Prompt 28**: iPad C# Bridge
+  - [ ] Create GC2iPadConnection.cs
+  - [ ] DriverKit state handling
+  - [ ] Create DriverKitSetupUI.cs
+  - [ ] Update factory
+  - [ ] Tests
+
+---
+
+## Phase 10: Quality & Polish
+
+- [ ] **Prompt 29**: Integration Testing
+  - [ ] Create Edit Mode tests
+  - [ ] Create Play Mode tests
+  - [ ] Physics validation tests
+  - [ ] Test shot generator
+  - [ ] Platform verification
+
+- [ ] **Prompt 30**: Quality Tier Polish
+  - [ ] Complete URP asset configuration
+  - [ ] Dynamic adjustment
+  - [ ] Environment adjustments
+  - [ ] UI adjustments
+  - [ ] Visual polish
+  - [ ] Tests
+
+- [ ] **Prompt 31**: Final Polish and Documentation
+  - [ ] Code cleanup
+  - [ ] Performance verification
+  - [ ] Build verification
+  - [ ] README.md
+  - [ ] CLAUDE.md
+  - [ ] DEVELOPMENT.md
+  - [ ] Final tests
 
 ---
 
@@ -273,7 +327,7 @@
 - [ ] iPad Pro 11" M1
 - [ ] iPad Pro 12.9" M2
 - [ ] USB-C connection with GC2
-- [ ] DriverKit approval
+- [ ] DriverKit approval obtained
 
 ### Android
 - [ ] Samsung Galaxy Tab S8+
@@ -283,9 +337,25 @@
 
 ---
 
+## Physics Validation Checklist
+
+From PHYSICS.md - must pass within tolerance:
+
+- [ ] Driver: 167 mph / 10.9° / 2686 rpm → 275 yds (±5%)
+- [ ] Driver: 160 mph / 11.0° / 3000 rpm → 259 yds (±3%)
+- [ ] 7-Iron: 120 mph / 16.3° / 7097 rpm → 172 yds (±5%)
+- [ ] Wedge: 102 mph / 24.2° / 9304 rpm → 136 yds (±5%)
+
+---
+
 ## Notes
 
 - Each prompt should be executed in order
 - Mark items as complete with [x] when done
-- Add notes for issues or deviations
+- Add notes for issues or deviations below
 - Update "Last Updated" date when making changes
+- Update "Next Prompt" when moving forward
+
+### Issue Log
+
+_No issues logged yet_
