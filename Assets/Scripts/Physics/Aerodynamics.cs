@@ -1,3 +1,6 @@
+// ABOUTME: Aerodynamic calculations for golf ball flight simulation.
+// ABOUTME: Provides drag/lift coefficients, Reynolds number, and air density calculations.
+
 using UnityEngine;
 
 namespace OpenRange.Physics
@@ -19,7 +22,7 @@ namespace OpenRange.Physics
             // Re = V × D / ν
             return (velocityMs * PhysicsConstants.BallDiameterM) / PhysicsConstants.KinematicViscosity;
         }
-        
+
         /// <summary>
         /// Get drag coefficient from Reynolds number using WSU data.
         /// </summary>
@@ -29,34 +32,34 @@ namespace OpenRange.Physics
         {
             // Convert to units of 10^5 for table lookup
             float re = reynolds / 100000f;
-            
+
             // Above table range - use supercritical value
             if (re >= 2.0f)
             {
                 return PhysicsConstants.CdSupercritical;
             }
-            
+
             // Below table range - use first value
             if (re <= PhysicsConstants.CdTable[0].x)
             {
                 return PhysicsConstants.CdTable[0].y;
             }
-            
+
             // Linear interpolation in table
             for (int i = 0; i < PhysicsConstants.CdTable.Length - 1; i++)
             {
                 if (re >= PhysicsConstants.CdTable[i].x && re < PhysicsConstants.CdTable[i + 1].x)
                 {
-                    float t = (re - PhysicsConstants.CdTable[i].x) / 
+                    float t = (re - PhysicsConstants.CdTable[i].x) /
                               (PhysicsConstants.CdTable[i + 1].x - PhysicsConstants.CdTable[i].x);
                     return Mathf.Lerp(PhysicsConstants.CdTable[i].y, PhysicsConstants.CdTable[i + 1].y, t);
                 }
             }
-            
+
             // Fallback
             return PhysicsConstants.CdSupercritical;
         }
-        
+
         /// <summary>
         /// Get lift coefficient from spin factor using WSU data.
         /// </summary>
@@ -68,27 +71,27 @@ namespace OpenRange.Physics
             {
                 return 0f;
             }
-            
+
             // Above table range - use max value
             if (spinFactor >= PhysicsConstants.ClTable[PhysicsConstants.ClTable.Length - 1].x)
             {
                 return PhysicsConstants.ClMax;
             }
-            
+
             // Linear interpolation in table
             for (int i = 0; i < PhysicsConstants.ClTable.Length - 1; i++)
             {
                 if (spinFactor >= PhysicsConstants.ClTable[i].x && spinFactor < PhysicsConstants.ClTable[i + 1].x)
                 {
-                    float t = (spinFactor - PhysicsConstants.ClTable[i].x) / 
+                    float t = (spinFactor - PhysicsConstants.ClTable[i].x) /
                               (PhysicsConstants.ClTable[i + 1].x - PhysicsConstants.ClTable[i].x);
                     return Mathf.Lerp(PhysicsConstants.ClTable[i].y, PhysicsConstants.ClTable[i + 1].y, t);
                 }
             }
-            
+
             return 0f;
         }
-        
+
         /// <summary>
         /// Calculate air density based on environmental conditions.
         /// </summary>
@@ -106,27 +109,27 @@ namespace OpenRange.Physics
             // Convert temperature to Kelvin
             float tempC = (tempF - 32f) * 5f / 9f;
             float tempK = tempC + 273.15f;
-            
+
             // Pressure adjustment for elevation (barometric formula)
             float elevationM = elevationFt * 0.3048f;
             float pressurePa = pressureInHg * 3386.39f;  // inHg to Pa
             float pressureAtAlt = pressurePa * Mathf.Exp(-0.0001185f * elevationM);
-            
+
             // Saturation vapor pressure (Magnus formula)
             float es = 6.1078f * Mathf.Exp((17.27f * tempC) / (tempC + 237.3f));  // hPa
             float e = (humidityPct / 100f) * es;  // Actual vapor pressure
             float ePa = e * 100f;  // hPa to Pa
-            
+
             // Air density (ideal gas law with humidity correction)
             const float Rd = 287.05f;   // Dry air gas constant
             const float Rv = 461.495f;  // Water vapor gas constant
-            
+
             float pd = pressureAtAlt - ePa;  // Partial pressure of dry air
             float density = (pd / (Rd * tempK)) + (ePa / (Rv * tempK));
-            
+
             return density;
         }
-        
+
         /// <summary>
         /// Calculate spin factor (dimensionless).
         /// </summary>
@@ -136,7 +139,7 @@ namespace OpenRange.Physics
         public static float CalculateSpinFactor(float spinRpm, float velocityMs)
         {
             if (velocityMs < 0.1f) return 0f;
-            
+
             float omega = UnitConversions.RpmToRadS(spinRpm);
             return (omega * PhysicsConstants.BallRadiusM) / velocityMs;
         }
