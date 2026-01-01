@@ -368,6 +368,13 @@ Additional physics tests also passing:
 
 ### Issue Log
 
+**2026-01-01 (Landing Marker Test Fixes)**: Fixed 24 failing EditMode tests and 1 failing PlayMode test after PR #17 merge:
+- **LandingMarker material leak (23 tests)**: Changed `renderer.material` to `renderer.sharedMaterial` for reading colors in EditMode. Used `MaterialPropertyBlock` for modifying colors without creating material instances.
+- **FadeOut(0) immediate hide**: Changed default parameter from `0f` to `-1f` and added explicit check for `duration == 0f` to hide immediately as expected by tests.
+- **EffectsManager singleton null**: Changed singleton check to use Unity's `==` operator (handles "fake null" destroyed objects). Added `ForceInitializeSingleton()` method for EditMode tests where Awake may not be called.
+- **SceneLoader.MarinaScene constant**: Fixed test expectation from "Ranges/Marina" to "Marina" - Unity loads scenes by name, not folder path.
+- Added `make run` and `make run-marina` commands to Makefile for CLI development workflow.
+
 **2026-01-01 (Landing Marker and Effects)**: Prompt 10 complete. Created landing effects system:
 - `LandingMarker.cs` - Visual marker showing landing position with distance text
   - Shows carry distance and total distance

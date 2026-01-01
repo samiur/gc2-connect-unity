@@ -2075,3 +2075,32 @@ Object.DestroyImmediate(go);
 - Use **Test Runner window** in Unity if project is open
 - Add `using UnityEngine.TestTools;` for `LogAssert.Expect()`
 - Tests for visual components often need mock GameObjects created in `[SetUp]`
+
+### EditMode vs PlayMode Testing
+
+EditMode tests run without Unity's full runtime, which creates differences:
+
+1. **Material Access**: Accessing `renderer.material` in EditMode creates a material instance and logs a warning. Use `renderer.sharedMaterial` for reading colors, and `MaterialPropertyBlock` for modifying colors without creating instances:
+   ```csharp
+   // Reading colors (EditMode safe)
+   Color color = renderer.sharedMaterial.color;
+
+   // Modifying colors (EditMode safe)
+   var propertyBlock = new MaterialPropertyBlock();
+   renderer.GetPropertyBlock(propertyBlock);
+   propertyBlock.SetColor("_BaseColor", newColor);
+   renderer.SetPropertyBlock(propertyBlock);
+   ```
+
+2. **Singleton Initialization**: MonoBehaviour `Awake()` may not be called automatically in EditMode. Add a `ForceInitializeSingleton()` method for tests:
+   ```csharp
+   public void ForceInitializeSingleton()
+   {
+       if (_instance == null)
+           _instance = this;
+   }
+   ```
+
+3. **Unity's "Fake Null"**: Destroyed objects are not C# null but Unity's `==` operator treats them as null. Use Unity's `==` for singleton checks, not `ReferenceEquals` or `is null`.
+
+4. **Scene Names**: Unity loads scenes by name (e.g., "Marina"), not by folder path (e.g., "Ranges/Marina"). Build settings use just the scene name.

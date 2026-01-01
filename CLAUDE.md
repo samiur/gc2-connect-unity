@@ -77,15 +77,24 @@ Assets/Scenes/
 The project includes a Makefile for common operations:
 
 ```bash
+# Development
+make run           # Open Unity with Bootstrap scene (main entry point)
+make run-marina    # Open Unity with Marina scene (direct testing)
+
+# Testing
 make help          # Show all available targets
 make test          # Run all tests (EditMode + PlayMode)
 make test-edit     # Run EditMode tests only
+make test-play     # Run PlayMode tests only
 make test-physics  # Run physics validation tests only
+
+# Building
 make build         # Build macOS standalone (runs tests first)
 make clean         # Remove build artifacts and test results
 ```
 
 **IMPORTANT: Always run `make test` before creating a PR.**
+**NOTE: CLI tests require Unity to be closed (batchmode conflict). Use Test Runner in Unity if project is open.**
 
 ## Build Commands
 
