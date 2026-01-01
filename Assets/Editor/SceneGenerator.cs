@@ -423,12 +423,38 @@ namespace OpenRange.Editor
             backRect.anchoredPosition = new Vector2(20, -20);
             backRect.sizeDelta = new Vector2(100, 40);
 
+            // Shot Data Bar (bottom panel)
+            ShotDataBar shotDataBar = null;
+            var shotDataBarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ShotDataBar.prefab");
+            if (shotDataBarPrefab != null)
+            {
+                var shotDataBarGo = (GameObject)PrefabUtility.InstantiatePrefab(shotDataBarPrefab);
+                shotDataBarGo.name = "ShotDataBar";
+                shotDataBarGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at bottom of screen
+                var shotDataBarRect = shotDataBarGo.GetComponent<RectTransform>();
+                shotDataBarRect.anchorMin = new Vector2(0, 0);
+                shotDataBarRect.anchorMax = new Vector2(1, 0);
+                shotDataBarRect.pivot = new Vector2(0.5f, 0);
+                shotDataBarRect.anchoredPosition = Vector2.zero;
+                shotDataBarRect.sizeDelta = new Vector2(0, 80);
+
+                shotDataBar = shotDataBarGo.GetComponent<ShotDataBar>();
+                Debug.Log("SceneGenerator: Added ShotDataBar to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ShotDataBar.prefab not found. Run 'OpenRange > Create All Shot Data Bar Prefabs' first.");
+            }
+
             // Add MarinaSceneController
             var controllerGo = new GameObject("MarinaSceneController");
             var controller = controllerGo.AddComponent<MarinaSceneController>();
 
             var controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("_backButton").objectReferenceValue = backBtn.GetComponent<Button>();
+            controllerSo.FindProperty("_shotDataBar").objectReferenceValue = shotDataBar;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
             SaveScene(scene, $"{RangesPath}/Marina.unity");
