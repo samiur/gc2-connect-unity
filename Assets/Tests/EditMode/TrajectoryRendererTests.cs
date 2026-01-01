@@ -175,10 +175,10 @@ namespace OpenRange.Tests.EditMode
             Assert.AreEqual(0f, positions[0].y, 0.001f);
             Assert.AreEqual(0f, positions[0].z, 0.001f);
 
-            // Second point: X = 100 yards * 0.9144 = 91.44m, Y = 32.8084 feet * 0.3048 = 10m, Z = 10 yards * 0.9144 = 9.144m
-            Assert.AreEqual(91.44f, positions[1].x, 0.01f);
-            Assert.AreEqual(10f, positions[1].y, 0.01f);
-            Assert.AreEqual(9.144f, positions[1].z, 0.01f);
+            // Second point: Physics X (forward 100 yds) → Unity Z, Physics Z (lateral 10 yds) → Unity X
+            Assert.AreEqual(9.144f, positions[1].x, 0.01f);   // lateral (10 yds → 9.144m)
+            Assert.AreEqual(10f, positions[1].y, 0.01f);       // height (32.8 ft → 10m)
+            Assert.AreEqual(91.44f, positions[1].z, 0.01f);   // forward (100 yds → 91.44m)
         }
 
         [Test]
@@ -437,8 +437,8 @@ namespace OpenRange.Tests.EditMode
             // Act
             Vector3 pos = _trajectoryRenderer.GetPositionAtProgress(1f);
 
-            // Assert - 100 yards = 91.44m
-            Assert.AreEqual(91.44f, pos.x, 0.01f);
+            // Assert - 100 yards = 91.44m (Physics X → Unity Z)
+            Assert.AreEqual(91.44f, pos.z, 0.01f);
         }
 
         [Test]
@@ -458,8 +458,8 @@ namespace OpenRange.Tests.EditMode
             // Act
             Vector3 pos = _trajectoryRenderer.GetPositionAtProgress(0.5f);
 
-            // Assert - 50 yards = 45.72m
-            Assert.AreEqual(45.72f, pos.x, 0.01f);
+            // Assert - 50 yards = 45.72m (Physics X → Unity Z)
+            Assert.AreEqual(45.72f, pos.z, 0.01f);
         }
 
         [Test]
@@ -515,8 +515,8 @@ namespace OpenRange.Tests.EditMode
             // Act
             Vector3 pos = _trajectoryRenderer.GetPositionAtProgress(1.5f);
 
-            // Assert - 100 yards = 91.44m
-            Assert.AreEqual(91.44f, pos.x, 0.01f);
+            // Assert - 100 yards = 91.44m (Physics X → Unity Z)
+            Assert.AreEqual(91.44f, pos.z, 0.01f);
         }
 
         #endregion
