@@ -24,17 +24,18 @@ The following components are **already implemented** in the skeleton:
 - **Utilities**: `MainThreadDispatcher.cs`
 
 ### ✅ Recently Implemented
-- **Core Services**: `ShotProcessor.cs` (PR #1), `SessionManager.cs` (PR #2)
+- **Core Services**: `ShotProcessor.cs` (PR #1), `SessionManager.cs` (PR #2), `SettingsManager.cs` (PR #4)
 - **Physics Calibration**: Validated against Nathan model using libgolf reference (PR #3)
-- **Tests**: PhysicsValidationTests, ShotProcessorTests, SessionManagerTests
+- **Scene Infrastructure**: `SceneLoader.cs`, `BootstrapLoader.cs`, scene controllers (PR #6)
+- **Editor Tools**: `SceneGenerator.cs` for creating Unity scenes
+- **Tests**: PhysicsValidationTests, ShotProcessorTests, SessionManagerTests, SettingsManagerTests, SceneLoadTests (PlayMode)
 
 ### ❌ Not Yet Implemented
-- **Core Services**: `SettingsManager.cs`, `QualityManager.cs`
+- **Core Services**: `PlatformManager.cs`, `QualityManager.cs`
 - **Visualization**: All ball animation, camera, environment, effects
-- **UI**: All panels, data display, settings
+- **UI**: All panels, data display, settings (except scene controllers)
 - **Native Plugins**: All platforms (macOS, Android, iPad)
 - **Network**: GSProClient, TCP connections
-- **Scenes**: Bootstrap, MainMenu, Marina range
 
 ---
 

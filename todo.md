@@ -366,7 +366,14 @@ Additional physics tests also passing:
 
 ### Issue Log
 
-**2025-12-31**: Physics calibration complete. Used libgolf C++ library as reference implementation for Nathan model coefficients. Key changes:
+**2025-12-31 (Scene Infrastructure)**: Prompt 4 complete. Created scene infrastructure with SceneGenerator editor tool. Key additions:
+- `SceneLoader.cs` - Static utility with sync/async scene loading and progress callbacks
+- `BootstrapLoader.cs` - Initializes managers in order, loads MainMenu
+- `SceneGenerator.cs` - Editor tool creates Bootstrap, MainMenu, Marina scenes
+- 16 new PlayMode tests for scene loading and manager persistence
+- Run `OpenRange > Generate All Scenes` after importing to create .unity files
+
+**2025-12-31 (Physics)**: Physics calibration complete. Used libgolf C++ library as reference implementation for Nathan model coefficients. Key changes:
 - Quadratic lift formula: `Cl = 1.99×S - 3.25×S²` (capped at 0.305)
 - Spin-dependent drag: `Cd = Cd_base + CdSpin × S`
 - Updated coefficients: CdLow=0.50, CdHigh=0.212, CdSpin=0.15

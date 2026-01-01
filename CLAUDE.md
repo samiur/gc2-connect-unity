@@ -44,13 +44,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Namespaces
 
 ```csharp
-OpenRange.Core          // GameManager, ShotProcessor, SessionManager
+OpenRange.Core          // GameManager, ShotProcessor, SessionManager, SettingsManager, SceneLoader
 OpenRange.GC2           // USB connection, protocol parsing
 OpenRange.Physics       // Trajectory simulation, aerodynamics
 OpenRange.Visualization // Ball, camera, effects
-OpenRange.UI            // All UI components
+OpenRange.UI            // MainMenuController, MarinaSceneController, all UI components
 OpenRange.Network       // GSPro TCP client
+OpenRange.Utilities     // MainThreadDispatcher
+OpenRange.Editor        // SceneGenerator, editor tools
 ```
+
+## Scene Structure
+
+After running `OpenRange > Generate All Scenes` from Unity menu:
+
+```
+Assets/Scenes/
+├── Bootstrap.unity     (index 0) - Initializes managers, loads MainMenu
+├── MainMenu.unity      (index 1) - Title screen, navigation
+└── Ranges/
+    └── Marina.unity    (index 2) - Main driving range
+```
+
+**Bootstrap Scene** contains DontDestroyOnLoad managers:
+- GameManager (with ShotProcessor, SessionManager children)
+- SettingsManager
+- MainThreadDispatcher
+- BootstrapLoader (triggers initialization and scene load)
 
 ## Makefile Commands
 
@@ -137,14 +157,26 @@ Heartbeat: Every 2 seconds when idle
 - MainThreadDispatcher for native callbacks
 - ShotProcessor with validation and physics integration (PR #1)
 - SessionManager with shot history and statistics (PR #2)
+- SettingsManager with PlayerPrefs persistence (PR #4)
+- Scene infrastructure: SceneLoader, BootstrapLoader, scene controllers (PR #6)
+- SceneGenerator editor tool for creating Unity scenes
 
 **Not yet implemented:**
-- SettingsManager
+- PlatformManager and QualityManager
 - All visualization (ball, camera, effects)
-- All UI components
+- All UI components (except scene controllers)
 - Native USB plugins
 - GSPro relay client
-- Unity scenes
+
+## Editor Tools
+
+| Menu Item | Description |
+|-----------|-------------|
+| `OpenRange > Generate All Scenes` | Creates Bootstrap, MainMenu, Marina scenes |
+| `OpenRange > Generate Bootstrap Scene` | Creates only Bootstrap.unity |
+| `OpenRange > Generate MainMenu Scene` | Creates only MainMenu.unity |
+| `OpenRange > Generate Marina Scene` | Creates only Marina.unity |
+| `OpenRange > Update Build Settings` | Configures scene order in build settings |
 
 ## Dependencies
 
