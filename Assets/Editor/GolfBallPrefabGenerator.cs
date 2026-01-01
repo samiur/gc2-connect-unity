@@ -318,7 +318,13 @@ namespace OpenRange.Editor
             // Add BallVisuals component
             var ballVisuals = ballGo.AddComponent<Visualization.BallVisuals>();
 
-            // Wire up references using SerializedObject
+            // Add BallController component for animation
+            var ballController = ballGo.AddComponent<Visualization.BallController>();
+
+            // Add BallSpinner component for spin visualization
+            var ballSpinner = ballGo.AddComponent<Visualization.BallSpinner>();
+
+            // Wire up BallVisuals references using SerializedObject
             var so = new SerializedObject(ballVisuals);
             so.FindProperty("_trailRenderer").objectReferenceValue = trailRenderer;
             so.FindProperty("_spinIndicator").objectReferenceValue = spinIndicatorGo.transform;

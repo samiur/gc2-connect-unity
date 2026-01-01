@@ -148,7 +148,7 @@ TrailRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5b5b3d1449f954afd97dd3bafdda34ea, type: 2}
+  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -373,9 +373,11 @@ GameObject:
   m_Component:
   - component: {fileID: 4570662705401200368}
   - component: {fileID: 7639702265429698216}
+  - component: {fileID: 6912031374003245840}
+  - component: {fileID: 5455813307392090650}
   m_Layer: 0
   m_Name: GolfBall
-  m_TagString: Untagged
+  m_TagString: Ball
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -419,3 +421,38 @@ MonoBehaviour:
   _trailVerticesLow: 10
   _trailTimeHigh: 1.5
   _trailTimeLow: 0.8
+--- !u!114 &6912031374003245840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3920490231626100700}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b2a365de485049c0a6276b0b33be89b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: OpenRange::OpenRange.Visualization.BallController
+  _ballTransform: {fileID: 0}
+  _ballVisuals: {fileID: 0}
+  _ballSpinner: {fileID: 0}
+  _teePosition: {x: 0, y: 0, z: 0}
+  _playbackSpeed: 1
+  _timeScale: 0
+  _yardsToUnits: 0.9144
+  _feetToUnits: 0.3048
+--- !u!114 &5455813307392090650
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3920490231626100700}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f6f5bcdfacf94d18b6f62dd9f0abe17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: OpenRange::OpenRange.Visualization.BallSpinner
+  _visualSpinMultiplier: 0.1
+  _spinDecayRate: 0.1
+  _enableSpinVisualization: 1
