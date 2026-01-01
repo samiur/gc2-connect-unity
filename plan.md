@@ -2014,3 +2014,64 @@ Write final tests:
 | USB plugin complexity | Medium | TCP fallback for testing |
 | Android device fragmentation | Medium | Aggressive quality tiers |
 | GC2 protocol variations | Low | Robust parsing; version detection |
+
+---
+
+## Appendix D: Implementation Notes (Lessons Learned)
+
+### Unity 6 Module System
+
+Unity 6 uses a modular package system. When using Assembly Definitions, some Unity APIs require explicit module references:
+
+1. **Package Manifest** (`Packages/manifest.json`): Must include module dependencies:
+   ```json
+   "com.unity.modules.particlesystem": "1.0.0"
+   ```
+   Without this, `ParticleSystem` type won't be found even though code compiles elsewhere.
+
+2. **Assembly Definition References**: For external assemblies like TextMeshPro:
+   ```json
+   "references": ["Unity.TextMeshPro"]
+   ```
+   Add to `OpenRange.asmdef` AND test asmdef files.
+
+### Scene Integration Pattern
+
+When creating new visual components:
+
+1. **Create component scripts** in `Assets/Scripts/Visualization/`
+2. **Create editor generator** in `Assets/Editor/` with menu items
+3. **Update SceneGenerator.cs** to add component to scene and wire references
+4. **Regenerate scene** after creating prefabs
+
+Components that auto-wire at runtime (like EffectsManager subscribing to BallController) still need to exist in the scene.
+
+### Prefab Creation in Editor Tools
+
+Pattern for editor tools that create prefabs:
+
+```csharp
+// 1. Create materials with URP fallback
+Shader shader = Shader.Find("Universal Render Pipeline/...");
+if (shader == null) shader = Shader.Find("Standard"); // fallback
+
+// 2. Create GameObjects
+var go = new GameObject("Name");
+var component = go.AddComponent<MyComponent>();
+
+// 3. Wire private [SerializeField] fields via SerializedObject
+var so = new SerializedObject(component);
+so.FindProperty("_privateField").objectReferenceValue = reference;
+so.ApplyModifiedPropertiesWithoutUndo();
+
+// 4. Save and cleanup
+PrefabUtility.SaveAsPrefabAsset(go, path);
+Object.DestroyImmediate(go);
+```
+
+### Testing in Unity
+
+- **Batchmode tests** (`make test`) require Unity to be closed - conflicts with running instance
+- Use **Test Runner window** in Unity if project is open
+- Add `using UnityEngine.TestTools;` for `LogAssert.Expect()`
+- Tests for visual components often need mock GameObjects created in `[SetUp]`

@@ -385,6 +385,11 @@ Additional physics tests also passing:
   - Creates LandingDust.prefab with configured ParticleSystem
 - 54 new unit tests (29 LandingMarker, 17 ImpactEffect, 8 EffectsManager)
 - Run `OpenRange > Create All Landing Effects` to generate both prefabs
+- **Fixes applied during implementation:**
+  - Added `Unity.TextMeshPro` to assembly definition references (TMPro namespace errors)
+  - Added `com.unity.modules.particlesystem` to package manifest (ParticleSystem type errors)
+  - Added `using UnityEngine.TestTools;` for LogAssert in tests
+  - Updated SceneGenerator to include EffectsManager in Marina scene
 
 **2026-01-01 (Dev Testing Session)**: Successfully tested full ball visualization pipeline end-to-end:
 - Discovered URP render pipeline must be explicitly assigned in Graphics settings (Default Render Pipeline)

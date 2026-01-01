@@ -165,9 +165,9 @@ Heartbeat: Every 2 seconds when idle
 - TrajectoryRenderer with quality tiers (PR #13)
 - Camera system with Follow, Orbit, Static, TopDown modes (PR #15)
 - TestShotWindow editor tool for development testing
+- Landing markers and effects with EffectsManager (PR #17)
 
 **Not yet implemented:**
-- Landing markers and effects (Prompt 10)
 - Marina environment polish (Prompt 11)
 - All UI panels (Shot Data Bar, HMT Panel, Settings, etc.)
 - Native USB plugins (macOS, Android, iPad)
@@ -180,11 +180,14 @@ Heartbeat: Every 2 seconds when idle
 | `OpenRange > Generate All Scenes` | Creates Bootstrap, MainMenu, Marina scenes with prefabs |
 | `OpenRange > Generate Bootstrap Scene` | Creates only Bootstrap.unity |
 | `OpenRange > Generate MainMenu Scene` | Creates only MainMenu.unity |
-| `OpenRange > Generate Marina Scene` | Creates Marina.unity with GolfBall, TrajectoryLine, CameraRig |
+| `OpenRange > Generate Marina Scene` | Creates Marina.unity with GolfBall, TrajectoryLine, CameraRig, EffectsManager |
 | `OpenRange > Update Build Settings` | Configures scene order in build settings |
 | `OpenRange > Create Golf Ball Prefab` | Creates GolfBall.prefab and materials |
 | `OpenRange > Create Trajectory Line Prefab` | Creates TrajectoryLine.prefab and materials |
 | `OpenRange > Create Camera Rig Prefab` | Creates CameraRig.prefab with camera components |
+| `OpenRange > Create Landing Marker Prefab` | Creates LandingMarker.prefab with ring and text |
+| `OpenRange > Create Landing Dust Prefab` | Creates LandingDust.prefab particle system |
+| `OpenRange > Create All Landing Effects` | Creates both landing effect prefabs |
 | `OpenRange > Create URP Quality Assets` | Creates Low/Medium/High URP pipeline assets |
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
 
@@ -207,6 +210,7 @@ Heartbeat: Every 2 seconds when idle
    - **OpenRange > Create Golf Ball Prefab**
    - **OpenRange > Create Trajectory Line Prefab**
    - **OpenRange > Create Camera Rig Prefab**
+   - **OpenRange > Create All Landing Effects**
 
 5. **Generate scenes**:
    - **OpenRange > Generate All Scenes**
@@ -242,3 +246,47 @@ Heartbeat: Every 2 seconds when idle
 - **macOS**: libusb 1.0.26 (bundled in plugin)
 - **iPad**: DriverKit (requires Apple entitlement approval)
 - **Android**: USB Host API (system)
+
+## Development Guidelines
+
+### Assembly Definitions
+
+This project uses Assembly Definitions (`.asmdef`) for code organization. When adding new features:
+
+1. **Adding Unity module dependencies**: If using Unity APIs like `ParticleSystem`, `TextMeshPro`, etc., ensure the module is in `Packages/manifest.json`:
+   ```json
+   "com.unity.modules.particlesystem": "1.0.0"
+   ```
+
+2. **Adding assembly references**: If using external assemblies (e.g., TextMeshPro), add to `OpenRange.asmdef`:
+   ```json
+   "references": [
+       "Unity.TextMeshPro"
+   ]
+   ```
+
+3. **Test assemblies**: Also update `OpenRange.Tests.EditMode.asmdef` and `OpenRange.Tests.PlayMode.asmdef` with the same references if tests use those APIs.
+
+### Scene Integration Checklist
+
+When creating new visual components that need to be in scenes:
+
+1. **Create the component script** in `Assets/Scripts/Visualization/`
+2. **Create an editor generator** in `Assets/Editor/` to create prefabs
+3. **Update SceneGenerator.cs** to instantiate the prefab and wire up references
+4. **Regenerate the scene** after creating prefabs: `OpenRange > Generate Marina Scene`
+
+### Prefab Creation Pattern
+
+Follow the established pattern in editor tools:
+1. Create materials first (with URP shader fallbacks)
+2. Create GameObjects with components
+3. Use `SerializedObject` to wire up private serialized fields
+4. Save as prefab with `PrefabUtility.SaveAsPrefabAsset()`
+5. Clean up with `Object.DestroyImmediate()`
+
+### Testing Notes
+
+- Tests run via `make test` require Unity to be closed (batchmode conflict)
+- If Unity is open, use the Test Runner window instead
+- Add `using UnityEngine.TestTools;` for `LogAssert` in tests
