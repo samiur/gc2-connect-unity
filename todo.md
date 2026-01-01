@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 2 - Scenes & Bootstrap (2 of 2 complete)
-**Last Updated**: 2025-12-31
-**Next Prompt**: 6 (Golf Ball Prefab and Materials)
+**Phase**: 3 - Ball Visualization (1 of 4 complete)
+**Last Updated**: 2026-01-01
+**Next Prompt**: 7 (BallController Animation System)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -86,12 +86,12 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 3: Ball Visualization
 
-- [ ] **Prompt 6**: Golf Ball Prefab and Materials
-  - [ ] Create GolfBall.prefab
-  - [ ] Create GolfBall.mat
-  - [ ] Create BallTrail.prefab
-  - [ ] Create BallVisuals.cs
-  - [ ] Tests
+- [x] **Prompt 6**: Golf Ball Prefab and Materials (PR #9)
+  - [x] Create GolfBall.prefab (via GolfBallPrefabGenerator editor tool)
+  - [x] Create GolfBall.mat (via GolfBallPrefabGenerator editor tool)
+  - [x] Create BallTrail.prefab (via GolfBallPrefabGenerator editor tool)
+  - [x] Create BallVisuals.cs
+  - [x] Tests (34 new tests)
 
 - [ ] **Prompt 7**: BallController Animation System
   - [ ] Create BallController.cs
@@ -366,6 +366,13 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (Golf Ball Prefab)**: Prompt 6 complete. Created golf ball visualization foundation:
+- `BallVisuals.cs` - Component managing trail and spin visualization with quality tier support
+- `GolfBallPrefabGenerator.cs` - Editor tool to create GolfBall.prefab, GolfBall.mat, BallTrail.prefab
+- 34 new unit tests for BallVisuals, all passing
+- Run `OpenRange > Create Golf Ball Prefab` to generate prefab and materials
+- Run `OpenRange > Create Ball Layer` to add "Ball" layer for physics
 
 **2025-12-31 (Quality Management)**: Prompt 5 complete. Created platform detection and quality management:
 - `PlatformManager.cs` - Static utility for platform detection, Apple Silicon check, screen category
