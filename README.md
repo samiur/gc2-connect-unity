@@ -24,7 +24,7 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 | Android Tablets | 🚧 In Development | USB Host API |
 | Windows | 🔜 Planned | - |
 
-> **Development Status**: Phase 4 in progress. Core visualization complete - ball flight animation, trajectory rendering, camera system, and landing effects all functional. You can fire test shots and watch the full ball flight with landing markers and dust particles. Working on environment polish and UI. See [todo.md](todo.md) for current status and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
+> **Development Status**: Phase 5 in progress. Core visualization and environment complete - ball flight animation, trajectory rendering, camera system, landing effects, and marina environment all functional. UI foundation (UIManager, responsive layout, toast notifications) implemented. Now working on UI panels. See [todo.md](todo.md) for current status and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
 
 ## Quick Start
 

@@ -175,10 +175,11 @@ Heartbeat: Every 2 seconds when idle
 - Camera system with Follow, Orbit, Static, TopDown modes (PR #15)
 - TestShotWindow editor tool for development testing
 - Landing markers and effects with EffectsManager (PR #17)
+- Marina environment components: EnvironmentManager, DistanceMarker, TargetGreen, TeeMat (PR #19)
+- UI foundation: UIManager, UITheme, ResponsiveLayout, SafeAreaHandler (PR #21)
 
 **Not yet implemented:**
-- Marina environment polish (Prompt 11)
-- All UI panels (Shot Data Bar, HMT Panel, Settings, etc.)
+- UI panels (Shot Data Bar, HMT Panel, Settings, Connection Status, etc.)
 - Native USB plugins (macOS, Android, iPad)
 - GSPro relay client
 
@@ -198,6 +199,13 @@ Heartbeat: Every 2 seconds when idle
 | `OpenRange > Create Landing Dust Prefab` | Creates LandingDust.prefab particle system |
 | `OpenRange > Create All Landing Effects` | Creates both landing effect prefabs |
 | `OpenRange > Create URP Quality Assets` | Creates Low/Medium/High URP pipeline assets |
+| `OpenRange > Create UI Canvas Prefab` | Creates UICanvas.prefab with responsive layout |
+| `OpenRange > Create Toast Prefab` | Creates Toast.prefab for notifications |
+| `OpenRange > Create All UI Prefabs` | Creates both UI prefabs |
+| `OpenRange > Create Environment Materials` | Creates grass, water, tee mat materials |
+| `OpenRange > Create Distance Marker Prefab` | Creates DistanceMarker.prefab |
+| `OpenRange > Create Target Green Prefab` | Creates TargetGreen.prefab with flag |
+| `OpenRange > Create Tee Mat Prefab` | Creates TeeMat.prefab |
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
 
 ## Local Development on macOS
@@ -294,8 +302,29 @@ Follow the established pattern in editor tools:
 4. Save as prefab with `PrefabUtility.SaveAsPrefabAsset()`
 5. Clean up with `Object.DestroyImmediate()`
 
+### Coordinate System
+
+The physics engine and Unity use different coordinate systems:
+
+| Axis | Physics (Trajectory) | Unity |
+|------|---------------------|-------|
+| X | Forward (yards) | Right (lateral) |
+| Y | Height (feet) | Up (height) |
+| Z | Lateral (yards) | Forward (distance) |
+
+When converting trajectory points to Unity world positions, swap X and Z:
+```csharp
+// Physics X (forward) → Unity Z, Physics Z (lateral) → Unity X
+new Vector3(
+    point.Position.z * yardsToMeters,  // lateral → X
+    point.Position.y * feetToMeters,   // height → Y
+    point.Position.x * yardsToMeters   // forward → Z
+);
+```
+
 ### Testing Notes
 
 - Tests run via `make test` require Unity to be closed (batchmode conflict)
 - If Unity is open, use the Test Runner window instead
 - Add `using UnityEngine.TestTools;` for `LogAssert` in tests
+- Use `Is.EqualTo().Or.EqualTo()` instead of `Is.AnyOf()` (not available in NUnit 3.x)

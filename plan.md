@@ -27,13 +27,18 @@ The following components are **already implemented** in the skeleton:
 - **Core Services**: `ShotProcessor.cs` (PR #1), `SessionManager.cs` (PR #2), `SettingsManager.cs` (PR #4)
 - **Physics Calibration**: Validated against Nathan model using libgolf reference (PR #3)
 - **Scene Infrastructure**: `SceneLoader.cs`, `BootstrapLoader.cs`, scene controllers (PR #6)
-- **Editor Tools**: `SceneGenerator.cs` for creating Unity scenes
-- **Tests**: PhysicsValidationTests, ShotProcessorTests, SessionManagerTests, SettingsManagerTests, SceneLoadTests (PlayMode)
+- **Platform/Quality**: `PlatformManager.cs`, `QualityManager.cs` (PR #8)
+- **Ball Visualization**: `BallVisuals.cs`, `BallController.cs`, `BallSpinner.cs` (PR #9, #11)
+- **Trajectory**: `TrajectoryRenderer.cs` (PR #13)
+- **Camera System**: `CameraController.cs`, `FollowCamera.cs`, `OrbitCamera.cs` (PR #15)
+- **Effects**: `LandingMarker.cs`, `ImpactEffect.cs`, `EffectsManager.cs` (PR #17)
+- **Environment**: `EnvironmentManager.cs`, `DistanceMarker.cs`, `TargetGreen.cs`, `TeeMat.cs` (PR #19)
+- **UI Foundation**: `UIManager.cs`, `UITheme.cs`, `ResponsiveLayout.cs`, `SafeAreaHandler.cs` (PR #21)
+- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `TestShotWindow.cs`
+- **Tests**: 600+ unit tests across all components
 
 ### ❌ Not Yet Implemented
-- **Core Services**: `PlatformManager.cs`, `QualityManager.cs`
-- **Visualization**: All ball animation, camera, environment, effects
-- **UI**: All panels, data display, settings (except scene controllers)
+- **UI Panels**: Shot Data Bar, HMT Panel, Settings Panel, Connection Status, Session Info
 - **Native Plugins**: All platforms (macOS, Android, iPad)
 - **Network**: GSProClient, TCP connections
 
@@ -2104,3 +2109,36 @@ EditMode tests run without Unity's full runtime, which creates differences:
 3. **Unity's "Fake Null"**: Destroyed objects are not C# null but Unity's `==` operator treats them as null. Use Unity's `==` for singleton checks, not `ReferenceEquals` or `is null`.
 
 4. **Scene Names**: Unity loads scenes by name (e.g., "Marina"), not by folder path (e.g., "Ranges/Marina"). Build settings use just the scene name.
+
+### Coordinate System Conversion
+
+The physics engine and Unity use different coordinate conventions:
+
+| Axis | Physics (Trajectory) | Unity World |
+|------|---------------------|-------------|
+| X | Forward distance (yards) | Right (lateral) |
+| Y | Height (feet) | Up (height) |
+| Z | Lateral deviation (yards) | Forward (distance) |
+
+When converting `TrajectoryPoint.Position` to Unity `Vector3`, swap X and Z:
+
+```csharp
+private Vector3 TrajectoryPointToWorldPosition(TrajectoryPoint point)
+{
+    // Physics X (forward) → Unity Z, Physics Z (lateral) → Unity X
+    return new Vector3(
+        point.Position.z * yardsToMeters + origin.x,  // lateral
+        point.Position.y * feetToMeters + origin.y,   // height
+        point.Position.x * yardsToMeters + origin.z   // forward
+    );
+}
+```
+
+This applies to `BallController.cs` and `TrajectoryRenderer.cs`. Failure to swap results in trajectory rendering to the right instead of forward.
+
+### NUnit Constraints
+
+The Unity version of NUnit 3.x does not include all constraint methods:
+
+- **Use**: `Is.EqualTo(A).Or.EqualTo(B).Or.EqualTo(C)`
+- **Don't use**: `Is.AnyOf(A, B, C)` - not available
