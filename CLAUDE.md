@@ -158,25 +158,82 @@ Heartbeat: Every 2 seconds when idle
 - ShotProcessor with validation and physics integration (PR #1)
 - SessionManager with shot history and statistics (PR #2)
 - SettingsManager with PlayerPrefs persistence (PR #4)
+- PlatformManager and QualityManager with dynamic quality adjustment (PR #8)
 - Scene infrastructure: SceneLoader, BootstrapLoader, scene controllers (PR #6)
 - SceneGenerator editor tool for creating Unity scenes
+- Golf ball prefab with BallVisuals, BallController, BallSpinner (PR #9, #11)
+- TrajectoryRenderer with quality tiers (PR #13)
+- Camera system with Follow, Orbit, Static, TopDown modes (PR #15)
+- TestShotWindow editor tool for development testing
 
 **Not yet implemented:**
-- PlatformManager and QualityManager
-- All visualization (ball, camera, effects)
-- All UI components (except scene controllers)
-- Native USB plugins
+- Landing markers and effects (Prompt 10)
+- Marina environment polish (Prompt 11)
+- All UI panels (Shot Data Bar, HMT Panel, Settings, etc.)
+- Native USB plugins (macOS, Android, iPad)
 - GSPro relay client
 
 ## Editor Tools
 
 | Menu Item | Description |
 |-----------|-------------|
-| `OpenRange > Generate All Scenes` | Creates Bootstrap, MainMenu, Marina scenes |
+| `OpenRange > Generate All Scenes` | Creates Bootstrap, MainMenu, Marina scenes with prefabs |
 | `OpenRange > Generate Bootstrap Scene` | Creates only Bootstrap.unity |
 | `OpenRange > Generate MainMenu Scene` | Creates only MainMenu.unity |
-| `OpenRange > Generate Marina Scene` | Creates only Marina.unity |
+| `OpenRange > Generate Marina Scene` | Creates Marina.unity with GolfBall, TrajectoryLine, CameraRig |
 | `OpenRange > Update Build Settings` | Configures scene order in build settings |
+| `OpenRange > Create Golf Ball Prefab` | Creates GolfBall.prefab and materials |
+| `OpenRange > Create Trajectory Line Prefab` | Creates TrajectoryLine.prefab and materials |
+| `OpenRange > Create Camera Rig Prefab` | Creates CameraRig.prefab with camera components |
+| `OpenRange > Create URP Quality Assets` | Creates Low/Medium/High URP pipeline assets |
+| `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
+
+## Local Development on macOS
+
+### First-Time Setup
+
+1. **Clone and open project** in Unity Hub (Unity 6000.3.2f1)
+
+2. **Configure URP render pipeline** (critical - materials will be pink without this):
+   - Go to **Edit > Project Settings > Graphics**
+   - Set **Default Render Pipeline** to a URP asset (e.g., `Assets/Settings/URP-HighQuality.asset`)
+   - If no URP assets exist, run **OpenRange > Create URP Quality Assets** first
+
+3. **Create Ball tag**:
+   - Go to **Edit > Project Settings > Tags and Layers**
+   - Add a new tag called `Ball`
+
+4. **Generate prefabs** (run these menu commands):
+   - **OpenRange > Create Golf Ball Prefab**
+   - **OpenRange > Create Trajectory Line Prefab**
+   - **OpenRange > Create Camera Rig Prefab**
+
+5. **Generate scenes**:
+   - **OpenRange > Generate All Scenes**
+   - **OpenRange > Update Build Settings**
+
+### Running the App
+
+**Full app flow:**
+1. Open `Assets/Scenes/Bootstrap.unity`
+2. Press Play
+3. Click "Open Range" to enter Marina
+
+**Direct development (skip menus):**
+1. Open `Assets/Scenes/Ranges/Marina.unity`
+2. Press Play
+3. Open **OpenRange > Test Shot Window**
+4. Select preset (Driver, 7-Iron, Wedge) and click **Fire Test Shot**
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| All materials pink/magenta | URP not configured - set Default Render Pipeline in Graphics settings |
+| "Tag: Ball is not defined" | Create "Ball" tag in Tags and Layers settings |
+| Scene not found error | Run **OpenRange > Update Build Settings** |
+| Ball doesn't animate | Ensure prefabs generated and Marina scene regenerated |
+| ShotProcessor not found | Start from Bootstrap.unity or regenerate Marina scene |
 
 ## Dependencies
 

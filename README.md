@@ -24,24 +24,34 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 | Android Tablets | 🚧 In Development | USB Host API |
 | Windows | 🔜 Planned | - |
 
-> **Development Status**: Phase 2 in progress. Core services (ShotProcessor, SessionManager, SettingsManager) and scene infrastructure (Bootstrap, MainMenu, Marina) are complete. Working on visualization, UI, and native USB plugins. See [todo.md](todo.md) for current status.
+> **Development Status**: Phase 3 complete. Core visualization working - ball flight animation, trajectory rendering, and camera system functional. You can fire test shots and watch the full ball flight. Working on environment polish and UI. See [todo.md](todo.md) for current status and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
 
 ## Quick Start
 
 ### Requirements
 
 - Unity 6 (6000.3.2f1)
-- Foresight GC2 launch monitor
-- USB-C cable (or USB-A to USB-C adapter)
+- macOS (for development) or target platform
+- Foresight GC2 launch monitor (optional - can test without hardware)
 
-### Building
+### Development Setup (No Hardware Required)
 
-1. Clone this repository
-2. Open in Unity Hub
-3. Select target platform (macOS, iOS, or Android)
-4. Build and run
+See **[QUICKSTART.md](QUICKSTART.md)** for detailed setup instructions. Quick overview:
 
-### Usage
+1. Clone and open in Unity Hub
+2. Configure URP render pipeline (Edit > Project Settings > Graphics)
+3. Create "Ball" tag (Edit > Project Settings > Tags and Layers)
+4. Run menu commands: **OpenRange > Generate All Scenes**
+5. Open Bootstrap.unity and press Play
+6. Use **OpenRange > Test Shot Window** to fire test shots
+
+### Building for Release
+
+1. Ensure all tests pass: `make test`
+2. Select target platform (macOS, iOS, or Android)
+3. Build: `make build` or via Unity Build Settings
+
+### Usage with GC2 Hardware
 
 1. Connect GC2 to your device via USB
 2. Launch the app
@@ -52,7 +62,8 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 
 | Document | Description |
 |----------|-------------|
-| [CLAUDE.md](CLAUDE.md) | Claude Code reference |
+| [QUICKSTART.md](QUICKSTART.md) | **Start here** - Development setup guide |
+| [CLAUDE.md](CLAUDE.md) | Claude Code reference, local dev instructions |
 | [plan.md](plan.md) | Implementation prompt plan |
 | [todo.md](todo.md) | Development progress tracking |
 | [docs/PRD.md](docs/PRD.md) | Product requirements |

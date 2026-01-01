@@ -368,6 +368,14 @@ Additional physics tests also passing:
 
 ### Issue Log
 
+**2026-01-01 (Dev Testing Session)**: Successfully tested full ball visualization pipeline end-to-end:
+- Discovered URP render pipeline must be explicitly assigned in Graphics settings (Default Render Pipeline)
+- "Ball" tag must be manually created in Tags and Layers
+- SceneLoader.MarinaScene path fixed from "Ranges/Marina" to just "Marina"
+- SceneGenerator now automatically includes GolfBall, TrajectoryLine, CameraRig prefabs in Marina scene
+- Created comprehensive QUICKSTART.md with setup instructions and troubleshooting
+- Updated CLAUDE.md with "Local Development on macOS" section
+
 **2026-01-01 (Camera System)**: Prompt 9 complete. Created camera system and test shot window:
 - `ICameraMode.cs` - Interface for camera behavior abstraction
 - `CameraController.cs` - Mode manager with smooth transitions (Static, Follow, TopDown, FreeOrbit)
