@@ -89,12 +89,26 @@ namespace OpenRange.Core
             if (Instance == null)
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject);
+
+                // DontDestroyOnLoad only works in PlayMode, not in EditMode tests
+                if (Application.isPlaying)
+                {
+                    DontDestroyOnLoad(gameObject);
+                }
+
                 Initialize();
             }
             else
             {
-                Destroy(gameObject);
+                // Destroy only works in PlayMode; use DestroyImmediate in EditMode
+                if (Application.isPlaying)
+                {
+                    Destroy(gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(gameObject);
+                }
             }
         }
 
