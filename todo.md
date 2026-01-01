@@ -367,6 +367,20 @@ Additional physics tests also passing:
 
 ### Issue Log
 
+**2026-01-01 (Coordinate System Test Fixes)**: Fixed 8 failing CI tests after coordinate system fix:
+- **Root cause**: Previous session fixed trajectory rendering direction (Physics X → Unity Z), but test assertions still checked the old axis
+- **BallControllerTests fixed (4 tests)**:
+  - `SkipToEnd_MovesBallToFinalPosition` - changed `position.x` to `position.z`
+  - `GetPositionAtTime_BeyondTrajectory_ReturnsLastPosition` - changed `position.x` to `position.z`
+  - `GetPositionAtTime_InterpolatesBetweenPoints` - changed `position.x` to `position.z`
+  - `PlayShot_ConvertsYardsToMeters` - changed `_ballTransform.position.x` to `.z`
+- **TrajectoryRendererTests fixed (4 tests)**:
+  - `ShowTrajectory_ConvertsCoordinatesCorrectly` - updated all axis assertions
+  - `GetPositionAtProgress_One_ReturnsEndPosition` - changed `pos.x` to `pos.z`
+  - `GetPositionAtProgress_Half_ReturnsInterpolatedPosition` - changed `pos.x` to `pos.z`
+  - `GetPositionAtProgress_OverOne_ClampsToOne` - changed `pos.x` to `pos.z`
+- **Process improvement**: Can quit Unity via AppleScript (`osascript -e 'quit app "Unity"'`) to run batchmode tests
+
 **2026-01-01 (UIManager and Layout System)**: Prompt 12 complete. Created UI foundation (PR #21):
 - `UITheme.cs` - Static class with theme constants
   - Colors: PanelBackground (#1a1a2e@85%), AccentGreen (#2d5a27), TextPrimary (white), TotalRed (#ff6b6b)

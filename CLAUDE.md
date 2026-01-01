@@ -326,5 +326,6 @@ new Vector3(
 
 - Tests run via `make test` require Unity to be closed (batchmode conflict)
 - If Unity is open, use the Test Runner window instead
+- **Claude can quit Unity to run tests** using AppleScript: `osascript -e 'quit app "Unity"'`
 - Add `using UnityEngine.TestTools;` for `LogAssert` in tests
 - Use `Is.EqualTo().Or.EqualTo()` instead of `Is.AnyOf()` (not available in NUnit 3.x)
