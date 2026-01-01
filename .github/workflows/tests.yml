@@ -9,6 +9,10 @@ on:
 env:
   UNITY_VERSION: 6000.3.2f1
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   test:
     name: Run ${{ matrix.testMode }} tests
