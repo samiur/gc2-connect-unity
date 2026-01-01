@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5 - UI System (1 of 6 complete)
+**Phase**: 5 - UI System (2 of 6 complete)
 **Last Updated**: 2026-01-01
-**Next Prompt**: 13 (Shot Data Bar)
+**Next Prompt**: 14 (Club Data Panel)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -150,14 +150,14 @@ These components exist and don't need to be rebuilt:
   - [x] Create UICanvasGenerator.cs (editor tool)
   - [x] Tests (124 new tests)
 
-- [ ] **Prompt 13**: Shot Data Bar (Bottom Panel)
-  - [ ] Create ShotDataBar.cs
-  - [ ] Create DataTile.cs
-  - [ ] Create DataTile.prefab
-  - [ ] Create ShotDataBar.prefab
-  - [ ] Value formatting
-  - [ ] Animation
-  - [ ] Tests
+- [x] **Prompt 13**: Shot Data Bar (Bottom Panel) (PR #23)
+  - [x] Create ShotDataBar.cs
+  - [x] Create DataTile.cs
+  - [x] Create ShotDataBarGenerator.cs (editor tool for DataTile.prefab and ShotDataBar.prefab)
+  - [x] Value formatting (direction L/R, thousands separator, unit conversion)
+  - [x] Animation (fade highlight on value change)
+  - [x] Responsive font sizing (Compact/Regular/Large)
+  - [x] Tests (78 new tests: 41 DataTile, 37 ShotDataBar)
 
 - [ ] **Prompt 14**: Club Data Panel (HMT)
   - [ ] Create ClubDataPanel.cs
@@ -366,6 +366,26 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (Shot Data Bar)**: Prompt 13 complete. Created GSPro-style shot data display (PR #23):
+- `DataTile.cs` - Reusable data display component
+  - Value formatting: SetValue(), SetValueWithDirection(), SetValueWithThousands()
+  - Direction prefixes: "L" for negative, "R" for positive values
+  - Responsive font sizing based on ScreenCategory (Compact/Regular/Large)
+  - Highlight support for Total distance (TotalRed color)
+  - Animation: fade pulse on value change using CanvasGroup
+- `ShotDataBar.cs` - GSPro-style 10-tile bottom panel
+  - Tiles: Ball Speed, Direction, Angle, Back Spin, Side Spin, Apex, Offline, Carry, Run, Total
+  - UpdateDisplay(GC2ShotData, ShotResult) maps all values
+  - Apex conversion: feet to yards (÷3)
+  - Events: OnDisplayUpdated, OnDisplayCleared
+  - Responsive layout spacing based on screen size
+- `ShotDataBarGenerator.cs` - Editor tool for prefab creation
+  - Menu: OpenRange > Create Data Tile Prefab / Shot Data Bar Prefab / All Shot Data Bar Prefabs
+  - Creates properly configured HorizontalLayoutGroup with all 10 tiles
+- `AssemblyInfo.cs` - Added InternalsVisibleTo for test assemblies
+- 78 new unit tests (41 DataTile, 37 ShotDataBar)
+- Run `OpenRange > Create Shot Data Bar Prefab` to generate prefab
 
 **2026-01-01 (Coordinate System Test Fixes)**: Fixed 8 failing CI tests after coordinate system fix:
 - **Root cause**: Previous session fixed trajectory rendering direction (Physics X → Unity Z), but test assertions still checked the old axis
