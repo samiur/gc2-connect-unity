@@ -82,7 +82,13 @@ namespace OpenRange.Editor
 
         private static void CreateLowQualityAsset()
         {
-            var asset = UniversalRenderPipelineAsset.Create();
+            // Create renderer first
+            var renderer = CreateRenderer("URP-LowQuality_Renderer");
+            string rendererPath = $"{SettingsPath}/URP-LowQuality_Renderer.asset";
+            SaveRendererAsset(renderer, rendererPath);
+
+            // Create pipeline asset with the renderer
+            var asset = UniversalRenderPipelineAsset.Create(renderer);
 
             // Low quality settings
             asset.renderScale = 0.75f;
@@ -97,13 +103,19 @@ namespace OpenRange.Editor
             asset.supportsCameraDepthTexture = false;
             asset.supportsCameraOpaqueTexture = false;
 
-            SaveAsset(asset, $"{SettingsPath}/URP-LowQuality.asset");
+            SavePipelineAsset(asset, $"{SettingsPath}/URP-LowQuality.asset");
             Debug.Log("URPQualitySetup: Low quality asset created");
         }
 
         private static void CreateMediumQualityAsset()
         {
-            var asset = UniversalRenderPipelineAsset.Create();
+            // Create renderer first
+            var renderer = CreateRenderer("URP-MediumQuality_Renderer");
+            string rendererPath = $"{SettingsPath}/URP-MediumQuality_Renderer.asset";
+            SaveRendererAsset(renderer, rendererPath);
+
+            // Create pipeline asset with the renderer
+            var asset = UniversalRenderPipelineAsset.Create(renderer);
 
             // Medium quality settings
             asset.renderScale = 1.0f;
@@ -118,13 +130,19 @@ namespace OpenRange.Editor
             asset.supportsCameraDepthTexture = true;
             asset.supportsCameraOpaqueTexture = true;
 
-            SaveAsset(asset, $"{SettingsPath}/URP-MediumQuality.asset");
+            SavePipelineAsset(asset, $"{SettingsPath}/URP-MediumQuality.asset");
             Debug.Log("URPQualitySetup: Medium quality asset created");
         }
 
         private static void CreateHighQualityAsset()
         {
-            var asset = UniversalRenderPipelineAsset.Create();
+            // Create renderer first
+            var renderer = CreateRenderer("URP-HighQuality_Renderer");
+            string rendererPath = $"{SettingsPath}/URP-HighQuality_Renderer.asset";
+            SaveRendererAsset(renderer, rendererPath);
+
+            // Create pipeline asset with the renderer
+            var asset = UniversalRenderPipelineAsset.Create(renderer);
 
             // High quality settings
             asset.renderScale = 1.0f;
@@ -139,11 +157,30 @@ namespace OpenRange.Editor
             asset.supportsCameraDepthTexture = true;
             asset.supportsCameraOpaqueTexture = true;
 
-            SaveAsset(asset, $"{SettingsPath}/URP-HighQuality.asset");
+            SavePipelineAsset(asset, $"{SettingsPath}/URP-HighQuality.asset");
             Debug.Log("URPQualitySetup: High quality asset created");
         }
 
-        private static void SaveAsset(UniversalRenderPipelineAsset asset, string path)
+        private static UniversalRendererData CreateRenderer(string name)
+        {
+            var renderer = ScriptableObject.CreateInstance<UniversalRendererData>();
+            renderer.name = name;
+            return renderer;
+        }
+
+        private static void SaveRendererAsset(UniversalRendererData renderer, string path)
+        {
+            var existingAsset = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(path);
+            if (existingAsset != null)
+            {
+                AssetDatabase.DeleteAsset(path);
+            }
+
+            AssetDatabase.CreateAsset(renderer, path);
+            EditorUtility.SetDirty(renderer);
+        }
+
+        private static void SavePipelineAsset(UniversalRenderPipelineAsset asset, string path)
         {
             var existingAsset = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(path);
             if (existingAsset != null)
