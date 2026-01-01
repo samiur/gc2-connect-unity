@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 4 - Marina Environment (1 of 2 complete)
+**Phase**: 4 - Marina Environment (2 of 2 complete)
 **Last Updated**: 2026-01-01
-**Next Prompt**: 11 (Marina Environment Setup)
+**Next Prompt**: 12 (UIManager and Layout System)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -129,14 +129,14 @@ These components exist and don't need to be rebuilt:
   - [x] Create EffectsManager.cs
   - [x] Tests (54 new tests)
 
-- [ ] **Prompt 11**: Marina Environment Setup
-  - [ ] Expand Marina.unity scene
-  - [ ] Create EnvironmentManager.cs
-  - [ ] Create DistanceMarker.prefab
-  - [ ] Create TargetGreen.prefab
-  - [ ] Create TeeMat.prefab
-  - [ ] Environment materials
-  - [ ] Play mode tests
+- [x] **Prompt 11**: Marina Environment Setup (PR #19)
+  - [x] Expand Marina.unity scene (via SceneGenerator)
+  - [x] Create EnvironmentManager.cs
+  - [x] Create DistanceMarker.cs + prefab
+  - [x] Create TargetGreen.cs + prefab
+  - [x] Create TeeMat.cs + prefab
+  - [x] Create EnvironmentGenerator.cs (editor tool for prefabs/materials)
+  - [x] Tests (109 new tests)
 
 ---
 
@@ -367,6 +367,28 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (Marina Environment)**: Prompt 11 complete. Created environment components (PR #19):
+- `EnvironmentManager.cs` - Singleton managing environment state with quality tier support
+  - Distance marker and target green spawning/management
+  - Unit conversion utilities (yards to meters: 0.9144)
+  - Quality-based draw distance (500/350/200 meters)
+- `DistanceMarker.cs` - Distance marker signs at yardage intervals
+  - Quality-based visibility fade (400/300/150 meter fade distances)
+  - TextMeshPro distance text display
+- `TargetGreen.cs` - Target green areas with optional animated flag
+  - Sizes: Small (10m), Medium (15m), Large (20m)
+  - Highlight system for ball landing detection
+  - Flag animation on High quality, static on Medium, hidden on Low
+- `TeeMat.cs` - Tee mat with ball spawn position
+  - Configurable dimensions (default 2m x 3m)
+  - Bounds checking for position detection
+- `EnvironmentGenerator.cs` - Editor tool for creating prefabs and materials
+- 109 new unit tests (37 EnvironmentManager, 20 DistanceMarker, 28 TargetGreen, 24 TeeMat)
+- **Fixes applied during implementation:**
+  - Lazy initialization of MaterialPropertyBlock for EditMode test compatibility
+  - Singleton "fake null" handling with Unity's overloaded == operator
+  - Reflection-based singleton cleanup between tests for isolation
 
 **2026-01-01 (Landing Marker Test Fixes)**: Fixed 24 failing EditMode tests and 1 failing PlayMode test after PR #17 merge:
 - **LandingMarker material leak (23 tests)**: Changed `renderer.material` to `renderer.sharedMaterial` for reading colors in EditMode. Used `MaterialPropertyBlock` for modifying colors without creating material instances.
