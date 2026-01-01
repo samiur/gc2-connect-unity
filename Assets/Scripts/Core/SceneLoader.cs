@@ -22,7 +22,7 @@ namespace OpenRange.Core
         public const string MainMenuScene = "MainMenu";
 
         /// <summary>Scene name for the Marina driving range.</summary>
-        public const string MarinaScene = "Ranges/Marina";
+        public const string MarinaScene = "Marina";
 
         /// <summary>
         /// Load a scene synchronously by name.
