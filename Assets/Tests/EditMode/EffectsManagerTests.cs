@@ -70,11 +70,13 @@ namespace OpenRange.Tests.EditMode
         [Test]
         public void EffectsManager_HasSingletonInstance()
         {
-            // Force Awake to run
-            _manager.enabled = false;
-            _manager.enabled = true;
+            // In EditMode tests, Awake may not be called automatically.
+            // Force singleton initialization if needed.
+            _manager.ForceInitializeSingleton();
 
-            Assert.IsNotNull(EffectsManager.Instance);
+            // Verify singleton is set and matches our manager
+            Assert.IsNotNull(EffectsManager.Instance, "Singleton instance should not be null");
+            Assert.AreEqual(_manager, EffectsManager.Instance, "Singleton should be our test manager");
         }
 
         [Test]

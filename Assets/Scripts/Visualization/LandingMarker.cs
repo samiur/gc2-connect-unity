@@ -6,6 +6,10 @@ using System.Collections;
 using UnityEngine;
 using TMPro;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace OpenRange.Visualization
 {
     /// <summary>
@@ -46,6 +50,7 @@ namespace OpenRange.Visualization
         private bool _isVisible;
         private float _carryDistance;
         private float _totalDistance;
+        private MaterialPropertyBlock _propertyBlock;
 
         /// <summary>
         /// Whether the marker is currently visible.
@@ -89,6 +94,7 @@ namespace OpenRange.Visualization
 
         private void Awake()
         {
+            _propertyBlock = new MaterialPropertyBlock();
             InitializeReferences();
             CacheOriginalColors();
             SetVisibility(false);
@@ -130,12 +136,13 @@ namespace OpenRange.Visualization
 
         /// <summary>
         /// Cache the original colors for fade animations.
+        /// Uses sharedMaterial to avoid creating material instances in EditMode.
         /// </summary>
         private void CacheOriginalColors()
         {
-            if (_ringRenderer != null && _ringRenderer.material != null)
+            if (_ringRenderer != null && _ringRenderer.sharedMaterial != null)
             {
-                _originalRingColor = _ringRenderer.material.color;
+                _originalRingColor = _ringRenderer.sharedMaterial.color;
             }
 
             if (_carryDistanceText != null)
@@ -190,8 +197,8 @@ namespace OpenRange.Visualization
         /// <summary>
         /// Fade out the marker over a duration.
         /// </summary>
-        /// <param name="duration">Duration of the fade. If 0, uses quality-based duration.</param>
-        public void FadeOut(float duration = 0f)
+        /// <param name="duration">Duration of the fade. If 0, hides immediately. If negative, uses quality-based duration.</param>
+        public void FadeOut(float duration = -1f)
         {
             if (!_isVisible)
             {
@@ -199,6 +206,13 @@ namespace OpenRange.Visualization
             }
 
             StopAnimationCoroutine();
+
+            // 0 or negative uses quality-based duration unless exactly 0 (immediate hide)
+            if (duration == 0f)
+            {
+                Hide();
+                return;
+            }
 
             float actualDuration = duration > 0f ? duration : GetFadeOutDuration();
             _animationCoroutine = StartCoroutine(FadeOutCoroutine(actualDuration));
@@ -318,14 +332,23 @@ namespace OpenRange.Visualization
 
         /// <summary>
         /// Apply alpha to all visual components.
+        /// Uses MaterialPropertyBlock to avoid creating material instances.
         /// </summary>
         private void ApplyAlpha(float alpha)
         {
-            if (_ringRenderer != null && _ringRenderer.material != null)
+            if (_ringRenderer != null)
             {
+                if (_propertyBlock == null)
+                {
+                    _propertyBlock = new MaterialPropertyBlock();
+                }
+
                 Color color = _originalRingColor;
                 color.a = _originalRingColor.a * alpha;
-                _ringRenderer.material.color = color;
+                _ringRenderer.GetPropertyBlock(_propertyBlock);
+                _propertyBlock.SetColor("_BaseColor", color);
+                _propertyBlock.SetColor("_Color", color); // Fallback for non-URP shaders
+                _ringRenderer.SetPropertyBlock(_propertyBlock);
             }
 
             if (_carryDistanceText != null)
@@ -345,12 +368,21 @@ namespace OpenRange.Visualization
 
         /// <summary>
         /// Restore original colors after fade animation.
+        /// Uses MaterialPropertyBlock to avoid creating material instances.
         /// </summary>
         private void RestoreOriginalColors()
         {
-            if (_ringRenderer != null && _ringRenderer.material != null)
+            if (_ringRenderer != null)
             {
-                _ringRenderer.material.color = _originalRingColor;
+                if (_propertyBlock == null)
+                {
+                    _propertyBlock = new MaterialPropertyBlock();
+                }
+
+                _ringRenderer.GetPropertyBlock(_propertyBlock);
+                _propertyBlock.SetColor("_BaseColor", _originalRingColor);
+                _propertyBlock.SetColor("_Color", _originalRingColor);
+                _ringRenderer.SetPropertyBlock(_propertyBlock);
             }
 
             if (_carryDistanceText != null)
@@ -419,13 +451,14 @@ namespace OpenRange.Visualization
 
         /// <summary>
         /// Set the ring renderer reference (for testing).
+        /// Uses sharedMaterial to avoid creating material instances in EditMode.
         /// </summary>
         public void SetRingRenderer(Renderer renderer)
         {
             _ringRenderer = renderer;
-            if (renderer != null && renderer.material != null)
+            if (renderer != null && renderer.sharedMaterial != null)
             {
-                _originalRingColor = renderer.material.color;
+                _originalRingColor = renderer.sharedMaterial.color;
             }
         }
 

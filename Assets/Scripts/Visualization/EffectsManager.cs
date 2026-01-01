@@ -107,16 +107,21 @@ namespace OpenRange.Visualization
 
         /// <summary>
         /// Set up the singleton instance.
+        /// Uses Unity's overloaded equality to handle destroyed objects correctly.
         /// </summary>
         private void SetupSingleton()
         {
-            if (_instance != null && _instance != this)
+            // Use Unity's == operator which handles destroyed objects correctly
+            // (destroyed objects are "fake null" - not C# null but Unity considers them null)
+            if (_instance == null)
+            {
+                _instance = this;
+            }
+            else if (_instance != this)
             {
                 Debug.LogWarning("EffectsManager: Multiple instances detected. Destroying duplicate.");
                 Destroy(gameObject);
-                return;
             }
-            _instance = this;
         }
 
         /// <summary>
@@ -497,6 +502,15 @@ namespace OpenRange.Visualization
         public List<ImpactEffect> GetActiveEffects()
         {
             return new List<ImpactEffect>(_activeEffects);
+        }
+
+        /// <summary>
+        /// Force initialization of singleton (for testing).
+        /// In normal use, Awake handles this automatically.
+        /// </summary>
+        public void ForceInitializeSingleton()
+        {
+            SetupSingleton();
         }
     }
 }
