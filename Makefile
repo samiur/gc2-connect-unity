@@ -15,7 +15,7 @@ TEST_RESULTS_DIR := TestResults
 EDITMODE_RESULTS := $(TEST_RESULTS_DIR)/editmode-results.xml
 PLAYMODE_RESULTS := $(TEST_RESULTS_DIR)/playmode-results.xml
 
-.PHONY: all test test-edit test-play build clean help check-unity
+.PHONY: all test test-edit test-play build clean help check-unity run run-marina
 
 # Default target
 all: test
@@ -23,6 +23,10 @@ all: test
 # Help
 help:
 	@echo "Unity Project Makefile"
+	@echo ""
+	@echo "Development targets:"
+	@echo "  run           - Open Unity with Bootstrap scene (main entry point)"
+	@echo "  run-marina    - Open Unity with Marina scene (direct testing)"
 	@echo ""
 	@echo "Test targets:"
 	@echo "  test          - Run all tests (EditMode + PlayMode)"
@@ -159,3 +163,14 @@ clean:
 	rm -rf $(TEST_RESULTS_DIR)
 	rm -f TestResults*.xml
 	@echo "Clean complete"
+
+# Open Unity Editor with Bootstrap scene (main app entry point)
+# Unity will automatically compile scripts when opening
+run: check-unity
+	@echo "Opening Unity Editor with Bootstrap scene..."
+	@open -a "/Applications/Unity/Hub/Editor/$(UNITY_VERSION)/Unity.app" --args -projectPath "$(PROJECT_PATH)" -openScene "Assets/Scenes/Bootstrap.unity"
+
+# Open Unity Editor and load Marina scene directly (for testing)
+run-marina: check-unity
+	@echo "Opening Unity Editor with Marina scene..."
+	@open -a "/Applications/Unity/Hub/Editor/$(UNITY_VERSION)/Unity.app" --args -projectPath "$(PROJECT_PATH)" -openScene "Assets/Scenes/Ranges/Marina.unity"

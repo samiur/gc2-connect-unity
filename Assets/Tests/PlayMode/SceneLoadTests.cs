@@ -83,7 +83,7 @@ namespace OpenRange.Tests.PlayMode
             // Then: Constants should have expected values
             Assert.That(SceneLoader.BootstrapScene, Is.EqualTo("Bootstrap"));
             Assert.That(SceneLoader.MainMenuScene, Is.EqualTo("MainMenu"));
-            Assert.That(SceneLoader.MarinaScene, Is.EqualTo("Ranges/Marina"));
+            Assert.That(SceneLoader.MarinaScene, Is.EqualTo("Marina"));
         }
 
         [UnityTest]

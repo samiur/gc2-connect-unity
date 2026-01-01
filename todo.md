@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 3 - Ball Visualization (4 of 4 complete) ✅
+**Phase**: 4 - Marina Environment (1 of 2 complete)
 **Last Updated**: 2026-01-01
-**Next Prompt**: 10 (Landing Marker and Effects)
+**Next Prompt**: 11 (Marina Environment Setup)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -121,13 +121,13 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 4: Marina Environment
 
-- [ ] **Prompt 10**: Landing Marker and Effects
-  - [ ] Create LandingMarker.cs
-  - [ ] Create LandingMarker.prefab
-  - [ ] Create ImpactEffect.cs
-  - [ ] Create LandingDust.prefab
-  - [ ] Create EffectsManager.cs
-  - [ ] Tests
+- [x] **Prompt 10**: Landing Marker and Effects (PR #17)
+  - [x] Create LandingMarker.cs
+  - [x] Create LandingMarker.prefab (via LandingMarkerGenerator)
+  - [x] Create ImpactEffect.cs
+  - [x] Create LandingDust.prefab (via LandingMarkerGenerator)
+  - [x] Create EffectsManager.cs
+  - [x] Tests (54 new tests)
 
 - [ ] **Prompt 11**: Marina Environment Setup
   - [ ] Expand Marina.unity scene
@@ -367,6 +367,29 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (Landing Marker and Effects)**: Prompt 10 complete. Created landing effects system:
+- `LandingMarker.cs` - Visual marker showing landing position with distance text
+  - Shows carry distance and total distance
+  - Fade in/out animation with configurable duration
+  - Quality tier support (Low hides total distance)
+- `ImpactEffect.cs` - Particle effect wrapper for landing dust
+  - Velocity-scaled particle count
+  - Quality tiers: High (30), Medium (20), Low (10) particles
+- `EffectsManager.cs` - Singleton with object pooling
+  - Subscribes to BallController.OnLanded and OnStopped events
+  - Manages marker and effect pools
+  - Quality tier propagation
+- `LandingMarkerGenerator.cs` - Editor tool for prefab creation
+  - Creates LandingMarker.prefab with ring and TextMeshPro components
+  - Creates LandingDust.prefab with configured ParticleSystem
+- 54 new unit tests (29 LandingMarker, 17 ImpactEffect, 8 EffectsManager)
+- Run `OpenRange > Create All Landing Effects` to generate both prefabs
+- **Fixes applied during implementation:**
+  - Added `Unity.TextMeshPro` to assembly definition references (TMPro namespace errors)
+  - Added `com.unity.modules.particlesystem` to package manifest (ParticleSystem type errors)
+  - Added `using UnityEngine.TestTools;` for LogAssert in tests
+  - Updated SceneGenerator to include EffectsManager in Marina scene
 
 **2026-01-01 (Dev Testing Session)**: Successfully tested full ball visualization pipeline end-to-end:
 - Discovered URP render pipeline must be explicitly assigned in Graphics settings (Default Render Pipeline)

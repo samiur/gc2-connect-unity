@@ -279,6 +279,36 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: TrajectoryLine.prefab not found. Run 'OpenRange > Create Trajectory Line Prefab' first.");
             }
 
+            // Create EffectsManager with prefab references
+            var effectsManagerGo = new GameObject("EffectsManager");
+            var effectsManager = effectsManagerGo.AddComponent<Visualization.EffectsManager>();
+
+            // Load landing effects prefabs
+            var landingMarkerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Effects/LandingMarker.prefab");
+            var landingDustPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Effects/LandingDust.prefab");
+
+            if (landingMarkerPrefab != null || landingDustPrefab != null)
+            {
+                var effectsSo = new SerializedObject(effectsManager);
+                if (landingMarkerPrefab != null)
+                {
+                    var markerComponent = landingMarkerPrefab.GetComponent<Visualization.LandingMarker>();
+                    effectsSo.FindProperty("_landingMarkerPrefab").objectReferenceValue = markerComponent;
+                    Debug.Log("SceneGenerator: Configured LandingMarker prefab on EffectsManager");
+                }
+                if (landingDustPrefab != null)
+                {
+                    var effectComponent = landingDustPrefab.GetComponent<Visualization.ImpactEffect>();
+                    effectsSo.FindProperty("_impactEffectPrefab").objectReferenceValue = effectComponent;
+                    Debug.Log("SceneGenerator: Configured LandingDust prefab on EffectsManager");
+                }
+                effectsSo.ApplyModifiedPropertiesWithoutUndo();
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: Landing effect prefabs not found. Run 'OpenRange > Create All Landing Effects' first.");
+            }
+
             // Event System
             CreateEventSystem();
 
