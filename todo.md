@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 1 - Core Services (3 of 3 complete) ✅
+**Phase**: 2 - Scenes & Bootstrap (1 of 2 complete)
 **Last Updated**: 2025-12-31
-**Next Prompt**: 4 (Unity Scene Structure)
+**Next Prompt**: 5 (PlatformManager and QualityManager)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -62,14 +62,16 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 2: Scenes & Bootstrap
 
-- [ ] **Prompt 4**: Unity Scene Structure
-  - [ ] Create Bootstrap.unity
-  - [ ] Create MainMenu.unity
-  - [ ] Create Ranges/Marina.unity (placeholder)
-  - [ ] Create BootstrapLoader.cs
-  - [ ] Create SceneLoader.cs
-  - [ ] Configure build settings
-  - [ ] Play mode tests
+- [x] **Prompt 4**: Unity Scene Structure (PR #6)
+  - [x] Create Bootstrap.unity (via SceneGenerator)
+  - [x] Create MainMenu.unity (via SceneGenerator)
+  - [x] Create Ranges/Marina.unity (via SceneGenerator)
+  - [x] Create BootstrapLoader.cs
+  - [x] Create SceneLoader.cs
+  - [x] Create MainMenuController.cs
+  - [x] Create MarinaSceneController.cs
+  - [x] Configure build settings (via SceneGenerator)
+  - [x] Play mode tests (16 new tests)
 
 - [ ] **Prompt 5**: PlatformManager and QualityManager
   - [ ] Create PlatformManager.cs
