@@ -3,6 +3,7 @@
 
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using OpenRange.Visualization;
 
 namespace OpenRange.Tests.EditMode
