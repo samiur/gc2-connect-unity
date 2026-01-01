@@ -5,10 +5,10 @@
 **Goal**: Build a cross-platform Unity driving range simulator with native USB connection to the Foresight GC2 launch monitor, running on macOS, iPad, and Android.
 
 **Key Architecture**:
-- Unity 2022.3 LTS with Universal Render Pipeline (URP)
+- Unity 6 (6000.3.2f1) with Universal Render Pipeline (URP)
 - 95% shared C# code
 - Platform-specific native USB plugins (Obj-C/libusb for macOS, Swift/DriverKit for iPad, Kotlin/USB Host API for Android)
-- Physics-accurate ball flight simulation (Nathan model)
+- Physics-accurate ball flight simulation (Nathan model, validated against libgolf reference)
 - GSPro-quality visuals with quality tier system
 
 ---
@@ -23,14 +23,18 @@ The following components are **already implemented** in the skeleton:
 - **Core Framework**: `GameManager.cs` (singleton, mode switching, connection lifecycle)
 - **Utilities**: `MainThreadDispatcher.cs`
 
+### ✅ Recently Implemented
+- **Core Services**: `ShotProcessor.cs` (PR #1), `SessionManager.cs` (PR #2)
+- **Physics Calibration**: Validated against Nathan model using libgolf reference (PR #3)
+- **Tests**: PhysicsValidationTests, ShotProcessorTests, SessionManagerTests
+
 ### ❌ Not Yet Implemented
-- **Core Services**: `ShotProcessor.cs`, `SessionManager.cs`, `SettingsManager.cs`, `QualityManager.cs`
+- **Core Services**: `SettingsManager.cs`, `QualityManager.cs`
 - **Visualization**: All ball animation, camera, environment, effects
 - **UI**: All panels, data display, settings
 - **Native Plugins**: All platforms (macOS, Android, iPad)
 - **Network**: GSProClient, TCP connections
 - **Scenes**: Bootstrap, MainMenu, Marina range
-- **Tests**: Unit and integration tests
 
 ---
 

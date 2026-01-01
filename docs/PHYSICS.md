@@ -4,9 +4,9 @@
 ## Document Info
 | Field | Value |
 |-------|-------|
-| Version | 1.0.0 |
-| Last Updated | December 2024 |
-| Based On | Nathan Model, WSU Aerodynamics Research |
+| Version | 1.1.0 |
+| Last Updated | December 2025 |
+| Based On | Nathan Model, libgolf reference implementation |
 
 ---
 
@@ -16,6 +16,7 @@ This document specifies the physics model used for golf ball trajectory simulati
 
 ### Key References
 - Prof. Alan Nathan (UIUC): [Trajectory Calculator](http://baseball.physics.illinois.edu/trajectory-calculator.html)
+- [libgolf](https://github.com/gdifiore/libgolf): C++ reference implementation of Nathan model
 - WSU Golf Ball Aerodynamics: Smits & Smith wind tunnel data
 - USGA Ball Specifications
 
@@ -87,85 +88,72 @@ public static class PhysicsConstants
 
 ## 4. Aerodynamic Coefficients
 
+The aerodynamic model is calibrated against the [libgolf](https://github.com/gdifiore/libgolf) C++ implementation of the Nathan model.
+
 ### 4.1 Drag Coefficient (Cd)
 
-The drag coefficient varies with Reynolds number. Based on WSU wind tunnel data:
+The drag coefficient uses a piecewise linear model based on Reynolds number, with a spin-dependent term:
 
 ```csharp
-// Reynolds number (x10^5) vs Cd
-public static readonly (float Re, float Cd)[] CdTable = new[]
-{
-    (0.375f, 1.945f),   // ~30 mph - transcritical region
-    (0.500f, 1.945f),   // ~40 mph
-    (0.625f, 1.492f),   // ~50 mph - transition begins
-    (0.750f, 1.039f),   // ~60 mph
-    (0.875f, 0.586f),   // ~70 mph
-    (1.000f, 0.132f),   // ~80 mph - fully turbulent
-};
+// Drag coefficient constants (from libgolf)
+public const float CdLow = 0.500f;      // Low Reynolds (Re < 0.5×10^5)
+public const float CdHigh = 0.212f;     // High Reynolds (Re > 1.0×10^5)
+public const float CdSpin = 0.15f;      // Spin-dependent drag coefficient
+public const float ReLow = 0.5f;        // Low Reynolds threshold (×10^5)
+public const float ReHigh = 1.0f;       // High Reynolds threshold (×10^5)
 
-// For Re > 1.0 x 10^5 (speeds > ~80 mph)
-public const float CdSupercritical = 0.21f;  // Typical golf ball
-
-public static float GetDragCoefficient(float reynolds)
+public static float GetDragCoefficient(float reynolds, float spinFactor = 0f)
 {
     // Reynolds is in units of 10^5
     float re = reynolds / 100000f;
-    
-    if (re >= 1.0f) return CdSupercritical;
-    
-    // Linear interpolation in table
-    for (int i = 0; i < CdTable.Length - 1; i++)
+
+    // Piecewise linear base drag (drag crisis model)
+    float baseCd;
+    if (re <= ReLow)
+        baseCd = CdLow;
+    else if (re >= ReHigh)
+        baseCd = CdHigh;
+    else
     {
-        if (re >= CdTable[i].Re && re < CdTable[i + 1].Re)
-        {
-            float t = (re - CdTable[i].Re) / (CdTable[i + 1].Re - CdTable[i].Re);
-            return Mathf.Lerp(CdTable[i].Cd, CdTable[i + 1].Cd, t);
-        }
+        // Linear interpolation in transition region
+        float t = (re - ReLow) / (ReHigh - ReLow);
+        baseCd = Mathf.Lerp(CdLow, CdHigh, t);
     }
-    
-    return CdTable[0].Cd;  // Below table range
+
+    // Add spin-dependent drag
+    float totalCd = baseCd + CdSpin * spinFactor;
+
+    return totalCd;
 }
 ```
 
 ### 4.2 Lift Coefficient (Cl)
 
-Lift coefficient depends on the spin factor S = (ω × r) / V:
+Lift coefficient uses a quadratic formula based on spin factor S = (ω × r) / V:
 
 ```csharp
-// Spin factor vs Cl
-public static readonly (float S, float Cl)[] ClTable = new[]
-{
-    (0.00f, 0.000f),
-    (0.05f, 0.069f),
-    (0.10f, 0.091f),
-    (0.15f, 0.107f),
-    (0.20f, 0.121f),
-    (0.25f, 0.132f),
-    (0.30f, 0.142f),
-    (0.35f, 0.151f),
-    (0.40f, 0.159f),
-    (0.45f, 0.167f),
-    (0.50f, 0.174f),
-    (0.55f, 0.181f),
-};
+// Lift coefficient constants (from libgolf quadratic formula)
+public const float ClLinear = 1.990f;        // Linear term
+public const float ClQuadratic = -3.250f;    // Quadratic term
+public const float ClMax = 0.305f;           // Maximum lift coefficient
+public const float ClSpinThreshold = 0.30f;  // Spin factor where Cl maxes out
 
 public static float GetLiftCoefficient(float spinFactor)
 {
-    if (spinFactor <= 0) return 0;
-    if (spinFactor >= 0.55f) return 0.181f;
-    
-    for (int i = 0; i < ClTable.Length - 1; i++)
-    {
-        if (spinFactor >= ClTable[i].S && spinFactor < ClTable[i + 1].S)
-        {
-            float t = (spinFactor - ClTable[i].S) / (ClTable[i + 1].S - ClTable[i].S);
-            return Mathf.Lerp(ClTable[i].Cl, ClTable[i + 1].Cl, t);
-        }
-    }
-    
-    return 0;
+    if (spinFactor <= 0) return 0f;
+
+    // Above threshold, Cl is capped
+    if (spinFactor >= ClSpinThreshold)
+        return ClMax;
+
+    // Quadratic formula: Cl = 1.990×S - 3.250×S²
+    float cl = ClLinear * spinFactor + ClQuadratic * spinFactor * spinFactor;
+
+    return Mathf.Clamp(cl, 0f, ClMax);
 }
 ```
+
+The quadratic formula provides better accuracy for high-spin shots (wedges) compared to table interpolation.
 
 ### 4.3 Reynolds Number Calculation
 
@@ -591,7 +579,8 @@ public enum Phase { Flight, Bounce, Rolling, Stopped }
 ## 13. References
 
 1. Nathan, A.M. "The Physics of Baseball" - Trajectory calculator methodology
-2. Smits, A.J. & Smith, D.R. "A New Aerodynamic Model of a Golf Ball in Flight" (WSU)
-3. Bearman, P.W. & Harvey, J.K. "Golf Ball Aerodynamics" - Annual Review of Fluid Mechanics
-4. USGA Equipment Rules - Ball specifications
-5. R&A/USGA Joint Statement on Golf Ball Performance
+2. gdifiore/libgolf - C++ golf physics library implementing Nathan model: https://github.com/gdifiore/libgolf
+3. Smits, A.J. & Smith, D.R. "A New Aerodynamic Model of a Golf Ball in Flight" (WSU)
+4. Bearman, P.W. & Harvey, J.K. "Golf Ball Aerodynamics" - Annual Review of Fluid Mechanics
+5. USGA Equipment Rules - Ball specifications
+6. R&A/USGA Joint Statement on Golf Ball Performance

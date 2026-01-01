@@ -407,21 +407,26 @@ namespace OpenRange.Tests.EditMode
             ShotResult seaLevelResult = null;
             ShotResult highAltitudeResult = null;
 
+            // Use named handlers so we can properly unsubscribe
+            System.Action<GC2ShotData, ShotResult> seaLevelHandler = (_, r) => seaLevelResult = r;
+            System.Action<GC2ShotData, ShotResult> altitudeHandler = (_, r) => highAltitudeResult = r;
+
             _shotProcessor.SetEnvironmentalConditions(
                 tempF: 70f,
                 elevationFt: 0f
             );
-            _shotProcessor.OnShotProcessed += (_, r) => seaLevelResult = r;
+            _shotProcessor.OnShotProcessed += seaLevelHandler;
             _shotProcessor.ProcessShot(shot);
+            _shotProcessor.OnShotProcessed -= seaLevelHandler;
 
-            // Reset and test at altitude
-            _shotProcessor.OnShotProcessed -= (_, r) => seaLevelResult = r;
+            // Test at altitude
             _shotProcessor.SetEnvironmentalConditions(
                 tempF: 70f,
                 elevationFt: 7000f
             );
-            _shotProcessor.OnShotProcessed += (_, r) => highAltitudeResult = r;
+            _shotProcessor.OnShotProcessed += altitudeHandler;
             _shotProcessor.ProcessShot(shot);
+            _shotProcessor.OnShotProcessed -= altitudeHandler;
 
             // Assert - High altitude should fly farther
             Assert.IsNotNull(seaLevelResult);

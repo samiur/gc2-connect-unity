@@ -3,7 +3,7 @@
 A cross-platform driving range simulator for the Foresight GC2 launch monitor, built with Unity.
 
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20iPad%20%7C%20Android-blue)
-![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-green)
+![Unity](https://img.shields.io/badge/Unity-6000.3.2f1-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
 ## Features
@@ -24,13 +24,13 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 | Android Tablets | 🚧 In Development | USB Host API |
 | Windows | 🔜 Planned | - |
 
-> **Development Status**: The physics engine and core data models are complete. Visualization, UI, and native USB plugins are in progress. See [todo.md](todo.md) for current status.
+> **Development Status**: Physics engine (validated), core data models, ShotProcessor, and SessionManager are complete. Visualization, UI, and native USB plugins are in progress. See [todo.md](todo.md) for current status.
 
 ## Quick Start
 
 ### Requirements
 
-- Unity 2022.3 LTS or newer
+- Unity 6 (6000.3.2f1)
 - Foresight GC2 launch monitor
 - USB-C cable (or USB-A to USB-C adapter)
 
@@ -104,5 +104,6 @@ MIT License - See [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - Prof. Alan Nathan (UIUC) - Trajectory physics model
+- [libgolf](https://github.com/gdifiore/libgolf) - C++ golf physics reference implementation
 - Washington State University - Aerodynamic coefficient data
 - GSPro - Open Connect API inspiration
