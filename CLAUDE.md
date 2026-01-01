@@ -52,14 +52,29 @@ OpenRange.UI            // All UI components
 OpenRange.Network       // GSPro TCP client
 ```
 
+## Makefile Commands
+
+The project includes a Makefile for common operations:
+
+```bash
+make help          # Show all available targets
+make test          # Run all tests (EditMode + PlayMode)
+make test-edit     # Run EditMode tests only
+make test-physics  # Run physics validation tests only
+make build         # Build macOS standalone (runs tests first)
+make clean         # Remove build artifacts and test results
+```
+
+**IMPORTANT: Always run `make test` before creating a PR.**
+
 ## Build Commands
 
 ```bash
-# Open in Unity Editor
-# File > Build Settings > Select Platform > Build
+# Using Makefile (recommended)
+make build         # Runs tests first, then builds
 
-# Command line build (macOS)
-/Applications/Unity/Hub/Editor/6000.0.*/Unity.app/Contents/MacOS/Unity \
+# Manual Unity CLI build (macOS)
+/Applications/Unity/Hub/Editor/6000.3.2f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -quit -projectPath . \
   -buildTarget StandaloneOSX \
   -buildOSXUniversalPlayer Builds/macOS/OpenRange.app
@@ -131,7 +146,7 @@ Heartbeat: Every 2 seconds when idle
 
 ## Dependencies
 
-- Unity 6 (6000.0.x) with URP
+- Unity 6 LTS (6000.3.2f1) with URP
 - TextMeshPro, Input System, Newtonsoft JSON
 - **macOS**: libusb 1.0.26 (bundled in plugin)
 - **iPad**: DriverKit (requires Apple entitlement approval)
