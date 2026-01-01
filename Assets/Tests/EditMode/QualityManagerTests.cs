@@ -2,6 +2,7 @@
 // ABOUTME: Tests quality tier detection, tier switching, settings, and dynamic adjustment.
 
 using System;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -33,6 +34,19 @@ namespace OpenRange.Tests.EditMode
 
             _testObject = new GameObject("TestQualityManager");
             _qualityManager = _testObject.AddComponent<QualityManager>();
+
+            // In EditMode tests, Awake() is not called automatically.
+            // Invoke it manually using reflection.
+            InvokeAwake(_qualityManager);
+        }
+
+        private void InvokeAwake(MonoBehaviour component)
+        {
+            var awakeMethod = component.GetType().GetMethod(
+                "Awake",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public
+            );
+            awakeMethod?.Invoke(component, null);
         }
 
         [TearDown]
@@ -68,6 +82,7 @@ namespace OpenRange.Tests.EditMode
             var existingInstance = QualityManager.Instance;
             var secondObject = new GameObject("SecondQualityManager");
             var secondManager = secondObject.AddComponent<QualityManager>();
+            InvokeAwake(secondManager);
 
             Assert.AreNotSame(existingInstance, secondManager);
             Assert.AreSame(existingInstance, QualityManager.Instance);
