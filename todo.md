@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 3 - Ball Visualization (3 of 4 complete)
+**Phase**: 3 - Ball Visualization (4 of 4 complete) ✅
 **Last Updated**: 2026-01-01
-**Next Prompt**: 9 (Camera System)
+**Next Prompt**: 10 (Landing Marker and Effects)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -108,13 +108,14 @@ These components exist and don't need to be rebuilt:
   - [x] Create TrajectoryLineGenerator.cs (editor tool)
   - [x] Tests (43 new tests)
 
-- [ ] **Prompt 9**: Camera System
-  - [ ] Create CameraController.cs
-  - [ ] Create FollowCamera.cs
-  - [ ] Create OrbitCamera.cs
-  - [ ] Create ICameraMode.cs
-  - [ ] Create CameraRig.prefab
-  - [ ] Tests
+- [x] **Prompt 9**: Camera System (PR #15)
+  - [x] Create CameraController.cs
+  - [x] Create FollowCamera.cs
+  - [x] Create OrbitCamera.cs
+  - [x] Create ICameraMode.cs
+  - [x] Create CameraRigGenerator.cs (editor tool for CameraRig.prefab)
+  - [x] Create TestShotWindow.cs (editor tool for testing)
+  - [x] Tests (79 new tests)
 
 ---
 
@@ -366,6 +367,19 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (Camera System)**: Prompt 9 complete. Created camera system and test shot window:
+- `ICameraMode.cs` - Interface for camera behavior abstraction
+- `CameraController.cs` - Mode manager with smooth transitions (Static, Follow, TopDown, FreeOrbit)
+- `FollowCamera.cs` - Ball tracking with damping, height tracking, look-ahead, ground avoidance
+- `OrbitCamera.cs` - User-controlled orbit with touch (pinch/rotate) and mouse (scroll/drag) controls
+- `CameraRigGenerator.cs` - Editor tool to create CameraRig.prefab
+- `TestShotWindow.cs` - Editor window for firing test shots without GC2 hardware
+  - Presets: Driver, 7-Iron, Wedge, Hook, Slice
+  - Environmental conditions support
+- 79 new unit tests, all passing (431 total)
+- Run `OpenRange > Create Camera Rig Prefab` to generate camera prefab
+- Run `OpenRange > Test Shot Window` to open test shot editor (requires Play Mode)
 
 **2026-01-01 (TrajectoryRenderer)**: Prompt 8 complete. Created trajectory visualization:
 - `TrajectoryRenderer.cs` - Renders ball flight trajectory as LineRenderer

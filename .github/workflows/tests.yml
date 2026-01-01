@@ -14,15 +14,9 @@ permissions:
   checks: write
 
 jobs:
-  test:
-    name: Run ${{ matrix.testMode }} tests
+  editmode:
+    name: Run EditMode tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        testMode:
-          - editmode
-          - playmode
 
     steps:
       - name: Checkout repository
@@ -34,12 +28,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Library
-          key: Library-${{ matrix.testMode }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          key: Library-editmode-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: |
-            Library-${{ matrix.testMode }}-
+            Library-editmode-
             Library-
 
-      - name: Run ${{ matrix.testMode }} tests
+      - name: Run EditMode tests
         uses: game-ci/unity-test-runner@v4
         id: tests
         env:
@@ -48,27 +42,57 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           unityVersion: ${{ env.UNITY_VERSION }}
-          testMode: ${{ matrix.testMode }}
+          testMode: editmode
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: ${{ matrix.testMode }} Test Results
+          checkName: EditMode Test Results
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Test Results (${{ matrix.testMode }})
+          name: Test Results (EditMode)
           path: ${{ steps.tests.outputs.artifactsPath }}
           retention-days: 14
 
-  # Optional: Add code coverage reporting
-  # coverage:
-  #   name: Generate Code Coverage
-  #   runs-on: ubuntu-latest
-  #   needs: test
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: game-ci/unity-test-runner@v4
-  #       with:
-  #         unityVersion: ${{ env.UNITY_VERSION }}
-  #         testMode: all
-  #         coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;generateBadgeReport'
+  playmode:
+    name: Run PlayMode tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-playmode-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-playmode-
+            Library-
+
+      - name: Run PlayMode tests
+        uses: game-ci/unity-test-runner@v4
+        id: tests
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          testMode: playmode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: PlayMode Test Results
+          # Workaround for Unity 6 PlayMode test stability on Linux
+          # Burst compiler crashes in Docker: https://github.com/game-ci/docker/issues/195
+          customParameters: -nographics --burst-disable-compilation
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Test Results (PlayMode)
+          path: ${{ steps.tests.outputs.artifactsPath }}
+          retention-days: 14
