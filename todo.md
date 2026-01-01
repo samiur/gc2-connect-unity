@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 4 - Marina Environment (2 of 2 complete)
+**Phase**: 5 - UI System (1 of 6 complete)
 **Last Updated**: 2026-01-01
-**Next Prompt**: 12 (UIManager and Layout System)
+**Next Prompt**: 13 (Shot Data Bar)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -142,14 +142,13 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 5: UI System
 
-- [ ] **Prompt 12**: UIManager and Layout System
-  - [ ] Create UIManager.cs
-  - [ ] Create ResponsiveLayout.cs
-  - [ ] Create SafeAreaHandler.cs
-  - [ ] Create UITheme.cs
-  - [ ] Create UICanvas.prefab
-  - [ ] Create Toast.prefab
-  - [ ] Tests
+- [x] **Prompt 12**: UIManager and Layout System (PR #21)
+  - [x] Create UIManager.cs
+  - [x] Create ResponsiveLayout.cs
+  - [x] Create SafeAreaHandler.cs
+  - [x] Create UITheme.cs
+  - [x] Create UICanvasGenerator.cs (editor tool)
+  - [x] Tests (124 new tests)
 
 - [ ] **Prompt 13**: Shot Data Bar (Bottom Panel)
   - [ ] Create ShotDataBar.cs
@@ -367,6 +366,32 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (UIManager and Layout System)**: Prompt 12 complete. Created UI foundation (PR #21):
+- `UITheme.cs` - Static class with theme constants
+  - Colors: PanelBackground (#1a1a2e@85%), AccentGreen (#2d5a27), TextPrimary (white), TotalRed (#ff6b6b)
+  - Toast colors: Info (blue), Success (green), Warning (amber), Error (red)
+  - Font sizes per screen category (Compact/Regular/Large)
+  - Spacing: Padding, Margin, BorderRadius constants
+  - Animation durations (Fast 0.15s, Normal 0.3s, Slow 0.5s)
+- `ResponsiveLayout.cs` - Screen size detection and layout events
+  - Breakpoints: Compact (<800px), Regular (800-1200px), Large (>1200px)
+  - Events: OnLayoutChanged, OnOrientationChanged, OnSafeAreaChanged
+  - Diagonal inches calculation for device detection
+- `SafeAreaHandler.cs` - Device safe area handling
+  - Configurable edges (top, bottom, left, right)
+  - Automatic RectTransform adjustment for notches/home indicators
+- `UIManager.cs` - Singleton managing UI panels and toasts
+  - Panel registry with Show/Hide/Toggle operations
+  - Toast notification queue with type-based styling
+  - Events: OnPanelShown, OnPanelHidden, OnToastShown
+- `UICanvasGenerator.cs` - Editor tool for UI prefabs
+  - Menu: OpenRange > Create UI Canvas Prefab / Toast Prefab / All UI Prefabs
+  - Configures Canvas with CanvasScaler (1920x1080 reference)
+- 124 new unit tests (45 UITheme, 24 ResponsiveLayout, 20 SafeAreaHandler, 35 UIManager)
+- **Bug fix**: Coordinate system conversion in BallController/TrajectoryRenderer
+  - Fixed trajectory rendering to the right instead of forward
+  - Physics X (forward) now correctly maps to Unity Z
 
 **2026-01-01 (Marina Environment)**: Prompt 11 complete. Created environment components (PR #19):
 - `EnvironmentManager.cs` - Singleton managing environment state with quality tier support
