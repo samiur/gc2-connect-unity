@@ -22,7 +22,7 @@ jobs:
       matrix:
         testMode:
           - editmode
-          # - playmode  # Uncomment when PlayMode tests are added
+          - playmode
 
     steps:
       - name: Checkout repository

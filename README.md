@@ -24,7 +24,7 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 | Android Tablets | 🚧 In Development | USB Host API |
 | Windows | 🔜 Planned | - |
 
-> **Development Status**: Physics engine (validated), core data models, ShotProcessor, and SessionManager are complete. Visualization, UI, and native USB plugins are in progress. See [todo.md](todo.md) for current status.
+> **Development Status**: Phase 2 in progress. Core services (ShotProcessor, SessionManager, SettingsManager) and scene infrastructure (Bootstrap, MainMenu, Marina) are complete. Working on visualization, UI, and native USB plugins. See [todo.md](todo.md) for current status.
 
 ## Quick Start
 
