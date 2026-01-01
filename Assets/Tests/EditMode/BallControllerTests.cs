@@ -274,10 +274,10 @@ namespace OpenRange.Tests.EditMode
             _controller.SkipToEnd();
 
             // Assert - ball should be near final trajectory point
-            // 100 yards forward = 91.44 meters, 5 yards right = 4.572 meters
-            Assert.AreEqual(100f * 0.9144f, _ballTransform.position.x, 0.01f);
-            Assert.AreEqual(0f, _ballTransform.position.y, 0.01f);
-            Assert.AreEqual(5f * 0.9144f, _ballTransform.position.z, 0.01f);
+            // Physics X (forward 100 yds) → Unity Z, Physics Z (lateral 5 yds) → Unity X
+            Assert.AreEqual(5f * 0.9144f, _ballTransform.position.x, 0.01f);    // lateral
+            Assert.AreEqual(0f, _ballTransform.position.y, 0.01f);              // height
+            Assert.AreEqual(100f * 0.9144f, _ballTransform.position.z, 0.01f);  // forward
         }
 
         #endregion
@@ -444,8 +444,8 @@ namespace OpenRange.Tests.EditMode
             // Act
             Vector3 position = _controller.GetPositionAtTime(1000f);
 
-            // Assert - Should be at final position
-            Assert.AreEqual(100f * 0.9144f, position.x, 0.01f);
+            // Assert - Should be at final position (forward → Unity Z)
+            Assert.AreEqual(100f * 0.9144f, position.z, 0.01f);
         }
 
         [Test]
@@ -464,8 +464,8 @@ namespace OpenRange.Tests.EditMode
             // Act - Get position at t=1 (halfway)
             Vector3 position = _controller.GetPositionAtTime(1f);
 
-            // Assert - Should be halfway (50 yards = 45.72 meters)
-            Assert.AreEqual(50f * 0.9144f, position.x, 0.01f);
+            // Assert - Should be halfway (50 yards forward = 45.72 meters in Unity Z)
+            Assert.AreEqual(50f * 0.9144f, position.z, 0.01f);
         }
 
         #endregion
@@ -599,8 +599,8 @@ namespace OpenRange.Tests.EditMode
             // Act
             _controller.PlayShot(result);
 
-            // Assert - 100 yards = 91.44 meters
-            Assert.AreEqual(91.44f, _ballTransform.position.x, 0.01f);
+            // Assert - 100 yards forward = 91.44 meters in Unity Z
+            Assert.AreEqual(91.44f, _ballTransform.position.z, 0.01f);
         }
 
         [Test]

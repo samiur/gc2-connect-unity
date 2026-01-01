@@ -450,14 +450,16 @@ namespace OpenRange.Visualization
         /// <summary>
         /// Convert a trajectory point to world position.
         /// Trajectory uses: X = forward (yards), Y = height (feet), Z = lateral (yards)
+        /// Unity uses: X = right (lateral), Y = up (height), Z = forward (distance)
         /// </summary>
         private Vector3 TrajectoryPointToWorldPosition(TrajectoryPoint point)
         {
             // Convert from trajectory coordinates (yards/feet) to Unity units (meters)
+            // Swap X/Z: Physics X (forward) → Unity Z, Physics Z (lateral) → Unity X
             return new Vector3(
-                point.Position.x * _yardsToUnits + _teePosition.x,
+                point.Position.z * _yardsToUnits + _teePosition.x,
                 point.Position.y * _feetToUnits + _teePosition.y,
-                point.Position.z * _yardsToUnits + _teePosition.z
+                point.Position.x * _yardsToUnits + _teePosition.z
             );
         }
 
