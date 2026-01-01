@@ -1,9 +1,10 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 1 - Core Services
+**Phase**: 1 - Core Services (2 of 3 complete)
 **Last Updated**: 2025-12-31
 **Next Prompt**: 3 (SettingsManager)
+**Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
 
@@ -339,12 +340,17 @@ These components exist and don't need to be rebuilt:
 
 ## Physics Validation Checklist
 
-From PHYSICS.md - must pass within tolerance:
+From PHYSICS.md - all validated ✅ (PR #3):
 
-- [ ] Driver: 167 mph / 10.9° / 2686 rpm → 275 yds (±5%)
-- [ ] Driver: 160 mph / 11.0° / 3000 rpm → 259 yds (±3%)
-- [ ] 7-Iron: 120 mph / 16.3° / 7097 rpm → 172 yds (±5%)
-- [ ] Wedge: 102 mph / 24.2° / 9304 rpm → 136 yds (±5%)
+- [x] Driver: 167 mph / 10.9° / 2686 rpm → 275 yds (±5%) ✅
+- [x] Driver: 160 mph / 11.0° / 3000 rpm → 259 yds (±3%) ✅
+- [x] 7-Iron: 120 mph / 16.3° / 7097 rpm → 172 yds (±5%) ✅
+- [x] Wedge: 102 mph / 24.2° / 9304 rpm → 136 yds (±5%) ✅
+
+Additional physics tests also passing:
+- [x] Sidespin direction (positive = curves right)
+- [x] Wind effects (headwind/tailwind/crosswind)
+- [x] Environmental conditions (altitude/temperature)
 
 ---
 
@@ -358,4 +364,7 @@ From PHYSICS.md - must pass within tolerance:
 
 ### Issue Log
 
-_No issues logged yet_
+**2025-12-31**: Physics calibration complete. Used libgolf C++ library as reference implementation for Nathan model coefficients. Key changes:
+- Quadratic lift formula: `Cl = 1.99×S - 3.25×S²` (capped at 0.305)
+- Spin-dependent drag: `Cd = Cd_base + CdSpin × S`
+- Updated coefficients: CdLow=0.50, CdHigh=0.212, CdSpin=0.15
