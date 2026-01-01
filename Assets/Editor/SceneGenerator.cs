@@ -21,6 +21,7 @@ namespace OpenRange.Editor
     {
         private const string ScenesPath = "Assets/Scenes";
         private const string RangesPath = "Assets/Scenes/Ranges";
+        private const string MaterialsPath = "Assets/Materials/Environment";
 
         [MenuItem("OpenRange/Generate All Scenes", priority = 100)]
         public static void GenerateAllScenes()
@@ -203,14 +204,26 @@ namespace OpenRange.Editor
             EnsureDirectoriesExist();
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // Main Camera
-            var cameraGo = new GameObject("Main Camera");
-            cameraGo.tag = "MainCamera";
-            cameraGo.transform.position = new Vector3(0, 5, -10);
-            cameraGo.transform.rotation = Quaternion.Euler(15, 0, 0);
-            var camera = cameraGo.AddComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.Skybox;
-            cameraGo.AddComponent<AudioListener>();
+            // Load and instantiate CameraRig prefab (replaces manual camera creation)
+            var cameraRigPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Camera/CameraRig.prefab");
+            if (cameraRigPrefab != null)
+            {
+                var cameraRig = PrefabUtility.InstantiatePrefab(cameraRigPrefab) as GameObject;
+                cameraRig.transform.position = Vector3.zero;
+                Debug.Log("SceneGenerator: Added CameraRig prefab to scene");
+            }
+            else
+            {
+                // Fallback: Create basic camera if prefab doesn't exist
+                Debug.LogWarning("SceneGenerator: CameraRig.prefab not found, creating basic camera. Run 'OpenRange > Create Camera Rig Prefab' first.");
+                var cameraGo = new GameObject("Main Camera");
+                cameraGo.tag = "MainCamera";
+                cameraGo.transform.position = new Vector3(0, 5, -10);
+                cameraGo.transform.rotation = Quaternion.Euler(15, 0, 0);
+                var camera = cameraGo.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.Skybox;
+                cameraGo.AddComponent<AudioListener>();
+            }
 
             // Directional Light (Sun)
             var lightGo = new GameObject("Directional Light");
@@ -221,15 +234,50 @@ namespace OpenRange.Editor
             light.intensity = 1.0f;
             light.shadows = LightShadows.Soft;
 
-            // Ground Plane (temporary)
+            // Ground Plane
             var groundGo = GameObject.CreatePrimitive(PrimitiveType.Plane);
             groundGo.name = "Ground";
             groundGo.transform.position = Vector3.zero;
             groundGo.transform.localScale = new Vector3(50, 1, 50);
             var groundRenderer = groundGo.GetComponent<MeshRenderer>();
-            // Set a default green color for grass
-            groundRenderer.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            groundRenderer.sharedMaterial.color = new Color(0.2f, 0.5f, 0.2f);
+
+            // Create and save a proper grass material
+            var grassMaterial = CreateGrassMaterial();
+            if (grassMaterial != null)
+            {
+                groundRenderer.sharedMaterial = grassMaterial;
+                Debug.Log($"SceneGenerator: Assigned grass material to ground. Material shader: {grassMaterial.shader?.name ?? "NULL"}");
+            }
+            else
+            {
+                Debug.LogError("SceneGenerator: Failed to create grass material!");
+            }
+
+            // Load and instantiate GolfBall prefab
+            var golfBallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Ball/GolfBall.prefab");
+            if (golfBallPrefab != null)
+            {
+                var golfBall = PrefabUtility.InstantiatePrefab(golfBallPrefab) as GameObject;
+                golfBall.transform.position = new Vector3(0f, 0.02f, 0f); // Slightly above ground (ball radius)
+                Debug.Log("SceneGenerator: Added GolfBall prefab to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: GolfBall.prefab not found. Run 'OpenRange > Create Golf Ball Prefab' first.");
+            }
+
+            // Load and instantiate TrajectoryLine prefab
+            var trajectoryLinePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Effects/TrajectoryLine.prefab");
+            if (trajectoryLinePrefab != null)
+            {
+                var trajectoryLine = PrefabUtility.InstantiatePrefab(trajectoryLinePrefab) as GameObject;
+                trajectoryLine.transform.position = Vector3.zero;
+                Debug.Log("SceneGenerator: Added TrajectoryLine prefab to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: TrajectoryLine.prefab not found. Run 'OpenRange > Create Trajectory Line Prefab' first.");
+            }
 
             // Event System
             CreateEventSystem();
@@ -293,11 +341,65 @@ namespace OpenRange.Editor
             {
                 AssetDatabase.CreateFolder(ScenesPath, "Ranges");
             }
+            if (!AssetDatabase.IsValidFolder("Assets/Materials"))
+            {
+                AssetDatabase.CreateFolder("Assets", "Materials");
+            }
+            if (!AssetDatabase.IsValidFolder(MaterialsPath))
+            {
+                AssetDatabase.CreateFolder("Assets/Materials", "Environment");
+            }
         }
 
         private static void SaveScene(Scene scene, string path)
         {
             EditorSceneManager.SaveScene(scene, path);
+        }
+
+        /// <summary>
+        /// Creates and saves a grass material for the ground plane.
+        /// </summary>
+        private static Material CreateGrassMaterial()
+        {
+            string materialPath = $"{MaterialsPath}/Grass.mat";
+
+            // Check if material already exists - return it if valid
+            var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (existingMaterial != null)
+            {
+                Debug.Log($"SceneGenerator: Using existing grass material with shader: {existingMaterial.shader?.name}");
+                return existingMaterial;
+            }
+
+            // Find URP Lit shader (same pattern as GolfBallPrefabGenerator which works)
+            Shader urpLitShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (urpLitShader == null)
+            {
+                Debug.LogWarning("URP Lit shader not found, falling back to Standard shader");
+                urpLitShader = Shader.Find("Standard");
+            }
+
+            if (urpLitShader == null)
+            {
+                Debug.LogError("SceneGenerator: No valid shader found!");
+                return null;
+            }
+
+            Debug.Log($"SceneGenerator: Using shader '{urpLitShader.name}' for grass material");
+
+            var material = new Material(urpLitShader);
+            material.name = "Grass";
+
+            // Set grass-like green color
+            material.SetColor("_BaseColor", new Color(0.2f, 0.5f, 0.15f, 1f));
+            material.SetFloat("_Smoothness", 0.1f);
+            material.SetFloat("_Metallic", 0f);
+
+            // Save the material as an asset (same pattern as GolfBallPrefabGenerator)
+            AssetDatabase.CreateAsset(material, materialPath);
+            Debug.Log($"SceneGenerator: Created grass material at {materialPath}");
+
+            return material;
         }
 
         private static void CreateEventSystem()
