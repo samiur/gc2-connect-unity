@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 3 - Ball Visualization (1 of 4 complete)
+**Phase**: 3 - Ball Visualization (3 of 4 complete)
 **Last Updated**: 2026-01-01
-**Next Prompt**: 7 (BallController Animation System)
+**Next Prompt**: 9 (Camera System)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -93,20 +93,20 @@ These components exist and don't need to be rebuilt:
   - [x] Create BallVisuals.cs
   - [x] Tests (34 new tests)
 
-- [ ] **Prompt 7**: BallController Animation System
-  - [ ] Create BallController.cs
-  - [ ] Animation system
-  - [ ] Playback controls
-  - [ ] Events
-  - [ ] Create BallSpinner.cs
-  - [ ] Tests
+- [x] **Prompt 7**: BallController Animation System (PR #11)
+  - [x] Create BallController.cs
+  - [x] Animation system
+  - [x] Playback controls
+  - [x] Events
+  - [x] Create BallSpinner.cs
+  - [x] Tests (78 new tests)
 
-- [ ] **Prompt 8**: TrajectoryRenderer
-  - [ ] Create TrajectoryRenderer.cs
-  - [ ] Line renderer setup
-  - [ ] Quality tier variants
-  - [ ] Create TrajectoryLine.prefab
-  - [ ] Tests
+- [x] **Prompt 8**: TrajectoryRenderer (PR #13)
+  - [x] Create TrajectoryRenderer.cs
+  - [x] Line renderer setup
+  - [x] Quality tier variants
+  - [x] Create TrajectoryLineGenerator.cs (editor tool)
+  - [x] Tests (43 new tests)
 
 - [ ] **Prompt 9**: Camera System
   - [ ] Create CameraController.cs
@@ -366,6 +366,23 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (TrajectoryRenderer)**: Prompt 8 complete. Created trajectory visualization:
+- `TrajectoryRenderer.cs` - Renders ball flight trajectory as LineRenderer
+- Display modes: Actual, Predicted, Both
+- Quality tiers: High (100 vertices), Medium (50), Low (20)
+- FadeOut animation with configurable duration
+- Color gradients for actual (white→cyan) and predicted (yellow→orange) paths
+- `TrajectoryLineGenerator.cs` - Editor tool to create prefab and materials
+- 43 new unit tests, all passing
+- Run `OpenRange > Create Trajectory Line Prefab` to generate prefab and materials
+
+**2026-01-01 (BallController)**: Prompt 7 complete. Created ball animation system:
+- `BallController.cs` - Animates ball through trajectory with playback controls (play, pause, skip, reset)
+- `BallSpinner.cs` - Handles ball rotation based on spin data with decay
+- 78 new unit tests (45 BallController, 33 BallSpinner), all passing
+- Integrates with BallVisuals for trail and spin visualization
+- Events: OnFlightStarted, OnApexReached, OnLanded, OnRollStarted, OnStopped, OnPhaseChanged
 
 **2026-01-01 (Golf Ball Prefab)**: Prompt 6 complete. Created golf ball visualization foundation:
 - `BallVisuals.cs` - Component managing trail and spin visualization with quality tier support
