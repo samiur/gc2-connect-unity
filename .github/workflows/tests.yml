@@ -86,8 +86,8 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: PlayMode Test Results
           # Workaround for Unity 6 PlayMode test stability on Linux
-          # See: https://github.com/game-ci/unity-test-runner/issues/95
-          customParameters: -nographics
+          # Burst compiler crashes in Docker: https://github.com/game-ci/docker/issues/195
+          customParameters: -nographics --burst-disable-compilation
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
