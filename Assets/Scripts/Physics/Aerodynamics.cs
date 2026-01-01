@@ -24,44 +24,45 @@ namespace OpenRange.Physics
         }
 
         /// <summary>
-        /// Get drag coefficient from Reynolds number using WSU data.
+        /// Get drag coefficient from Reynolds number and spin factor using Nathan model.
+        /// Formula: Cd = base_Cd + CdS × S (spin-dependent drag)
         /// </summary>
         /// <param name="reynolds">Reynolds number</param>
+        /// <param name="spinFactor">Spin factor S = ωr/V (default 0)</param>
         /// <returns>Drag coefficient Cd</returns>
-        public static float GetDragCoefficient(float reynolds)
+        public static float GetDragCoefficient(float reynolds, float spinFactor = 0f)
         {
-            // Convert to units of 10^5 for table lookup
+            // Convert to units of 10^5 for Nathan model thresholds
             float re = reynolds / 100000f;
 
-            // Above table range - use supercritical value
-            if (re >= 2.0f)
+            // Calculate base drag coefficient using Nathan piecewise formula
+            float baseCd;
+            if (re <= PhysicsConstants.ReLow)
             {
-                return PhysicsConstants.CdSupercritical;
+                baseCd = PhysicsConstants.CdLow;
+            }
+            else if (re >= PhysicsConstants.ReHigh)
+            {
+                baseCd = PhysicsConstants.CdHigh;
+            }
+            else
+            {
+                // Linear interpolation in transition region
+                float t = (re - PhysicsConstants.ReLow) /
+                          (PhysicsConstants.ReHigh - PhysicsConstants.ReLow);
+                baseCd = Mathf.Lerp(PhysicsConstants.CdLow, PhysicsConstants.CdHigh, t);
             }
 
-            // Below table range - use first value
-            if (re <= PhysicsConstants.CdTable[0].x)
-            {
-                return PhysicsConstants.CdTable[0].y;
-            }
+            // Add spin-dependent drag term (CdS × S)
+            float totalCd = baseCd + PhysicsConstants.CdSpin * spinFactor;
 
-            // Linear interpolation in table
-            for (int i = 0; i < PhysicsConstants.CdTable.Length - 1; i++)
-            {
-                if (re >= PhysicsConstants.CdTable[i].x && re < PhysicsConstants.CdTable[i + 1].x)
-                {
-                    float t = (re - PhysicsConstants.CdTable[i].x) /
-                              (PhysicsConstants.CdTable[i + 1].x - PhysicsConstants.CdTable[i].x);
-                    return Mathf.Lerp(PhysicsConstants.CdTable[i].y, PhysicsConstants.CdTable[i + 1].y, t);
-                }
-            }
-
-            // Fallback
-            return PhysicsConstants.CdSupercritical;
+            return totalCd;
         }
 
         /// <summary>
-        /// Get lift coefficient from spin factor using WSU data.
+        /// Get lift coefficient from spin factor using quadratic formula.
+        /// Formula: Cl = ClLinear × S + ClQuadratic × S² (for S ≤ threshold)
+        /// Based on libgolf implementation of Nathan model.
         /// </summary>
         /// <param name="spinFactor">Spin factor S = ωr/V</param>
         /// <returns>Lift coefficient Cl</returns>
@@ -72,24 +73,18 @@ namespace OpenRange.Physics
                 return 0f;
             }
 
-            // Above table range - use max value
-            if (spinFactor >= PhysicsConstants.ClTable[PhysicsConstants.ClTable.Length - 1].x)
+            // Above threshold - use constant value
+            if (spinFactor >= PhysicsConstants.ClSpinThreshold)
             {
                 return PhysicsConstants.ClMax;
             }
 
-            // Linear interpolation in table
-            for (int i = 0; i < PhysicsConstants.ClTable.Length - 1; i++)
-            {
-                if (spinFactor >= PhysicsConstants.ClTable[i].x && spinFactor < PhysicsConstants.ClTable[i + 1].x)
-                {
-                    float t = (spinFactor - PhysicsConstants.ClTable[i].x) /
-                              (PhysicsConstants.ClTable[i + 1].x - PhysicsConstants.ClTable[i].x);
-                    return Mathf.Lerp(PhysicsConstants.ClTable[i].y, PhysicsConstants.ClTable[i + 1].y, t);
-                }
-            }
+            // Quadratic formula: Cl = ClLinear × S + ClQuadratic × S²
+            float cl = PhysicsConstants.ClLinear * spinFactor +
+                       PhysicsConstants.ClQuadratic * spinFactor * spinFactor;
 
-            return 0f;
+            // Ensure non-negative and cap at max
+            return Mathf.Clamp(cl, 0f, PhysicsConstants.ClMax);
         }
 
         /// <summary>

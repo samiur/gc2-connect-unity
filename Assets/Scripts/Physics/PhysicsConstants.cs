@@ -86,23 +86,39 @@ namespace OpenRange.Physics
         /// <summary>
         /// Drag coefficient vs Reynolds number (×10⁵).
         /// Format: (Reynolds×10⁵, Cd)
-        /// Based on Nathan model with golf ball dimple effects.
+        /// From Nathan's TrajectoryCalculatorGolf-v2.xlsx Cd-Cl sheet.
+        /// Shows classic "drag crisis" where dimples cause early turbulent transition.
         /// </summary>
         public static readonly Vector2[] CdTable = new Vector2[]
         {
-            new Vector2(0.375f, 0.400f),  // ~30 mph
-            new Vector2(0.500f, 0.370f),  // ~40 mph
-            new Vector2(0.625f, 0.340f),  // ~50 mph
-            new Vector2(0.750f, 0.300f),  // ~60 mph
-            new Vector2(0.875f, 0.260f),  // ~70 mph
-            new Vector2(1.000f, 0.230f),  // ~80 mph
-            new Vector2(1.250f, 0.215f),  // ~100 mph
-            new Vector2(1.500f, 0.205f),  // ~120 mph
-            new Vector2(2.000f, 0.195f),  // ~160 mph
+            new Vector2(0.375f, 1.945f),  // ~30 mph - subcritical (high drag)
+            new Vector2(0.500f, 1.945f),  // ~40 mph
+            new Vector2(0.625f, 1.492f),  // ~50 mph - transition begins
+            new Vector2(0.750f, 1.039f),  // ~60 mph
+            new Vector2(0.875f, 0.586f),  // ~70 mph
+            new Vector2(1.000f, 0.132f),  // ~80 mph - supercritical (low drag)
+            new Vector2(1.250f, 0.132f),  // ~100 mph
+            new Vector2(1.500f, 0.132f),  // ~120 mph
+            new Vector2(2.000f, 0.132f),  // ~160 mph
         };
 
         /// <summary>Drag coefficient for supercritical flow (high speed)</summary>
-        public const float CdSupercritical = 0.195f;
+        public const float CdSupercritical = 0.132f;
+
+        /// <summary>Spin-dependent drag coefficient (calibrated from libgolf)</summary>
+        public const float CdSpin = 0.15f;
+
+        /// <summary>Low-speed drag coefficient (from libgolf)</summary>
+        public const float CdLow = 0.500f;
+
+        /// <summary>High-speed drag coefficient (calibrated from libgolf)</summary>
+        public const float CdHigh = 0.212f;
+
+        /// <summary>Low Reynolds threshold for drag transition (×10⁵)</summary>
+        public const float ReLow = 0.5f;
+
+        /// <summary>High Reynolds threshold for drag transition (×10⁵)</summary>
+        public const float ReHigh = 1.0f;
 
         #endregion
 
@@ -111,26 +127,35 @@ namespace OpenRange.Physics
         /// <summary>
         /// Lift coefficient vs spin factor (S = ωr/V).
         /// Format: (SpinFactor, Cl)
-        /// Based on Nathan model with diminishing returns at high spin factors.
+        /// From Nathan's TrajectoryCalculatorGolf-v2.xlsx Cd-Cl sheet column F.
         /// </summary>
         public static readonly Vector2[] ClTable = new Vector2[]
         {
             new Vector2(0.00f, 0.000f),
-            new Vector2(0.05f, 0.090f),
-            new Vector2(0.10f, 0.130f),
-            new Vector2(0.15f, 0.155f),
-            new Vector2(0.20f, 0.172f),
-            new Vector2(0.25f, 0.183f),
-            new Vector2(0.30f, 0.190f),
-            new Vector2(0.35f, 0.195f),
-            new Vector2(0.40f, 0.199f),
-            new Vector2(0.45f, 0.202f),
-            new Vector2(0.50f, 0.204f),
-            new Vector2(0.55f, 0.205f),
+            new Vector2(0.05f, 0.069f),
+            new Vector2(0.10f, 0.091f),
+            new Vector2(0.15f, 0.107f),
+            new Vector2(0.20f, 0.121f),
+            new Vector2(0.25f, 0.132f),
+            new Vector2(0.30f, 0.142f),
+            new Vector2(0.35f, 0.151f),
+            new Vector2(0.40f, 0.159f),
+            new Vector2(0.45f, 0.167f),
+            new Vector2(0.50f, 0.174f),
+            new Vector2(0.55f, 0.181f),
         };
 
-        /// <summary>Maximum lift coefficient</summary>
-        public const float ClMax = 0.205f;
+        /// <summary>Maximum lift coefficient (from libgolf)</summary>
+        public const float ClMax = 0.305f;
+
+        /// <summary>Lift coefficient linear term (from libgolf quadratic formula)</summary>
+        public const float ClLinear = 1.990f;
+
+        /// <summary>Lift coefficient quadratic term (from libgolf quadratic formula)</summary>
+        public const float ClQuadratic = -3.250f;
+
+        /// <summary>Spin factor threshold for lift cap</summary>
+        public const float ClSpinThreshold = 0.30f;
 
         #endregion
     }

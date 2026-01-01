@@ -299,14 +299,15 @@ namespace OpenRange.Physics
                 return new Vector3(0, -PhysicsConstants.GravityMs2, 0);
             }
 
-            // Aerodynamic coefficients
-            float Re = Aerodynamics.CalculateReynolds(speed, _airDensity);
-            float Cd = Aerodynamics.GetDragCoefficient(Re);
-
+            // Calculate spin factor first (needed for both drag and lift)
             float omega = UnitConversions.RpmToRadS(
                 Mathf.Sqrt(spinBack * spinBack + spinSide * spinSide)
             );
             float S = (omega * PhysicsConstants.BallRadiusM) / speed;
+
+            // Aerodynamic coefficients (Nathan model with spin-dependent drag)
+            float Re = Aerodynamics.CalculateReynolds(speed, _airDensity);
+            float Cd = Aerodynamics.GetDragCoefficient(Re, S);
             float Cl = Aerodynamics.GetLiftCoefficient(S);
 
             // Dynamic pressure
