@@ -293,6 +293,11 @@ namespace OpenRange.Tests.PlayMode
                 Object.DestroyImmediate(manager.gameObject);
             }
 
+            foreach (var manager in Object.FindObjectsByType<QualityManager>(FindObjectsSortMode.None))
+            {
+                Object.DestroyImmediate(manager.gameObject);
+            }
+
             foreach (var dispatcher in Object.FindObjectsByType<MainThreadDispatcher>(FindObjectsSortMode.None))
             {
                 Object.DestroyImmediate(dispatcher.gameObject);

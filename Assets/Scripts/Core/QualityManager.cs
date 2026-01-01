@@ -367,15 +367,33 @@ namespace OpenRange.Core
 
             Application.targetFrameRate = _targetFrameRate;
 
-            var urpAsset = GetURPAssetForTier(tier);
-            if (urpAsset != null && GraphicsSettings.currentRenderPipeline != urpAsset)
+            // Skip URP asset switching in batch mode (headless servers, CI)
+            // to avoid crashes when graphics are unavailable
+            if (Application.isBatchMode)
             {
-                QualitySettings.renderPipeline = urpAsset;
-
                 if (_enableDebugLogging)
                 {
-                    Debug.Log($"QualityManager: Switched to URP asset for tier {tier}");
+                    Debug.Log("QualityManager: Skipping URP asset switch in batch mode");
                 }
+                return;
+            }
+
+            try
+            {
+                var urpAsset = GetURPAssetForTier(tier);
+                if (urpAsset != null && GraphicsSettings.currentRenderPipeline != urpAsset)
+                {
+                    QualitySettings.renderPipeline = urpAsset;
+
+                    if (_enableDebugLogging)
+                    {
+                        Debug.Log($"QualityManager: Switched to URP asset for tier {tier}");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"QualityManager: Failed to switch URP asset: {ex.Message}");
             }
         }
 
