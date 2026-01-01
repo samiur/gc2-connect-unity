@@ -309,6 +309,94 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: Landing effect prefabs not found. Run 'OpenRange > Create All Landing Effects' first.");
             }
 
+            // Create EnvironmentManager with prefab references
+            var envManagerGo = new GameObject("EnvironmentManager");
+            var envManager = envManagerGo.AddComponent<Visualization.EnvironmentManager>();
+
+            // Load environment prefabs
+            var distanceMarkerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/DistanceMarker.prefab");
+            var targetGreenPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/TargetGreen.prefab");
+            var teeMatPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/TeeMat.prefab");
+
+            var envSo = new SerializedObject(envManager);
+            envSo.FindProperty("_groundPlane").objectReferenceValue = groundGo.transform;
+            envSo.FindProperty("_sunLight").objectReferenceValue = light;
+
+            if (distanceMarkerPrefab != null)
+            {
+                var markerComponent = distanceMarkerPrefab.GetComponent<Visualization.DistanceMarker>();
+                envSo.FindProperty("_distanceMarkerPrefab").objectReferenceValue = markerComponent;
+                Debug.Log("SceneGenerator: Configured DistanceMarker prefab on EnvironmentManager");
+            }
+            if (targetGreenPrefab != null)
+            {
+                var greenComponent = targetGreenPrefab.GetComponent<Visualization.TargetGreen>();
+                envSo.FindProperty("_targetGreenPrefab").objectReferenceValue = greenComponent;
+                Debug.Log("SceneGenerator: Configured TargetGreen prefab on EnvironmentManager");
+            }
+            if (teeMatPrefab != null)
+            {
+                var teeMatComponent = teeMatPrefab.GetComponent<Visualization.TeeMat>();
+                envSo.FindProperty("_teeMatPrefab").objectReferenceValue = teeMatComponent;
+                Debug.Log("SceneGenerator: Configured TeeMat prefab on EnvironmentManager");
+            }
+            envSo.ApplyModifiedPropertiesWithoutUndo();
+
+            // Instantiate Tee Mat at origin
+            if (teeMatPrefab != null)
+            {
+                var teeMat = PrefabUtility.InstantiatePrefab(teeMatPrefab) as GameObject;
+                teeMat.transform.position = Vector3.zero;
+                Debug.Log("SceneGenerator: Added TeeMat to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: TeeMat.prefab not found. Run 'OpenRange > Create All Environment Prefabs' first.");
+            }
+
+            // Instantiate Distance Markers at standard intervals
+            if (distanceMarkerPrefab != null)
+            {
+                int[] distances = { 50, 100, 150, 200, 250, 300 };
+                foreach (int distance in distances)
+                {
+                    var marker = PrefabUtility.InstantiatePrefab(distanceMarkerPrefab) as GameObject;
+                    float zPos = distance * Visualization.EnvironmentManager.YardsToMeters;
+                    marker.transform.position = new Vector3(-5f, 0f, zPos);
+
+                    // Set distance value
+                    var markerComponent = marker.GetComponent<Visualization.DistanceMarker>();
+                    if (markerComponent != null)
+                    {
+                        var markerSo = new SerializedObject(markerComponent);
+                        markerSo.FindProperty("_distance").intValue = distance;
+                        markerSo.ApplyModifiedPropertiesWithoutUndo();
+                    }
+                }
+                Debug.Log("SceneGenerator: Added distance markers to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: DistanceMarker.prefab not found. Run 'OpenRange > Create All Environment Prefabs' first.");
+            }
+
+            // Instantiate Target Greens at key distances
+            if (targetGreenPrefab != null)
+            {
+                int[] greenDistances = { 100, 150, 200, 250 };
+                foreach (int distance in greenDistances)
+                {
+                    var green = PrefabUtility.InstantiatePrefab(targetGreenPrefab) as GameObject;
+                    float zPos = distance * Visualization.EnvironmentManager.YardsToMeters;
+                    green.transform.position = new Vector3(0f, 0.01f, zPos);
+                }
+                Debug.Log("SceneGenerator: Added target greens to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: TargetGreen.prefab not found. Run 'OpenRange > Create All Environment Prefabs' first.");
+            }
+
             // Event System
             CreateEventSystem();
 
