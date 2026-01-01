@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 2 - Scenes & Bootstrap (1 of 2 complete)
+**Phase**: 2 - Scenes & Bootstrap (2 of 2 complete)
 **Last Updated**: 2025-12-31
-**Next Prompt**: 5 (PlatformManager and QualityManager)
+**Next Prompt**: 6 (Golf Ball Prefab and Materials)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -73,13 +73,14 @@ These components exist and don't need to be rebuilt:
   - [x] Configure build settings (via SceneGenerator)
   - [x] Play mode tests (16 new tests)
 
-- [ ] **Prompt 5**: PlatformManager and QualityManager
-  - [ ] Create PlatformManager.cs
-  - [ ] Create QualityManager.cs
-  - [ ] Create URP quality assets
-  - [ ] Platform detection
-  - [ ] Quality tier switching
-  - [ ] Tests
+- [x] **Prompt 5**: PlatformManager and QualityManager (PR #8)
+  - [x] Create PlatformManager.cs
+  - [x] Create QualityManager.cs
+  - [x] Create URPQualitySetup.cs editor tool
+  - [x] Platform detection (Mac, iPad, Android, Windows, Editor)
+  - [x] Quality tier switching with URP assets
+  - [x] Dynamic FPS monitoring with auto-downgrade
+  - [x] Tests (57 new tests)
 
 ---
 
@@ -365,6 +366,14 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2025-12-31 (Quality Management)**: Prompt 5 complete. Created platform detection and quality management:
+- `PlatformManager.cs` - Static utility for platform detection, Apple Silicon check, screen category
+- `QualityManager.cs` - MonoBehaviour singleton for quality tier management with dynamic adjustment
+- `URPQualitySetup.cs` - Editor tool to create URP quality assets
+- 57 new unit tests, all passing
+- Run `OpenRange > Create URP Quality Assets` to generate Low/Medium/High URP assets
+- Run `OpenRange > Configure QualityManager References` to wire up the assets
 
 **2025-12-31 (Scene Infrastructure)**: Prompt 4 complete. Created scene infrastructure with SceneGenerator editor tool. Key additions:
 - `SceneLoader.cs` - Static utility with sync/async scene loading and progress callbacks
