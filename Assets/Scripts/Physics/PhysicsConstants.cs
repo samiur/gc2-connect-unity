@@ -81,6 +81,40 @@ namespace OpenRange.Physics
 
         #endregion
 
+        #region Ground Physics Constants (Penner Model)
+
+        /// <summary>Base COR coefficient in Penner's formula: e = A - B*v + C*v²</summary>
+        public const float PennerCOR_A = 0.510f;
+
+        /// <summary>Linear velocity coefficient in Penner's formula</summary>
+        public const float PennerCOR_B = 0.0375f;
+
+        /// <summary>Quadratic velocity coefficient in Penner's formula</summary>
+        public const float PennerCOR_C = 0.000903f;
+
+        /// <summary>Minimum COR for stability (very high impact velocity)</summary>
+        public const float MinCOR = 0.15f;
+
+        /// <summary>Maximum COR for stability (very low impact velocity)</summary>
+        public const float MaxCOR = 0.65f;
+
+        /// <summary>Backspin RPM threshold for spin reversal to be possible</summary>
+        public const float SpinReversalThreshold = 7000f;
+
+        /// <summary>Landing angle threshold (degrees) for enhanced spin effects</summary>
+        public const float LandingAngleThresholdDeg = 40f;
+
+        /// <summary>Denominator for spin braking factor: brake = 1 - min(0.8, backspin/SpinBrakingDenominator)</summary>
+        public const float SpinBrakingDenominator = 12000f;
+
+        /// <summary>Maximum spin braking effect (0.8 = can reduce to 20% of original)</summary>
+        public const float MaxSpinBraking = 0.8f;
+
+        /// <summary>Minimum horizontal velocity (m/s) for spin reversal check</summary>
+        public const float SpinReversalVelocityThreshold = 5f;
+
+        #endregion
+
         #region Drag Coefficient Table (Nathan Model)
 
         /// <summary>
@@ -168,7 +202,7 @@ namespace OpenRange.Physics
     {
         public string Name;
 
-        /// <summary>Coefficient of Restitution (bounciness)</summary>
+        /// <summary>Coefficient of Restitution (bounciness) - base value before velocity adjustment</summary>
         public float COR;
 
         /// <summary>Rolling resistance coefficient</summary>
@@ -177,13 +211,25 @@ namespace OpenRange.Physics
         /// <summary>Friction coefficient</summary>
         public float Friction;
 
+        /// <summary>Tangential friction for bounce calculations (separate from rolling)</summary>
+        public float TangentialFriction;
+
+        /// <summary>How much spin is absorbed on impact (0 = none, 1 = all)</summary>
+        public float SpinAbsorption;
+
+        /// <summary>Multiplier applied to velocity-dependent COR (soft surfaces lower this)</summary>
+        public float CORMultiplier;
+
         // Pre-defined surfaces
         public static readonly GroundSurface Fairway = new GroundSurface
         {
             Name = "Fairway",
             COR = 0.60f,
             RollingResistance = 0.10f,
-            Friction = 0.50f
+            Friction = 0.50f,
+            TangentialFriction = 0.70f,
+            SpinAbsorption = 0.60f,
+            CORMultiplier = 1.0f
         };
 
         public static readonly GroundSurface Rough = new GroundSurface
@@ -191,7 +237,10 @@ namespace OpenRange.Physics
             Name = "Rough",
             COR = 0.30f,
             RollingResistance = 0.30f,
-            Friction = 0.70f
+            Friction = 0.70f,
+            TangentialFriction = 0.90f,
+            SpinAbsorption = 0.80f,
+            CORMultiplier = 0.50f
         };
 
         public static readonly GroundSurface Green = new GroundSurface
@@ -199,7 +248,10 @@ namespace OpenRange.Physics
             Name = "Green",
             COR = 0.40f,
             RollingResistance = 0.05f,
-            Friction = 0.30f
+            Friction = 0.30f,
+            TangentialFriction = 0.80f,
+            SpinAbsorption = 0.70f,
+            CORMultiplier = 0.85f
         };
     }
 }
