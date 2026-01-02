@@ -37,12 +37,13 @@ The following components are **already implemented** in the skeleton:
 - **Shot Data Bar**: `ShotDataBar.cs`, `DataTile.cs` (PR #23)
 - **Club Data Panel**: `ClubDataPanel.cs`, `SwingPathIndicator.cs`, `AttackAngleIndicator.cs` (PR #25)
 - **Connection Status UI**: `ConnectionStatusUI.cs`, `ConnectionPanel.cs`, `ConnectionToast.cs` (PR #27)
-- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `TestShotWindow.cs`
-- **Tests**: 700+ unit tests across all components
+- **Session Info Panel**: `SessionInfoPanel.cs`, `ShotHistoryPanel.cs`, `ShotHistoryItem.cs`, `ShotDetailModal.cs` (PR #29)
+- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `SessionInfoPanelGenerator.cs`, `TestShotWindow.cs`
+- **Tests**: 800+ unit tests across all components
 
 ### ❌ Not Yet Implemented
 - **Ground Physics**: Bounce and roll physics need improvement (spin effects, landing angle, spin reversal)
-- **UI Panels**: Session Info, Settings Panel
+- **UI Panels**: Settings Panel
 - **Native Plugins**: All platforms (macOS, Android, iPad)
 - **Network**: GSProClient, TCP connections
 
