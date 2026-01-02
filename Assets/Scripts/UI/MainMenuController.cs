@@ -17,9 +17,14 @@ namespace OpenRange.UI
         [SerializeField] private Button _openRangeButton;
         [SerializeField] private Button _settingsButton;
 
+        [Header("Connection UI")]
+        [SerializeField] private ConnectionStatusUI _connectionStatusUI;
+        [SerializeField] private ConnectionPanel _connectionPanel;
+
         private void Start()
         {
             SetupButtonListeners();
+            SetupConnectionUI();
         }
 
         private void SetupButtonListeners()
@@ -46,6 +51,11 @@ namespace OpenRange.UI
             {
                 _settingsButton.onClick.RemoveListener(OnSettingsClicked);
             }
+
+            if (_connectionStatusUI != null)
+            {
+                _connectionStatusUI.OnClicked -= OnConnectionStatusClicked;
+            }
         }
 
         private void OnOpenRangeClicked()
@@ -57,6 +67,23 @@ namespace OpenRange.UI
         private void OnSettingsClicked()
         {
             Debug.Log("MainMenuController: Settings clicked (not implemented)");
+        }
+
+        private void SetupConnectionUI()
+        {
+            // Wire up connection status click to show/hide panel
+            if (_connectionStatusUI != null && _connectionPanel != null)
+            {
+                _connectionStatusUI.OnClicked += OnConnectionStatusClicked;
+            }
+        }
+
+        private void OnConnectionStatusClicked()
+        {
+            if (_connectionPanel != null)
+            {
+                _connectionPanel.Toggle();
+            }
         }
     }
 }

@@ -21,6 +21,10 @@ namespace OpenRange.UI
         [SerializeField] private ShotDataBar _shotDataBar;
         [SerializeField] private ClubDataPanel _clubDataPanel;
 
+        [Header("Connection UI")]
+        [SerializeField] private ConnectionStatusUI _connectionStatusUI;
+        [SerializeField] private ConnectionPanel _connectionPanel;
+
         [Header("Visualization References")]
         [SerializeField] private BallController _ballController;
         [SerializeField] private TrajectoryRenderer _trajectoryRenderer;
@@ -30,6 +34,7 @@ namespace OpenRange.UI
         private void Start()
         {
             SetupButtonListeners();
+            SetupConnectionUI();
             InitializeScene();
             SubscribeToShotProcessor();
         }
@@ -47,6 +52,11 @@ namespace OpenRange.UI
             if (_backButton != null)
             {
                 _backButton.onClick.RemoveListener(OnBackClicked);
+            }
+
+            if (_connectionStatusUI != null)
+            {
+                _connectionStatusUI.OnClicked -= OnConnectionStatusClicked;
             }
 
             UnsubscribeFromShotProcessor();
@@ -135,6 +145,23 @@ namespace OpenRange.UI
             }
 
             SceneLoader.LoadMainMenu();
+        }
+
+        private void SetupConnectionUI()
+        {
+            // Wire up connection status click to show/hide panel
+            if (_connectionStatusUI != null && _connectionPanel != null)
+            {
+                _connectionStatusUI.OnClicked += OnConnectionStatusClicked;
+            }
+        }
+
+        private void OnConnectionStatusClicked()
+        {
+            if (_connectionPanel != null)
+            {
+                _connectionPanel.Toggle();
+            }
         }
     }
 }
