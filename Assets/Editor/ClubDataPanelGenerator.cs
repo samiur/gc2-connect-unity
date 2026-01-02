@@ -295,12 +295,12 @@ namespace OpenRange.Editor
         {
             var panelGO = new GameObject("ClubDataPanel");
 
-            // RectTransform - right-side anchored
+            // RectTransform - left-side anchored
             var rectTransform = panelGO.AddComponent<RectTransform>();
-            rectTransform.anchorMin = new Vector2(1, 0.3f);
-            rectTransform.anchorMax = new Vector2(1, 0.7f);
-            rectTransform.pivot = new Vector2(1, 0.5f);
-            rectTransform.anchoredPosition = new Vector2(-UITheme.Margin.Normal, 0);
+            rectTransform.anchorMin = new Vector2(0, 0.3f);
+            rectTransform.anchorMax = new Vector2(0, 0.7f);
+            rectTransform.pivot = new Vector2(0, 0.5f);
+            rectTransform.anchoredPosition = new Vector2(UITheme.Margin.Normal, 0);
             rectTransform.sizeDelta = new Vector2(160, 0);
 
             // Background
@@ -314,7 +314,7 @@ namespace OpenRange.Editor
 
             // CanvasGroup for animations
             var canvasGroup = panelGO.AddComponent<CanvasGroup>();
-            canvasGroup.alpha = 0f; // Start hidden
+            canvasGroup.alpha = 1f; // Start visible
 
             // Vertical Layout Group
             var layoutGroup = panelGO.AddComponent<VerticalLayoutGroup>();
