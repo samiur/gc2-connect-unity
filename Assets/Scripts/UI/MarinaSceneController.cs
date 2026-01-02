@@ -1,9 +1,12 @@
 // ABOUTME: Controller for the Marina driving range scene.
-// ABOUTME: Handles scene-specific UI and navigation back to main menu.
+// ABOUTME: Handles scene-specific UI, shot display, and navigation back to main menu.
 
+using OpenRange.Core;
+using OpenRange.GC2;
+using OpenRange.Physics;
+using OpenRange.Visualization;
 using UnityEngine;
 using UnityEngine.UI;
-using OpenRange.Core;
 
 namespace OpenRange.UI
 {
@@ -15,11 +18,19 @@ namespace OpenRange.UI
     {
         [Header("UI References")]
         [SerializeField] private Button _backButton;
+        [SerializeField] private ShotDataBar _shotDataBar;
+
+        [Header("Visualization References")]
+        [SerializeField] private BallController _ballController;
+        [SerializeField] private TrajectoryRenderer _trajectoryRenderer;
+
+        private ShotProcessor _shotProcessor;
 
         private void Start()
         {
             SetupButtonListeners();
             InitializeScene();
+            SubscribeToShotProcessor();
         }
 
         private void SetupButtonListeners()
@@ -36,6 +47,8 @@ namespace OpenRange.UI
             {
                 _backButton.onClick.RemoveListener(OnBackClicked);
             }
+
+            UnsubscribeFromShotProcessor();
         }
 
         private void InitializeScene()
@@ -47,6 +60,56 @@ namespace OpenRange.UI
             {
                 GameManager.Instance.StartNewSession();
             }
+
+            // Clear any previous shot data on scene entry
+            if (_shotDataBar != null)
+            {
+                _shotDataBar.Clear();
+            }
+        }
+
+        private void SubscribeToShotProcessor()
+        {
+            if (GameManager.Instance != null)
+            {
+                _shotProcessor = GameManager.Instance.ShotProcessor;
+                if (_shotProcessor != null)
+                {
+                    _shotProcessor.OnShotProcessed += OnShotProcessed;
+                    Debug.Log("MarinaSceneController: Subscribed to ShotProcessor events");
+                }
+            }
+        }
+
+        private void UnsubscribeFromShotProcessor()
+        {
+            if (_shotProcessor != null)
+            {
+                _shotProcessor.OnShotProcessed -= OnShotProcessed;
+            }
+        }
+
+        private void OnShotProcessed(GC2ShotData shotData, ShotResult result)
+        {
+            // Update UI
+            if (_shotDataBar != null)
+            {
+                _shotDataBar.UpdateDisplay(shotData, result);
+            }
+
+            // Trigger ball animation
+            if (_ballController != null)
+            {
+                _ballController.PlayShot(result);
+            }
+
+            // Show trajectory
+            if (_trajectoryRenderer != null)
+            {
+                _trajectoryRenderer.ShowTrajectory(result);
+            }
+
+            Debug.Log($"MarinaSceneController: Shot processed - Carry: {result.CarryDistance:F1}yd, Total: {result.TotalDistance:F1}yd");
         }
 
         private void OnBackClicked()
