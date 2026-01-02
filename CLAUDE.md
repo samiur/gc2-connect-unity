@@ -177,9 +177,11 @@ Heartbeat: Every 2 seconds when idle
 - Landing markers and effects with EffectsManager (PR #17)
 - Marina environment components: EnvironmentManager, DistanceMarker, TargetGreen, TeeMat (PR #19)
 - UI foundation: UIManager, UITheme, ResponsiveLayout, SafeAreaHandler (PR #21)
+- Shot Data Bar with DataTile components (PR #23)
+- Club Data Panel with SwingPathIndicator and AttackAngleIndicator (PR #25)
 
 **Not yet implemented:**
-- UI panels (Shot Data Bar, HMT Panel, Settings, Connection Status, etc.)
+- UI panels (Connection Status, Session Info, Settings)
 - Native USB plugins (macOS, Android, iPad)
 - GSPro relay client
 
@@ -206,6 +208,13 @@ Heartbeat: Every 2 seconds when idle
 | `OpenRange > Create Distance Marker Prefab` | Creates DistanceMarker.prefab |
 | `OpenRange > Create Target Green Prefab` | Creates TargetGreen.prefab with flag |
 | `OpenRange > Create Tee Mat Prefab` | Creates TeeMat.prefab |
+| `OpenRange > Create Data Tile Prefab` | Creates DataTile.prefab for shot metrics |
+| `OpenRange > Create Shot Data Bar Prefab` | Creates ShotDataBar.prefab with 10 tiles |
+| `OpenRange > Create All Shot Data Bar Prefabs` | Creates both shot data bar prefabs |
+| `OpenRange > Create Club Data Panel Prefab` | Creates ClubDataPanel.prefab for HMT data |
+| `OpenRange > Create Swing Path Indicator Prefab` | Creates SwingPathIndicator.prefab |
+| `OpenRange > Create Attack Angle Indicator Prefab` | Creates AttackAngleIndicator.prefab |
+| `OpenRange > Create All Club Data Panel Prefabs` | Creates all HMT panel prefabs |
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
 
 ## Local Development on macOS
