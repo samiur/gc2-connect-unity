@@ -36,11 +36,12 @@ The following components are **already implemented** in the skeleton:
 - **UI Foundation**: `UIManager.cs`, `UITheme.cs`, `ResponsiveLayout.cs`, `SafeAreaHandler.cs` (PR #21)
 - **Shot Data Bar**: `ShotDataBar.cs`, `DataTile.cs` (PR #23)
 - **Club Data Panel**: `ClubDataPanel.cs`, `SwingPathIndicator.cs`, `AttackAngleIndicator.cs` (PR #25)
-- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `TestShotWindow.cs`
+- **Connection Status UI**: `ConnectionStatusUI.cs`, `ConnectionPanel.cs`, `ConnectionToast.cs` (PR #27)
+- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `TestShotWindow.cs`
 - **Tests**: 700+ unit tests across all components
 
 ### ❌ Not Yet Implemented
-- **UI Panels**: Connection Status, Session Info, Settings Panel
+- **UI Panels**: Session Info, Settings Panel
 - **Native Plugins**: All platforms (macOS, Android, iPad)
 - **Network**: GSProClient, TCP connections
 

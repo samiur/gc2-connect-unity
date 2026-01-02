@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5 - UI System (4 of 6 complete)
+**Phase**: 5 - UI System (5 of 6 complete)
 **Last Updated**: 2026-01-02
-**Next Prompt**: 15 (Connection Status UI)
+**Next Prompt**: 16 (Session Info Panel)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
