@@ -1,7 +1,7 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5 - UI System (3 of 6 complete)
+**Phase**: 5 - UI System (4 of 6 complete)
 **Last Updated**: 2026-01-02
 **Next Prompt**: 15 (Connection Status UI)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
@@ -387,6 +387,10 @@ Additional physics tests also passing:
   - Creates properly configured vertical layout with all 5 tiles and both indicators
 - 88 new unit tests (40 ClubDataPanel, 25 SwingPathIndicator, 23 AttackAngleIndicator)
 - Run `OpenRange > Create All Club Data Panel Prefabs` to generate prefabs
+- **Fix (same PR)**: Scene integration was initially missing. Added:
+  - `MarinaSceneController.cs`: Added `_clubDataPanel` serialized field, Clear() in InitializeScene(), UpdateDisplay() in OnShotProcessed()
+  - `SceneGenerator.cs`: Instantiate ClubDataPanel prefab on canvas left side, wire reference to controller
+  - Updated docs (CLAUDE.md, plan.md) with comprehensive Scene Integration Checklist
 
 **2026-01-01 (Shot Data Bar)**: Prompt 13 complete. Created GSPro-style shot data display (PR #23):
 - `DataTile.cs` - Reusable data display component
