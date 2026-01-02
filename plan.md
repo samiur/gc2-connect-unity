@@ -41,6 +41,7 @@ The following components are **already implemented** in the skeleton:
 - **Tests**: 700+ unit tests across all components
 
 ### ❌ Not Yet Implemented
+- **Ground Physics**: Bounce and roll physics need improvement (spin effects, landing angle, spin reversal)
 - **UI Panels**: Session Info, Settings Panel
 - **Native Plugins**: All platforms (macOS, Android, iPad)
 - **Network**: GSProClient, TCP connections
@@ -63,6 +64,9 @@ Ball prefab, animation controller, trajectory rendering, camera system.
 
 ### Phase 5: UI System (Prompts 12-17)
 Shot data display, HMT panel, connection status, settings, responsive layout.
+
+### Phase 5.5: Ground Physics Improvement (Prompts 32-34)
+Fix bounce and roll physics for realistic post-carry behavior including spin effects, spin reversal, and landing angle impact.
 
 ### Phase 6: TCP/Network Layer (Prompts 18-19)
 TCP connection for testing and GSPro relay mode.
@@ -1977,6 +1981,229 @@ Write final tests:
 - Full regression suite
 - Performance benchmarks
 - Platform-specific tests
+```
+
+---
+
+### Prompt 32: Ground Physics - Spin-Dependent Bounce
+
+```text
+Improve the GroundPhysics.Bounce() method to implement realistic spin-dependent bounce behavior.
+
+Context: The current bounce physics is too simple. It uses a fixed COR (0.6 for fairway) and basic friction, but ignores the critical role of backspin in reducing horizontal velocity and causing the ball to "check" or even spin back on high-spin wedge shots.
+
+Research basis (from golf physics literature):
+- Normal COR decreases with impact velocity: e = 0.510 - 0.0375*v + 0.000903*v² (Penner model)
+- High backspin creates tangential force opposing forward motion
+- Spin reversal occurs when friction torque exceeds ball momentum
+- Landing angle affects effective friction (steeper = more braking)
+- Real PGA wedge shots with 9000+ rpm can stop or spin back
+
+Current problems in GroundPhysics.cs:
+- Fixed COR = 0.6 regardless of impact velocity
+- Friction only reduces tangential velocity by fixed 30%
+- No spin-dependent braking effect
+- No spin reversal mechanism
+- Landing angle not considered
+
+Update Assets/Scripts/Physics/GroundPhysics.cs:
+
+Requirements for Bounce():
+1. Velocity-dependent COR using Penner's formula:
+   - e = 0.510 - 0.0375*Vn + 0.000903*Vn² (Vn in m/s)
+   - Clamp to range [0.15, 0.65] for stability
+   - Surface multiplier: Fairway 1.0, Green 0.85, Rough 0.5
+
+2. Spin-dependent braking effect:
+   - Calculate spin factor: S = (ω × r) / Vt (where Vt = tangential velocity)
+   - High backspin reduces post-bounce horizontal velocity
+   - Braking factor: brake = 1 - min(0.8, backspinRpm / 12000)
+   - Apply: Vt_new = Vt * brake * frictionFactor
+
+3. Landing angle effects:
+   - Steeper landing angles increase friction effect
+   - angleFactor = 1 + sin(landingAngle) * 0.5
+   - Multiply friction by angleFactor
+
+4. Spin reversal conditions:
+   - When backspin > 7000 rpm AND landingAngle > 40° AND Vt < 5 m/s:
+   - Ball can "check" (nearly stop) or even roll backward
+   - Reduce or reverse Vt component
+   - spinReversalThreshold = backspin / 10000 * landingAngleFactor
+
+5. Post-bounce spin calculation:
+   - Spin reduces significantly on impact (surface contact)
+   - newSpin = backspin * (0.3 + 0.4 * e) (more bounce = more spin retained)
+   - High friction surfaces absorb more spin
+
+Update GroundSurface class:
+- Add TangentialFriction property (separate from rolling friction)
+- Add SpinAbsorption property (how much spin is lost on impact)
+- Fairway: TangentialFriction = 0.7, SpinAbsorption = 0.6
+- Green: TangentialFriction = 0.8, SpinAbsorption = 0.7
+- Rough: TangentialFriction = 0.9, SpinAbsorption = 0.8
+
+Write unit tests:
+- Driver (low spin, low angle): should bounce and roll significantly
+- 7-iron (medium spin, medium angle): moderate check
+- Wedge (high spin, steep angle): should check hard, minimal roll
+- Extreme wedge (9000+ rpm, 50°+ angle): should nearly stop or spin back
+- Verify COR decreases with higher impact velocity
+- Verify spin reversal occurs under correct conditions
+```
+
+---
+
+### Prompt 33: Ground Physics - Improved Roll Model
+
+```text
+Improve the GroundPhysics.RollStep() method for realistic roll behavior with spin effects.
+
+Context: Current roll model uses simple deceleration from rolling resistance, but ignores the critical effect of remaining spin during the roll phase. High backspin should cause the ball to decelerate faster and potentially roll backward.
+
+Research basis:
+- Ball with residual backspin experiences torque opposing forward motion
+- Magnus-like effect at ground level causes additional deceleration
+- Spin decays during roll due to ground friction
+- "Check and release" occurs when spin fully decays
+- TrackMan uses landing angle, spin rate, and landing speed to calculate roll
+
+Current problems in RollStep():
+- Fixed deceleration from rolling resistance only
+- Spin decay is separate from motion effect
+- No backward roll capability
+- Minimum deceleration (0.5 m/s²) may be too low
+
+Update Assets/Scripts/Physics/GroundPhysics.cs:
+
+Requirements for RollStep():
+1. Spin-enhanced deceleration:
+   - Base decel = rollingResistance * g
+   - Spin decel = (backspin / 5000) * g * spinDecayFactor
+   - Total decel = baseDecel + spinDecel
+   - spinDecayFactor decreases as spin decays
+
+2. Residual backspin effects:
+   - While backspin > 500 rpm: enhanced braking
+   - spinBrakingForce = min(backspin / 3000, 1.0) * g
+   - Apply additional deceleration proportional to spin
+
+3. Spin-induced direction change:
+   - When backspin high and velocity low: potential spin-back
+   - If backspin > 3000 rpm AND speed < 1.0 m/s:
+     - Ball may slow to stop faster
+     - If backspin > 5000 rpm AND speed < 0.5 m/s:
+       - Potential backward motion (spin reversal during roll)
+       - Reverse velocity direction, apply reduced speed
+
+4. Coupled spin decay:
+   - Spin decays faster when ball is moving slowly
+   - decayRate = baseDecay * (1 + 1/speed) (faster decay at low speed)
+   - Spin transfers energy to forward motion as it decays
+   - "Release" effect when spin drops below threshold
+
+5. Surface-specific behavior:
+   - Green: Lower resistance (0.05), but higher spin retention
+   - Fairway: Moderate resistance (0.10), normal spin decay
+   - Rough: High resistance (0.30), rapid spin absorption
+
+6. Improve stopped detection:
+   - Current threshold (0.1 m/s) may be too high
+   - Add spin threshold: stopped when speed < 0.05 AND spin < 100
+
+Create new helper method EstimateRollWithSpin():
+- Input: landingSpeed, landingAngle, backspin, surface
+- Output: estimated roll distance accounting for spin effects
+- Used for quick calculations without full simulation
+
+Write unit tests:
+- Low spin ball rolls farther than high spin ball at same speed
+- High backspin causes faster deceleration
+- Spin decays during roll phase
+- Very high spin at low speed can cause backward roll
+- Green surface allows more roll than rough
+- Verify stopped threshold catches all cases
+```
+
+---
+
+### Prompt 34: Ground Physics Validation and Integration
+
+```text
+Validate and integrate the improved ground physics with real-world data.
+
+Context: After implementing spin-dependent bounce and roll, we need to validate against expected behavior from real golf shots and ensure integration with the existing simulation.
+
+Validation targets (from TrackMan PGA Tour data):
+| Club | Ball Speed | Launch | Spin | Land Angle | Expected Carry | Expected Total | Roll |
+|------|------------|--------|------|------------|----------------|----------------|------|
+| Driver | 167 mph | 10.9° | 2686 rpm | 38° | 275 yds | 295 yds | 20 yds |
+| 3-Wood | 158 mph | 9.3° | 3655 rpm | 42° | 243 yds | 260 yds | 17 yds |
+| 5-Iron | 135 mph | 14.1° | 5000 rpm | 47° | 195 yds | 205 yds | 10 yds |
+| 7-Iron | 120 mph | 16.3° | 7097 rpm | 50° | 172 yds | 177 yds | 5 yds |
+| PW | 102 mph | 24.2° | 9304 rpm | 52° | 136 yds | 138 yds | 2 yds |
+| SW | 85 mph | 30° | 10500 rpm | 55° | 100 yds | 100 yds | 0 yds |
+
+Update Assets/Scripts/Physics/TrajectorySimulator.cs:
+
+Requirements:
+1. Track landing angle in simulation:
+   - Calculate angle of descent at impact
+   - landingAngle = atan2(-Vy, Vhorizontal)
+   - Pass to GroundPhysics.Bounce()
+
+2. Pass full spin data through bounce/roll:
+   - Include backspin AND sidespin
+   - Sidespin affects lateral roll direction
+   - Track spin decay through ground phase
+
+3. Update ShotResult to include:
+   - LandingAngle (degrees)
+   - LandingSpeed (m/s)
+   - RollDistance (already exists, verify accuracy)
+   - SpinAtLanding (rpm)
+   - BounceCount (already exists)
+   - FinalSpin (rpm at rest)
+
+Update PhysicsConstants.cs:
+- Add ground physics constants:
+  - SpinReversalThreshold = 7000f (rpm)
+  - LandingAngleThresholdDeg = 40f
+  - SpinBrakingCoefficient = 0.0003f
+  - MinRollSpinRpm = 100f
+
+Create Assets/Tests/EditMode/GroundPhysicsTests.cs:
+- Comprehensive tests for bounce behavior
+- Comprehensive tests for roll behavior
+- Validation tests against expected data
+
+Create Assets/Tests/EditMode/RollDistanceValidationTests.cs:
+- Test each club type matches expected roll distance (±20%)
+- Driver: 20 yds roll
+- 7-Iron: 5 yds roll
+- Wedge: 2 yds roll or less
+- Sand wedge: 0 yds roll (or slight spin-back)
+
+Integration tests:
+- Full trajectory through bounce and roll
+- Verify physics matches visual animation
+- Ensure trajectory points include ground phase accurately
+
+Performance verification:
+- Ground physics should not significantly slow simulation
+- Target: < 1ms for complete bounce/roll calculation
+- Profile and optimize if needed
+
+Document in PHYSICS.md:
+- Ground physics model description
+- Coefficient values and sources
+- Validation data and tolerances
+- Known limitations
+
+Update TestShotWindow.cs:
+- Add display of landing angle and roll distance
+- Show spin-at-landing value
+- Add "Check/Bite" indicator for high-spin shots
 ```
 
 ---
