@@ -557,6 +557,81 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ConnectionPanel.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
             }
 
+            // Session Info Panel (top-left corner, compact statistics)
+            SessionInfoPanel sessionInfoPanel = null;
+            var sessionInfoPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/SessionInfoPanel.prefab");
+            if (sessionInfoPanelPrefab != null)
+            {
+                var sessionInfoPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(sessionInfoPanelPrefab);
+                sessionInfoPanelGo.name = "SessionInfoPanel";
+                sessionInfoPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at top-left corner (below any potential connection status)
+                var sessionInfoRect = sessionInfoPanelGo.GetComponent<RectTransform>();
+                sessionInfoRect.anchorMin = new Vector2(0, 1);
+                sessionInfoRect.anchorMax = new Vector2(0, 1);
+                sessionInfoRect.pivot = new Vector2(0, 1);
+                sessionInfoRect.anchoredPosition = new Vector2(20, -80);
+                sessionInfoRect.sizeDelta = new Vector2(250, 120);
+
+                sessionInfoPanel = sessionInfoPanelGo.GetComponent<SessionInfoPanel>();
+                Debug.Log("SceneGenerator: Added SessionInfoPanel to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: SessionInfoPanel.prefab not found. Run 'OpenRange > Create All Session Info Prefabs' first.");
+            }
+
+            // Shot History Panel (right side panel, expandable)
+            ShotHistoryPanel shotHistoryPanel = null;
+            var shotHistoryPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ShotHistoryPanel.prefab");
+            if (shotHistoryPanelPrefab != null)
+            {
+                var shotHistoryPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(shotHistoryPanelPrefab);
+                shotHistoryPanelGo.name = "ShotHistoryPanel";
+                shotHistoryPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position on right side (takes portion of screen)
+                var historyRect = shotHistoryPanelGo.GetComponent<RectTransform>();
+                historyRect.anchorMin = new Vector2(1, 0.15f);
+                historyRect.anchorMax = new Vector2(1, 0.85f);
+                historyRect.pivot = new Vector2(1, 0.5f);
+                historyRect.anchoredPosition = new Vector2(0, 0);
+                historyRect.sizeDelta = new Vector2(350, 0);
+
+                shotHistoryPanel = shotHistoryPanelGo.GetComponent<ShotHistoryPanel>();
+                Debug.Log("SceneGenerator: Added ShotHistoryPanel to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ShotHistoryPanel.prefab not found. Run 'OpenRange > Create All Session Info Prefabs' first.");
+            }
+
+            // Shot Detail Modal (centered, full shot details)
+            ShotDetailModal shotDetailModal = null;
+            var shotDetailModalPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ShotDetailModal.prefab");
+            if (shotDetailModalPrefab != null)
+            {
+                var shotDetailModalGo = (GameObject)PrefabUtility.InstantiatePrefab(shotDetailModalPrefab);
+                shotDetailModalGo.name = "ShotDetailModal";
+                shotDetailModalGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position centered as modal overlay
+                var modalRect = shotDetailModalGo.GetComponent<RectTransform>();
+                modalRect.anchorMin = new Vector2(0.5f, 0.5f);
+                modalRect.anchorMax = new Vector2(0.5f, 0.5f);
+                modalRect.pivot = new Vector2(0.5f, 0.5f);
+                modalRect.anchoredPosition = Vector2.zero;
+                modalRect.sizeDelta = new Vector2(500, 600);
+
+                shotDetailModal = shotDetailModalGo.GetComponent<ShotDetailModal>();
+                Debug.Log("SceneGenerator: Added ShotDetailModal to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ShotDetailModal.prefab not found. Run 'OpenRange > Create All Session Info Prefabs' first.");
+            }
+
             // Add MarinaSceneController
             var controllerGo = new GameObject("MarinaSceneController");
             var controller = controllerGo.AddComponent<MarinaSceneController>();
@@ -567,6 +642,9 @@ namespace OpenRange.Editor
             controllerSo.FindProperty("_clubDataPanel").objectReferenceValue = clubDataPanel;
             controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
             controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
+            controllerSo.FindProperty("_sessionInfoPanel").objectReferenceValue = sessionInfoPanel;
+            controllerSo.FindProperty("_shotHistoryPanel").objectReferenceValue = shotHistoryPanel;
+            controllerSo.FindProperty("_shotDetailModal").objectReferenceValue = shotDetailModal;
             controllerSo.FindProperty("_ballController").objectReferenceValue = ballController;
             controllerSo.FindProperty("_trajectoryRenderer").objectReferenceValue = trajectoryRenderer;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
