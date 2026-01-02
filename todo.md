@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5 - UI System (2 of 6 complete)
-**Last Updated**: 2026-01-01
-**Next Prompt**: 14 (Club Data Panel)
+**Phase**: 5 - UI System (4 of 6 complete)
+**Last Updated**: 2026-01-02
+**Next Prompt**: 15 (Connection Status UI)
 **Physics**: ✅ Validated - All 16 tests passing (PR #3)
 
 ---
@@ -159,13 +159,12 @@ These components exist and don't need to be rebuilt:
   - [x] Responsive font sizing (Compact/Regular/Large)
   - [x] Tests (78 new tests: 41 DataTile, 37 ShotDataBar)
 
-- [ ] **Prompt 14**: Club Data Panel (HMT)
-  - [ ] Create ClubDataPanel.cs
-  - [ ] Create SwingPathIndicator.cs
-  - [ ] Create AttackAngleIndicator.cs
-  - [ ] Create ClubDataPanel.prefab
-  - [ ] Create SwingPathIndicator.prefab
-  - [ ] Tests
+- [x] **Prompt 14**: Club Data Panel (HMT) (PR #25)
+  - [x] Create ClubDataPanel.cs
+  - [x] Create SwingPathIndicator.cs
+  - [x] Create AttackAngleIndicator.cs
+  - [x] Create ClubDataPanelGenerator.cs (editor tool for prefabs)
+  - [x] Tests (88 new tests)
 
 - [ ] **Prompt 15**: Connection Status UI
   - [ ] Create ConnectionStatusUI.cs
@@ -366,6 +365,32 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-02 (Club Data Panel)**: Prompt 14 complete. Created HMT club data visualization (PR #25):
+- `ClubDataPanel.cs` - Left side panel for HMT metrics
+  - 5 DataTiles: Club Speed (mph), Path (°), Attack Angle (°), Face to Target (°), Dynamic Loft (°)
+  - Direction enums: SwingPathDirection (InToOut/OutToIn/Neutral), AttackAngleDirection (Ascending/Descending/Neutral), FaceDirection (Open/Closed/Square)
+  - Static helper methods: GetPathDirection(), GetAttackDirection(), GetFaceDirection()
+  - UpdateDisplay(GC2ShotData) with HasClubData check
+  - Events: OnDisplayUpdated, OnDisplayCleared
+- `SwingPathIndicator.cs` - Top-down path visualization
+  - Arrow showing in-to-out (blue) vs out-to-in (orange) path direction
+  - Face angle line overlay for club face position
+  - 3x rotation scaling for visual amplification of small angles
+  - Neutral threshold (0.5°) for classification
+- `AttackAngleIndicator.cs` - Side view attack angle visualization
+  - Arrow showing ascending (green) vs descending (blue/purple)
+  - Rotation clamping (±45°) for extreme values
+  - Neutral state color (white/gray)
+- `ClubDataPanelGenerator.cs` - Editor tool for prefab creation
+  - Menu: OpenRange > Create Club Data Panel Prefab / Swing Path Indicator Prefab / Attack Angle Indicator Prefab / All Club Data Panel Prefabs
+  - Creates properly configured vertical layout with all 5 tiles and both indicators
+- 88 new unit tests (40 ClubDataPanel, 25 SwingPathIndicator, 23 AttackAngleIndicator)
+- Run `OpenRange > Create All Club Data Panel Prefabs` to generate prefabs
+- **Fix (same PR)**: Scene integration was initially missing. Added:
+  - `MarinaSceneController.cs`: Added `_clubDataPanel` serialized field, Clear() in InitializeScene(), UpdateDisplay() in OnShotProcessed()
+  - `SceneGenerator.cs`: Instantiate ClubDataPanel prefab on canvas left side, wire reference to controller
+  - Updated docs (CLAUDE.md, plan.md) with comprehensive Scene Integration Checklist
 
 **2026-01-01 (Shot Data Bar)**: Prompt 13 complete. Created GSPro-style shot data display (PR #23):
 - `DataTile.cs` - Reusable data display component

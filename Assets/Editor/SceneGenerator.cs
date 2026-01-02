@@ -455,6 +455,31 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ShotDataBar.prefab not found. Run 'OpenRange > Create All Shot Data Bar Prefabs' first.");
             }
 
+            // Club Data Panel (left side panel for HMT data)
+            ClubDataPanel clubDataPanel = null;
+            var clubDataPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ClubDataPanel.prefab");
+            if (clubDataPanelPrefab != null)
+            {
+                var clubDataPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(clubDataPanelPrefab);
+                clubDataPanelGo.name = "ClubDataPanel";
+                clubDataPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at left side of screen
+                var clubDataPanelRect = clubDataPanelGo.GetComponent<RectTransform>();
+                clubDataPanelRect.anchorMin = new Vector2(0, 0.5f);
+                clubDataPanelRect.anchorMax = new Vector2(0, 0.5f);
+                clubDataPanelRect.pivot = new Vector2(0, 0.5f);
+                clubDataPanelRect.anchoredPosition = new Vector2(20, 0);
+                clubDataPanelRect.sizeDelta = new Vector2(200, 400);
+
+                clubDataPanel = clubDataPanelGo.GetComponent<ClubDataPanel>();
+                Debug.Log("SceneGenerator: Added ClubDataPanel to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ClubDataPanel.prefab not found. Run 'OpenRange > Create All Club Data Panel Prefabs' first.");
+            }
+
             // Add MarinaSceneController
             var controllerGo = new GameObject("MarinaSceneController");
             var controller = controllerGo.AddComponent<MarinaSceneController>();
@@ -462,6 +487,7 @@ namespace OpenRange.Editor
             var controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("_backButton").objectReferenceValue = backBtn.GetComponent<Button>();
             controllerSo.FindProperty("_shotDataBar").objectReferenceValue = shotDataBar;
+            controllerSo.FindProperty("_clubDataPanel").objectReferenceValue = clubDataPanel;
             controllerSo.FindProperty("_ballController").objectReferenceValue = ballController;
             controllerSo.FindProperty("_trajectoryRenderer").objectReferenceValue = trajectoryRenderer;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();

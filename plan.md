@@ -34,11 +34,13 @@ The following components are **already implemented** in the skeleton:
 - **Effects**: `LandingMarker.cs`, `ImpactEffect.cs`, `EffectsManager.cs` (PR #17)
 - **Environment**: `EnvironmentManager.cs`, `DistanceMarker.cs`, `TargetGreen.cs`, `TeeMat.cs` (PR #19)
 - **UI Foundation**: `UIManager.cs`, `UITheme.cs`, `ResponsiveLayout.cs`, `SafeAreaHandler.cs` (PR #21)
-- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `TestShotWindow.cs`
-- **Tests**: 600+ unit tests across all components
+- **Shot Data Bar**: `ShotDataBar.cs`, `DataTile.cs` (PR #23)
+- **Club Data Panel**: `ClubDataPanel.cs`, `SwingPathIndicator.cs`, `AttackAngleIndicator.cs` (PR #25)
+- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `TestShotWindow.cs`
+- **Tests**: 700+ unit tests across all components
 
 ### ❌ Not Yet Implemented
-- **UI Panels**: Shot Data Bar, HMT Panel, Settings Panel, Connection Status, Session Info
+- **UI Panels**: Connection Status, Session Info, Settings Panel
 - **Native Plugins**: All platforms (macOS, Android, iPad)
 - **Network**: GSProClient, TCP connections
 
@@ -2042,14 +2044,25 @@ Unity 6 uses a modular package system. When using Assembly Definitions, some Uni
 
 ### Scene Integration Pattern
 
-When creating new visual components:
+When creating new visual/UI components, ALL of these steps are required:
 
-1. **Create component scripts** in `Assets/Scripts/Visualization/`
+1. **Create component scripts** in `Assets/Scripts/Visualization/` or `Assets/Scripts/UI/`
 2. **Create editor generator** in `Assets/Editor/` with menu items
-3. **Update SceneGenerator.cs** to add component to scene and wire references
-4. **Regenerate scene** after creating prefabs
+3. **Update the scene controller** (e.g., `MarinaSceneController.cs`):
+   - Add `[SerializeField] private YourComponent _yourComponent;`
+   - Clear it in `InitializeScene()` if appropriate
+   - Use it in event handlers like `OnShotProcessed()`
+4. **Update SceneGenerator.cs** to:
+   - Load and instantiate the prefab from Assets/Prefabs/
+   - Position it (anchors, pivot, sizeDelta for UI)
+   - Wire reference to scene controller via `SerializedObject.FindProperty("_yourComponent")`
+5. **Regenerate scene** after creating prefabs: `OpenRange > Generate Marina Scene`
 
-Components that auto-wire at runtime (like EffectsManager subscribing to BallController) still need to exist in the scene.
+**Common Mistake**: Creating the prefab generator but forgetting steps 3-4. The prefab exists but never appears in the scene because:
+- SceneGenerator doesn't instantiate it
+- Scene controller has no reference to update it
+
+Components that auto-wire at runtime (like EffectsManager subscribing to BallController) still need to exist in the scene via SceneGenerator.
 
 ### Prefab Creation in Editor Tools
 
