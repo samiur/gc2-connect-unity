@@ -1,10 +1,10 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5 - UI System (4 of 6 complete)
+**Phase**: 5 - UI System (5 of 6 complete)
 **Last Updated**: 2026-01-02
-**Next Prompt**: 15 (Connection Status UI)
-**Physics**: ✅ Validated - All 16 tests passing (PR #3)
+**Next Prompt**: 16 (Session Info Panel) or 32 (Ground Physics Improvement)
+**Physics**: ✅ Carry validated (PR #3) | ⚠️ Bounce/roll needs improvement (see Phase 5.5)
 
 ---
 
@@ -12,10 +12,10 @@
 
 These components exist and don't need to be rebuilt:
 
-- [x] **Physics Engine** (complete)
+- [x] **Physics Engine** (carry validated, bounce/roll needs improvement)
   - [x] TrajectorySimulator.cs - RK4 integration
   - [x] Aerodynamics.cs - Nathan model
-  - [x] GroundPhysics.cs - Bounce and roll
+  - [ ] GroundPhysics.cs - Bounce and roll (⚠️ needs spin-dependent model, see Phase 5.5)
   - [x] PhysicsConstants.cs - Constants
   - [x] UnitConversions.cs - Unit helpers
   - [x] ShotResult.cs - Result model
@@ -166,13 +166,15 @@ These components exist and don't need to be rebuilt:
   - [x] Create ClubDataPanelGenerator.cs (editor tool for prefabs)
   - [x] Tests (88 new tests)
 
-- [ ] **Prompt 15**: Connection Status UI
-  - [ ] Create ConnectionStatusUI.cs
-  - [ ] Create ConnectionPanel.cs
-  - [ ] Create ConnectionToast.cs
-  - [ ] Create ConnectionStatus.prefab
-  - [ ] Create ConnectionPanel.prefab
-  - [ ] Tests
+- [x] **Prompt 15**: Connection Status UI (PR #27)
+  - [x] Create ConnectionStatusUI.cs
+  - [x] Create ConnectionPanel.cs
+  - [x] Create ConnectionToast.cs
+  - [x] Create ConnectionStatusGenerator.cs (editor tool)
+  - [x] Create ConnectionStatus.prefab
+  - [x] Create ConnectionPanel.prefab
+  - [x] Wire into MainMenu and Marina scenes via SceneGenerator
+  - [x] Tests (86 new tests)
 
 - [ ] **Prompt 16**: Session Info Panel
   - [ ] Create SessionInfoPanel.cs
@@ -189,6 +191,36 @@ These components exist and don't need to be rebuilt:
   - [ ] Create SettingDropdown.cs
   - [ ] Create SettingsPanel.prefab
   - [ ] Tests
+
+---
+
+## Phase 5.5: Ground Physics Improvement
+
+- [ ] **Prompt 32**: Spin-Dependent Bounce
+  - [ ] Implement velocity-dependent COR (Penner's formula: e = 0.510 - 0.0375v + 0.000903v²)
+  - [ ] Add spin-dependent braking effect (high backspin reduces horizontal velocity)
+  - [ ] Add landing angle effects on friction
+  - [ ] Implement spin reversal detection (high backspin + steep angle = backward bounce)
+  - [ ] Calculate post-bounce spin (friction reduces spin, possible reversal)
+  - [ ] Unit tests with validation against TrackMan data
+
+- [ ] **Prompt 33**: Improved Roll Model
+  - [ ] Implement spin-enhanced deceleration (backspin increases ground braking)
+  - [ ] Add residual backspin effects (high spin continues to brake during roll)
+  - [ ] Implement spin-induced direction change (backward roll for high-spin wedges)
+  - [ ] Add coupled spin decay during roll
+  - [ ] Surface-specific roll behavior (green vs fairway vs rough)
+  - [ ] Unit tests
+
+- [ ] **Prompt 34**: Physics Validation and Integration
+  - [ ] Add landing angle tracking to ShotResult
+  - [ ] Update TrajectorySimulator to pass landing data to GroundPhysics
+  - [ ] Integration tests with full simulation pipeline
+  - [ ] Validation against TrackMan PGA Tour data:
+    - [ ] Driver: ~75° landing, 45 yds roll
+    - [ ] 7-Iron: ~48° landing, 15 yds roll
+    - [ ] PW: ~50° landing, 5 yds roll (with check)
+    - [ ] High-spin wedge: ~53° landing, minimal roll or spin-back
 
 ---
 
@@ -365,6 +397,34 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-02 (Ground Physics Improvement Plan)**: Added Phase 5.5 (Prompts 32-34) to address bounce/roll physics issues:
+- **Problem**: Carry distances are accurate but post-carry behavior is unrealistic:
+  - Too much roll on all shots (45+ yards on drivers, should be ~25-45 based on conditions)
+  - High-spin wedge shots (9000+ rpm) bounce and roll instead of checking/spinning back
+  - No spin-dependent effects on ground interaction
+- **Root cause analysis** of current GroundPhysics.cs:
+  - Fixed COR (0.6) regardless of impact velocity - real COR is velocity-dependent
+  - Simple 30% friction reduction - no spin-dependent braking
+  - No spin reversal mechanism - high backspin should reverse horizontal velocity
+  - No landing angle consideration - steeper angles increase braking
+- **Research conducted**:
+  - Penner's velocity-dependent COR: e = 0.510 - 0.0375v + 0.000903v²
+  - Spin reversal occurs when μ × m × g × contact_time > horizontal_momentum
+  - Tangential friction coefficient ~0.4-0.5 for grass
+  - TrackMan PGA Tour data for validation targets
+- **Three prompts added to plan.md**:
+  - Prompt 32: Spin-Dependent Bounce (velocity COR, spin braking, reversal)
+  - Prompt 33: Improved Roll Model (spin deceleration, backward roll, surface behavior)
+  - Prompt 34: Validation and Integration (landing angle tracking, validation tests)
+
+**2026-01-02 (GC2 Protocol Update)**: Updated GC2_PROTOCOL.md with detailed USB protocol information:
+- **Endpoint correction**: Shot data uses INTERRUPT IN endpoint (0x82), not BULK
+- **Message types**: 0H = shot data (process), 0M = ball movement (skip)
+- **Data accumulation**: Multi-packet assembly with waiting for BACK_RPM/SIDE_RPM
+- **Misread patterns**: Added 2222 error pattern to GC2Protocol.IsValidShot()
+- Updated plan.md prompts 21, 24 with correct endpoint and parsing strategy
+- Added "GC2 USB Protocol Summary" to Appendix D of plan.md
 
 **2026-01-02 (Club Data Panel)**: Prompt 14 complete. Created HMT club data visualization (PR #25):
 - `ClubDataPanel.cs` - Left side panel for HMT metrics

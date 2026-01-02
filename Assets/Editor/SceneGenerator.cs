@@ -139,39 +139,63 @@ namespace OpenRange.Editor
             openRangeRect.anchoredPosition = Vector2.zero;
             openRangeRect.sizeDelta = new Vector2(300, 60);
 
-            // Add MainMenuController
+            // Add MainMenuController (will wire up after creating connection UI)
             var controllerGo = new GameObject("MainMenuController");
             var controller = controllerGo.AddComponent<MainMenuController>();
 
-            // Wire up button click
+            // Wire up button click first
             var button = openRangeBtn.GetComponent<Button>();
             var controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("_openRangeButton").objectReferenceValue = button;
-            controllerSo.ApplyModifiedPropertiesWithoutUndo();
+            // Don't apply yet - will add more properties below
 
-            // Connection Status Panel (placeholder)
-            var statusPanelGo = new GameObject("ConnectionStatusPanel");
-            statusPanelGo.transform.SetParent(canvasGo.transform);
-            var statusRect = statusPanelGo.AddComponent<RectTransform>();
-            statusRect.anchorMin = new Vector2(1, 1);
-            statusRect.anchorMax = new Vector2(1, 1);
-            statusRect.pivot = new Vector2(1, 1);
-            statusRect.anchoredPosition = new Vector2(-20, -20);
-            statusRect.sizeDelta = new Vector2(200, 40);
+            // Connection Status UI (top-right corner indicator)
+            ConnectionStatusUI connectionStatusUI = null;
+            var connectionStatusPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ConnectionStatus.prefab");
+            if (connectionStatusPrefab != null)
+            {
+                var connectionStatusGo = (GameObject)PrefabUtility.InstantiatePrefab(connectionStatusPrefab);
+                connectionStatusGo.name = "ConnectionStatus";
+                connectionStatusGo.transform.SetParent(canvasGo.transform, false);
 
-            var statusBg = statusPanelGo.AddComponent<Image>();
-            statusBg.color = new Color(0.1f, 0.1f, 0.1f, 0.8f);
+                // Position at top-right corner
+                var statusRect = connectionStatusGo.GetComponent<RectTransform>();
+                statusRect.anchorMin = new Vector2(1, 1);
+                statusRect.anchorMax = new Vector2(1, 1);
+                statusRect.pivot = new Vector2(1, 1);
+                statusRect.anchoredPosition = new Vector2(-20, -20);
 
-            var statusTextGo = CreateTextElement(statusPanelGo.transform, "StatusText", "Disconnected");
-            var statusTextRect = statusTextGo.GetComponent<RectTransform>();
-            statusTextRect.anchorMin = Vector2.zero;
-            statusTextRect.anchorMax = Vector2.one;
-            statusTextRect.offsetMin = new Vector2(10, 5);
-            statusTextRect.offsetMax = new Vector2(-10, -5);
-            var statusText = statusTextGo.GetComponent<TextMeshProUGUI>();
-            statusText.fontSize = 18;
-            statusText.alignment = TextAlignmentOptions.MidlineRight;
-            statusText.color = Color.gray;
+                connectionStatusUI = connectionStatusGo.GetComponent<ConnectionStatusUI>();
+                Debug.Log("SceneGenerator: Added ConnectionStatus to MainMenu scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ConnectionStatus.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
+            }
+
+            // Connection Panel (modal)
+            ConnectionPanel connectionPanel = null;
+            var connectionPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ConnectionPanel.prefab");
+            if (connectionPanelPrefab != null)
+            {
+                var connectionPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(connectionPanelPrefab);
+                connectionPanelGo.name = "ConnectionPanel";
+                connectionPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position centered
+                var panelRect = connectionPanelGo.GetComponent<RectTransform>();
+                panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+                panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+                panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.anchoredPosition = Vector2.zero;
+
+                connectionPanel = connectionPanelGo.GetComponent<ConnectionPanel>();
+                Debug.Log("SceneGenerator: Added ConnectionPanel to MainMenu scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ConnectionPanel.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
+            }
 
             // Settings Button (placeholder, disabled)
             var settingsBtn = CreateButton(canvasGo.transform, "SettingsButton", "Settings");
@@ -184,6 +208,11 @@ namespace OpenRange.Editor
             var settingsColors = settingsBtn.GetComponent<Button>().colors;
             settingsColors.disabledColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
             settingsBtn.GetComponent<Button>().colors = settingsColors;
+
+            // Wire up connection UI to controller
+            controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
+            controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
+            controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
             SaveScene(scene, $"{ScenesPath}/MainMenu.unity");
             Debug.Log("SceneGenerator: MainMenu scene created");
@@ -480,6 +509,54 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ClubDataPanel.prefab not found. Run 'OpenRange > Create All Club Data Panel Prefabs' first.");
             }
 
+            // Connection Status UI (top-right corner indicator)
+            ConnectionStatusUI connectionStatusUI = null;
+            var connectionStatusPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ConnectionStatus.prefab");
+            if (connectionStatusPrefab != null)
+            {
+                var connectionStatusGo = (GameObject)PrefabUtility.InstantiatePrefab(connectionStatusPrefab);
+                connectionStatusGo.name = "ConnectionStatus";
+                connectionStatusGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at top-right corner
+                var statusRect = connectionStatusGo.GetComponent<RectTransform>();
+                statusRect.anchorMin = new Vector2(1, 1);
+                statusRect.anchorMax = new Vector2(1, 1);
+                statusRect.pivot = new Vector2(1, 1);
+                statusRect.anchoredPosition = new Vector2(-20, -20);
+
+                connectionStatusUI = connectionStatusGo.GetComponent<ConnectionStatusUI>();
+                Debug.Log("SceneGenerator: Added ConnectionStatus to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ConnectionStatus.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
+            }
+
+            // Connection Panel (modal)
+            ConnectionPanel connectionPanel = null;
+            var connectionPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ConnectionPanel.prefab");
+            if (connectionPanelPrefab != null)
+            {
+                var connectionPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(connectionPanelPrefab);
+                connectionPanelGo.name = "ConnectionPanel";
+                connectionPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position centered
+                var panelRect = connectionPanelGo.GetComponent<RectTransform>();
+                panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+                panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+                panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.anchoredPosition = Vector2.zero;
+
+                connectionPanel = connectionPanelGo.GetComponent<ConnectionPanel>();
+                Debug.Log("SceneGenerator: Added ConnectionPanel to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: ConnectionPanel.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
+            }
+
             // Add MarinaSceneController
             var controllerGo = new GameObject("MarinaSceneController");
             var controller = controllerGo.AddComponent<MarinaSceneController>();
@@ -488,6 +565,8 @@ namespace OpenRange.Editor
             controllerSo.FindProperty("_backButton").objectReferenceValue = backBtn.GetComponent<Button>();
             controllerSo.FindProperty("_shotDataBar").objectReferenceValue = shotDataBar;
             controllerSo.FindProperty("_clubDataPanel").objectReferenceValue = clubDataPanel;
+            controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
+            controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
             controllerSo.FindProperty("_ballController").objectReferenceValue = ballController;
             controllerSo.FindProperty("_trajectoryRenderer").objectReferenceValue = trajectoryRenderer;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
