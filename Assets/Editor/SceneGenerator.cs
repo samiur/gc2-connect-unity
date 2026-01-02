@@ -197,21 +197,43 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ConnectionPanel.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
             }
 
-            // Settings Button (placeholder, disabled)
+            // Settings Button
             var settingsBtn = CreateButton(canvasGo.transform, "SettingsButton", "Settings");
             var settingsRect = settingsBtn.GetComponent<RectTransform>();
             settingsRect.anchorMin = new Vector2(0.5f, 0.25f);
             settingsRect.anchorMax = new Vector2(0.5f, 0.25f);
             settingsRect.anchoredPosition = Vector2.zero;
             settingsRect.sizeDelta = new Vector2(200, 50);
-            settingsBtn.GetComponent<Button>().interactable = false;
-            var settingsColors = settingsBtn.GetComponent<Button>().colors;
-            settingsColors.disabledColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
-            settingsBtn.GetComponent<Button>().colors = settingsColors;
 
-            // Wire up connection UI to controller
+            // Settings Panel (modal)
+            SettingsPanel settingsPanel = null;
+            var settingsPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/SettingsPanel.prefab");
+            if (settingsPanelPrefab != null)
+            {
+                var settingsPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(settingsPanelPrefab);
+                settingsPanelGo.name = "SettingsPanel";
+                settingsPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position centered
+                var panelRect = settingsPanelGo.GetComponent<RectTransform>();
+                panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+                panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+                panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.anchoredPosition = Vector2.zero;
+
+                settingsPanel = settingsPanelGo.GetComponent<SettingsPanel>();
+                Debug.Log("SceneGenerator: Added SettingsPanel to MainMenu scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: SettingsPanel.prefab not found. Run 'OpenRange > Create All Settings Panel Prefabs' first.");
+            }
+
+            // Wire up UI to controller
+            controllerSo.FindProperty("_settingsButton").objectReferenceValue = settingsBtn.GetComponent<Button>();
             controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
             controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
+            controllerSo.FindProperty("_settingsPanel").objectReferenceValue = settingsPanel;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
             SaveScene(scene, $"{ScenesPath}/MainMenu.unity");
@@ -459,6 +481,15 @@ namespace OpenRange.Editor
             backRect.anchoredPosition = new Vector2(20, -20);
             backRect.sizeDelta = new Vector2(100, 40);
 
+            // Settings Button (top-right, next to connection status)
+            var settingsBtn = CreateButton(canvasGo.transform, "SettingsButton", "Settings");
+            var settingsRect = settingsBtn.GetComponent<RectTransform>();
+            settingsRect.anchorMin = new Vector2(1, 1);
+            settingsRect.anchorMax = new Vector2(1, 1);
+            settingsRect.pivot = new Vector2(1, 1);
+            settingsRect.anchoredPosition = new Vector2(-150, -20);
+            settingsRect.sizeDelta = new Vector2(100, 40);
+
             // Shot Data Bar (bottom panel)
             ShotDataBar shotDataBar = null;
             var shotDataBarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ShotDataBar.prefab");
@@ -632,16 +663,42 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ShotDetailModal.prefab not found. Run 'OpenRange > Create All Session Info Prefabs' first.");
             }
 
+            // Settings Panel (modal)
+            SettingsPanel settingsPanel = null;
+            var settingsPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/SettingsPanel.prefab");
+            if (settingsPanelPrefab != null)
+            {
+                var settingsPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(settingsPanelPrefab);
+                settingsPanelGo.name = "SettingsPanel";
+                settingsPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position centered
+                var panelRect = settingsPanelGo.GetComponent<RectTransform>();
+                panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+                panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+                panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.anchoredPosition = Vector2.zero;
+
+                settingsPanel = settingsPanelGo.GetComponent<SettingsPanel>();
+                Debug.Log("SceneGenerator: Added SettingsPanel to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: SettingsPanel.prefab not found. Run 'OpenRange > Create All Settings Panel Prefabs' first.");
+            }
+
             // Add MarinaSceneController
             var controllerGo = new GameObject("MarinaSceneController");
             var controller = controllerGo.AddComponent<MarinaSceneController>();
 
             var controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("_backButton").objectReferenceValue = backBtn.GetComponent<Button>();
+            controllerSo.FindProperty("_settingsButton").objectReferenceValue = settingsBtn.GetComponent<Button>();
             controllerSo.FindProperty("_shotDataBar").objectReferenceValue = shotDataBar;
             controllerSo.FindProperty("_clubDataPanel").objectReferenceValue = clubDataPanel;
             controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
             controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
+            controllerSo.FindProperty("_settingsPanel").objectReferenceValue = settingsPanel;
             controllerSo.FindProperty("_sessionInfoPanel").objectReferenceValue = sessionInfoPanel;
             controllerSo.FindProperty("_shotHistoryPanel").objectReferenceValue = shotHistoryPanel;
             controllerSo.FindProperty("_shotDetailModal").objectReferenceValue = shotDetailModal;

@@ -181,9 +181,9 @@ Heartbeat: Every 2 seconds when idle
 - Club Data Panel with SwingPathIndicator and AttackAngleIndicator (PR #25)
 - Connection Status UI with indicator, panel, and toasts (PR #27)
 - Session Info Panel with shot history and detail modal (PR #29)
+- Settings Panel with SettingToggle, SettingSlider, SettingDropdown components (PR #31)
 
 **Not yet implemented:**
-- UI panels (Settings)
 - Native USB plugins (macOS, Android, iPad)
 - GSPro relay client
 
@@ -225,6 +225,11 @@ Heartbeat: Every 2 seconds when idle
 | `OpenRange > Create Shot History Item Prefab` | Creates ShotHistoryItem.prefab (shot row template) |
 | `OpenRange > Create Shot Detail Modal Prefab` | Creates ShotDetailModal.prefab (full shot details) |
 | `OpenRange > Create All Session Info Prefabs` | Creates all session info UI prefabs |
+| `OpenRange > Create Setting Toggle Prefab` | Creates SettingToggle.prefab for boolean settings |
+| `OpenRange > Create Setting Slider Prefab` | Creates SettingSlider.prefab for numeric ranges |
+| `OpenRange > Create Setting Dropdown Prefab` | Creates SettingDropdown.prefab for options |
+| `OpenRange > Create Settings Panel Prefab` | Creates SettingsPanel.prefab with all sections |
+| `OpenRange > Create All Settings Panel Prefabs` | Creates all settings panel prefabs |
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
 
 ## Local Development on macOS

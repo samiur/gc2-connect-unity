@@ -21,10 +21,14 @@ namespace OpenRange.UI
         [SerializeField] private ConnectionStatusUI _connectionStatusUI;
         [SerializeField] private ConnectionPanel _connectionPanel;
 
+        [Header("Settings UI")]
+        [SerializeField] private SettingsPanel _settingsPanel;
+
         private void Start()
         {
             SetupButtonListeners();
             SetupConnectionUI();
+            SetupSettingsPanel();
         }
 
         private void SetupButtonListeners()
@@ -66,7 +70,11 @@ namespace OpenRange.UI
 
         private void OnSettingsClicked()
         {
-            Debug.Log("MainMenuController: Settings clicked (not implemented)");
+            Debug.Log("MainMenuController: Settings clicked");
+            if (_settingsPanel != null)
+            {
+                _settingsPanel.Toggle();
+            }
         }
 
         private void SetupConnectionUI()
@@ -84,6 +92,11 @@ namespace OpenRange.UI
             {
                 _connectionPanel.Toggle();
             }
+        }
+
+        private void SetupSettingsPanel()
+        {
+            // Settings panel binds to SettingsManager.Instance automatically in Start
         }
     }
 }
