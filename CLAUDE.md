@@ -160,7 +160,7 @@ Heartbeat: Every 2 seconds when idle
 ## Current Implementation Status
 
 **Implemented:**
-- Physics engine (TrajectorySimulator, Aerodynamics, GroundPhysics) - validated against Nathan model
+- Physics engine (TrajectorySimulator, Aerodynamics, GroundPhysics) - carry validated, bounce improved (PR #33)
 - GC2 data models and protocol parser
 - GameManager with connection lifecycle
 - MainThreadDispatcher for native callbacks
