@@ -98,29 +98,38 @@ namespace OpenRange.GC2
         
         /// <summary>
         /// Validate shot data is within reasonable ranges.
+        /// See docs/GC2_PROTOCOL.md for misread detection patterns.
         /// </summary>
         public static bool IsValidShot(GC2ShotData shot)
         {
-            // Speed sanity check
-            if (shot.BallSpeed < 10 || shot.BallSpeed > 220)
+            // Speed sanity check (per protocol: reject < 10 or > 250)
+            if (shot.BallSpeed < 10 || shot.BallSpeed > 250)
                 return false;
-            
+
             // Launch angle sanity
             if (shot.LaunchAngle < -10 || shot.LaunchAngle > 60)
                 return false;
-            
+
             // Direction sanity
             if (Mathf.Abs(shot.Direction) > 45)
                 return false;
-            
+
+            // Zero spin indicates a camera misread
+            if (shot.TotalSpin == 0)
+                return false;
+
+            // 2222 pattern is a known GC2 error code for spin misread
+            if (Mathf.Approximately(shot.BackSpin, 2222f))
+                return false;
+
             // Zero spin with high speed is usually a misread
             if (shot.BallSpeed > 80 && shot.TotalSpin < 100)
                 return false;
-            
+
             // Spin axis must be reasonable
             if (Mathf.Abs(shot.SpinAxis) > 90)
                 return false;
-            
+
             return true;
         }
         

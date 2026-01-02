@@ -166,13 +166,15 @@ These components exist and don't need to be rebuilt:
   - [x] Create ClubDataPanelGenerator.cs (editor tool for prefabs)
   - [x] Tests (88 new tests)
 
-- [ ] **Prompt 15**: Connection Status UI
-  - [ ] Create ConnectionStatusUI.cs
-  - [ ] Create ConnectionPanel.cs
-  - [ ] Create ConnectionToast.cs
-  - [ ] Create ConnectionStatus.prefab
-  - [ ] Create ConnectionPanel.prefab
-  - [ ] Tests
+- [x] **Prompt 15**: Connection Status UI (PR #27)
+  - [x] Create ConnectionStatusUI.cs
+  - [x] Create ConnectionPanel.cs
+  - [x] Create ConnectionToast.cs
+  - [x] Create ConnectionStatusGenerator.cs (editor tool)
+  - [x] Create ConnectionStatus.prefab
+  - [x] Create ConnectionPanel.prefab
+  - [x] Wire into MainMenu and Marina scenes via SceneGenerator
+  - [x] Tests (86 new tests)
 
 - [ ] **Prompt 16**: Session Info Panel
   - [ ] Create SessionInfoPanel.cs
@@ -365,6 +367,14 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-02 (GC2 Protocol Update)**: Updated GC2_PROTOCOL.md with detailed USB protocol information:
+- **Endpoint correction**: Shot data uses INTERRUPT IN endpoint (0x82), not BULK
+- **Message types**: 0H = shot data (process), 0M = ball movement (skip)
+- **Data accumulation**: Multi-packet assembly with waiting for BACK_RPM/SIDE_RPM
+- **Misread patterns**: Added 2222 error pattern to GC2Protocol.IsValidShot()
+- Updated plan.md prompts 21, 24 with correct endpoint and parsing strategy
+- Added "GC2 USB Protocol Summary" to Appendix D of plan.md
 
 **2026-01-02 (Club Data Panel)**: Prompt 14 complete. Created HMT club data visualization (PR #25):
 - `ClubDataPanel.cs` - Left side panel for HMT metrics

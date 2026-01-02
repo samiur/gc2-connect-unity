@@ -1317,26 +1317,35 @@ Based on USB_PLUGINS.md implementation:
    - libusb_open_device_with_vid_pid()
    - libusb_detach_kernel_driver() if needed
    - libusb_claim_interface(0)
-   - Find bulk IN endpoint (0x81)
+   - Find INTERRUPT IN endpoint (0x82) - NOT bulk endpoint
 
 4. Read loop (dispatch queue):
-   - libusb_bulk_transfer() with 100ms timeout
-   - Buffer management
-   - Parse complete messages
-   - Call Unity callback with JSON
+   - libusb_interrupt_transfer() with 100ms timeout (64-byte packets)
+   - Buffer management for multi-packet messages
+   - Message type filtering (0H for shot data, skip 0M ball movement)
+   - Data accumulation until spin components (BACK_RPM, SIDE_RPM) received
+   - Call Unity callback with JSON when shot complete
 
-5. Protocol parsing:
-   - Parse key=value format
-   - Build NSDictionary
-   - Convert to JSON
-   - Handle partial data buffering
+5. Protocol parsing (per GC2_PROTOCOL.md):
+   - Filter by message prefix: only process "0H" lines, skip "0M"
+   - Parse key=value format, accumulate across packets
+   - Wait for BACK_RPM/SIDE_RPM before finalizing shot
+   - Detect new shots via SHOT_ID change (clear accumulator)
+   - Handle timeouts (~500ms) if spin never arrives
+   - Build NSDictionary, convert to JSON
 
-6. Disconnection:
+6. Misread detection:
+   - Reject SPIN_RPM == 0
+   - Reject BACK_RPM == 2222 (known error pattern)
+   - Reject SPEED_MPH < 10 or > 250
+   - Track SHOT_ID for duplicate detection
+
+7. Disconnection:
    - Stop read thread
    - libusb_release_interface()
    - libusb_close()
 
-7. Unity communication:
+8. Unity communication:
    - UnitySendMessage for callbacks
    - Main thread dispatch for safety
 
@@ -1502,29 +1511,40 @@ Complete NativePlugins/Android/GC2AndroidPlugin/:
 4. Connection:
    - UsbManager.openDevice()
    - UsbDeviceConnection.claimInterface()
-   - Find bulk IN endpoint
+   - Find INTERRUPT IN endpoint (address 0x82, type USB_ENDPOINT_XFER_INT)
+   - Note: NOT bulk endpoint - GC2 uses interrupt transfers
 
 5. Read thread:
-   - Thread with bulk transfer loop
+   - Thread with interrupt transfer loop (64-byte packets)
    - 100ms timeout
-   - Buffer management
-   - Parse complete messages
+   - Multi-packet buffer management
+   - Message type filtering (0H for shots, skip 0M)
+   - Data accumulation until BACK_RPM/SIDE_RPM received
 
-6. Protocol parsing (GC2Protocol.kt):
-   - Same key=value format
+6. Protocol parsing (GC2Protocol.kt per GC2_PROTOCOL.md):
+   - Filter lines by prefix: "0H" = shot data, "0M" = skip
+   - Parse key=value format, accumulate across packets
+   - Wait for spin components before finalizing shot
+   - Detect new shots via SHOT_ID change
+   - Handle timeouts (~500ms) if spin never arrives
    - Convert to JSONObject
-   - Serialize to string
 
-7. Unity callbacks:
+7. Misread detection:
+   - Reject SPIN_RPM == 0
+   - Reject BACK_RPM == 2222 (known error pattern)
+   - Reject SPEED_MPH < 10 or > 250
+   - Track SHOT_ID for duplicate filtering
+
+8. Unity callbacks:
    - UnityPlayer.UnitySendMessage()
    - Main thread if needed
 
-8. Device attach/detach:
+9. Device attach/detach:
    - BroadcastReceiver for USB_DEVICE_ATTACHED
    - BroadcastReceiver for USB_DEVICE_DETACHED
    - Auto-reconnect on reattach
 
-9. GC2Device.kt:
+10. GC2Device.kt:
    - Wrapper for USB device/connection
    - Clean interface for plugin
 
@@ -2156,3 +2176,47 @@ The Unity version of NUnit 3.x does not include all constraint methods:
 
 - **Use**: `Is.EqualTo(A).Or.EqualTo(B).Or.EqualTo(C)`
 - **Don't use**: `Is.AnyOf(A, B, C)` - not available
+
+### GC2 USB Protocol Summary (from docs/GC2_PROTOCOL.md)
+
+Critical implementation details for native plugins:
+
+**Endpoint Selection:**
+- Use INTERRUPT IN endpoint (0x82), NOT bulk endpoint
+- 64-byte packets split across multiple transfers
+- libusb: `libusb_interrupt_transfer()`
+- Android: Find endpoint with `USB_ENDPOINT_XFER_INT` type
+
+**Message Types:**
+| Prefix | Name | Action |
+|--------|------|--------|
+| `0H` | Shot Header | Parse - contains shot metrics |
+| `0M` | Ball Movement | Skip - real-time tracking data |
+
+**Data Accumulation Strategy:**
+1. Filter: Only process lines starting with `0H`
+2. Accumulate: Parse `KEY=VALUE` pairs into dictionary across packets
+3. Complete: Shot is ready when `BACK_RPM` or `SIDE_RPM` is received
+4. New shot: When `SHOT_ID` changes, clear accumulator
+5. Timeout: If spin never arrives (~500ms), process available data
+
+**Multi-Packet Example:**
+```
+Packet 1: 0H\nSHOT_ID=1\nSPEED_MPH=145.
+Packet 2: 20\nELEVATION_DEG=11.8\n
+Packet 3: 0H\nSHOT_ID=1\nBACK_RPM=2480\nSIDE_RPM=-320\n
+→ Shot complete, process now
+```
+
+**Misread Detection:**
+| Condition | Action |
+|-----------|--------|
+| `SPIN_RPM == 0` | Reject - camera misread |
+| `BACK_RPM == 2222` | Reject - known error pattern |
+| `SPEED_MPH < 10` or `> 250` | Reject - unrealistic |
+| Same `SHOT_ID` as last | Reject - duplicate |
+
+**Timing:**
+- Early reading: ~200ms after impact (incomplete)
+- Final reading: ~1000ms after impact (complete with spin)
+- Always wait for spin components before processing
