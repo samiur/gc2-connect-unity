@@ -19,6 +19,7 @@ namespace OpenRange.UI
         [Header("UI References")]
         [SerializeField] private Button _backButton;
         [SerializeField] private ShotDataBar _shotDataBar;
+        [SerializeField] private ClubDataPanel _clubDataPanel;
 
         [Header("Visualization References")]
         [SerializeField] private BallController _ballController;
@@ -66,6 +67,11 @@ namespace OpenRange.UI
             {
                 _shotDataBar.Clear();
             }
+
+            if (_clubDataPanel != null)
+            {
+                _clubDataPanel.Clear();
+            }
         }
 
         private void SubscribeToShotProcessor()
@@ -95,6 +101,12 @@ namespace OpenRange.UI
             if (_shotDataBar != null)
             {
                 _shotDataBar.UpdateDisplay(shotData, result);
+            }
+
+            // Update club data panel (only shows if shot has HMT data)
+            if (_clubDataPanel != null)
+            {
+                _clubDataPanel.UpdateDisplay(shotData);
             }
 
             // Trigger ball animation

@@ -295,12 +295,23 @@ This project uses Assembly Definitions (`.asmdef`) for code organization. When a
 
 ### Scene Integration Checklist
 
-When creating new visual components that need to be in scenes:
+When creating new visual/UI components that need to be in scenes:
 
-1. **Create the component script** in `Assets/Scripts/Visualization/`
+1. **Create the component script** in `Assets/Scripts/Visualization/` or `Assets/Scripts/UI/`
 2. **Create an editor generator** in `Assets/Editor/` to create prefabs
-3. **Update SceneGenerator.cs** to instantiate the prefab and wire up references
-4. **Regenerate the scene** after creating prefabs: `OpenRange > Generate Marina Scene`
+3. **Update the scene controller** (e.g., `MarinaSceneController.cs`):
+   - Add `[SerializeField] private YourComponent _yourComponent;`
+   - Clear it in `InitializeScene()` if needed
+   - Update it in `OnShotProcessed()` or appropriate event handler
+4. **Update SceneGenerator.cs** to:
+   - Load and instantiate the prefab
+   - Position it correctly (anchor, pivot, sizeDelta)
+   - Wire up the reference to the scene controller via `SerializedObject`
+5. **Regenerate the scene** after creating prefabs: `OpenRange > Generate Marina Scene`
+
+**CRITICAL**: Steps 3 and 4 are often forgotten. Without them, the prefab won't appear in the scene even if you create it with the editor tool. Always verify:
+- The scene controller has a serialized field for the new component
+- The SceneGenerator instantiates the prefab AND wires it to the controller
 
 ### Prefab Creation Pattern
 
