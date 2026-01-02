@@ -18,6 +18,7 @@ namespace OpenRange.UI
     {
         [Header("UI References")]
         [SerializeField] private Button _backButton;
+        [SerializeField] private Button _settingsButton;
         [SerializeField] private ShotDataBar _shotDataBar;
         [SerializeField] private ClubDataPanel _clubDataPanel;
 
@@ -29,6 +30,9 @@ namespace OpenRange.UI
         [Header("Connection UI")]
         [SerializeField] private ConnectionStatusUI _connectionStatusUI;
         [SerializeField] private ConnectionPanel _connectionPanel;
+
+        [Header("Settings UI")]
+        [SerializeField] private SettingsPanel _settingsPanel;
 
         [Header("Visualization References")]
         [SerializeField] private BallController _ballController;
@@ -51,6 +55,11 @@ namespace OpenRange.UI
             {
                 _backButton.onClick.AddListener(OnBackClicked);
             }
+
+            if (_settingsButton != null)
+            {
+                _settingsButton.onClick.AddListener(OnSettingsClicked);
+            }
         }
 
         private void OnDestroy()
@@ -58,6 +67,11 @@ namespace OpenRange.UI
             if (_backButton != null)
             {
                 _backButton.onClick.RemoveListener(OnBackClicked);
+            }
+
+            if (_settingsButton != null)
+            {
+                _settingsButton.onClick.RemoveListener(OnSettingsClicked);
             }
 
             if (_connectionStatusUI != null)
@@ -167,6 +181,15 @@ namespace OpenRange.UI
             }
 
             SceneLoader.LoadMainMenu();
+        }
+
+        private void OnSettingsClicked()
+        {
+            Debug.Log("MarinaSceneController: Settings clicked");
+            if (_settingsPanel != null)
+            {
+                _settingsPanel.Toggle();
+            }
         }
 
         private void SetupConnectionUI()
