@@ -52,43 +52,34 @@ namespace OpenRange.Editor
             EnsureDirectoriesExist();
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // Create persistent managers container
-            var managersGo = new GameObject("Managers");
-
-            // Add GameManager with child services
+            // Add GameManager as ROOT object (DontDestroyOnLoad requires root)
             var gameManagerGo = new GameObject("GameManager");
-            gameManagerGo.transform.SetParent(managersGo.transform);
             var gameManager = gameManagerGo.AddComponent<Core.GameManager>();
 
-            // Add ShotProcessor as child
+            // Add ShotProcessor as child of GameManager
             var shotProcessorGo = new GameObject("ShotProcessor");
             shotProcessorGo.transform.SetParent(gameManagerGo.transform);
             var shotProcessor = shotProcessorGo.AddComponent<Core.ShotProcessor>();
 
-            // Add SessionManager as child
+            // Add SessionManager as child of GameManager
             var sessionManagerGo = new GameObject("SessionManager");
             sessionManagerGo.transform.SetParent(gameManagerGo.transform);
             var sessionManager = sessionManagerGo.AddComponent<Core.SessionManager>();
+
+            // Add SettingsManager as child of GameManager
+            var settingsManagerGo = new GameObject("SettingsManager");
+            settingsManagerGo.transform.SetParent(gameManagerGo.transform);
+            var settingsManager = settingsManagerGo.AddComponent<Core.SettingsManager>();
 
             // Wire up references using SerializedObject
             var gameManagerSo = new SerializedObject(gameManager);
             gameManagerSo.FindProperty("_shotProcessor").objectReferenceValue = shotProcessor;
             gameManagerSo.FindProperty("_sessionManager").objectReferenceValue = sessionManager;
-            gameManagerSo.ApplyModifiedPropertiesWithoutUndo();
-
-            // Add SettingsManager
-            var settingsManagerGo = new GameObject("SettingsManager");
-            settingsManagerGo.transform.SetParent(managersGo.transform);
-            settingsManagerGo.AddComponent<Core.SettingsManager>();
-
-            // Wire SettingsManager reference
-            var settingsManager = settingsManagerGo.GetComponent<Core.SettingsManager>();
             gameManagerSo.FindProperty("_settingsManager").objectReferenceValue = settingsManager;
             gameManagerSo.ApplyModifiedPropertiesWithoutUndo();
 
-            // Add MainThreadDispatcher
+            // Add MainThreadDispatcher as ROOT object (has its own DontDestroyOnLoad)
             var dispatcherGo = new GameObject("MainThreadDispatcher");
-            dispatcherGo.transform.SetParent(managersGo.transform);
             dispatcherGo.AddComponent<Utilities.MainThreadDispatcher>();
 
             // Add EventSystem
@@ -205,11 +196,13 @@ namespace OpenRange.Editor
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // Load and instantiate CameraRig prefab (replaces manual camera creation)
+            Visualization.CameraController cameraController = null;
             var cameraRigPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Camera/CameraRig.prefab");
             if (cameraRigPrefab != null)
             {
                 var cameraRig = PrefabUtility.InstantiatePrefab(cameraRigPrefab) as GameObject;
                 cameraRig.transform.position = Vector3.zero;
+                cameraController = cameraRig.GetComponent<Visualization.CameraController>();
                 Debug.Log("SceneGenerator: Added CameraRig prefab to scene");
             }
             else
@@ -254,12 +247,24 @@ namespace OpenRange.Editor
             }
 
             // Load and instantiate GolfBall prefab
+            Visualization.BallController ballController = null;
             var golfBallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Ball/GolfBall.prefab");
             if (golfBallPrefab != null)
             {
                 var golfBall = PrefabUtility.InstantiatePrefab(golfBallPrefab) as GameObject;
                 golfBall.transform.position = new Vector3(0f, 0.02f, 0f); // Slightly above ground (ball radius)
+                ballController = golfBall.GetComponent<Visualization.BallController>();
                 Debug.Log("SceneGenerator: Added GolfBall prefab to scene");
+
+                // Wire CameraController to BallController for auto-follow
+                if (cameraController != null && ballController != null)
+                {
+                    var cameraSo = new SerializedObject(cameraController);
+                    cameraSo.FindProperty("_ballController").objectReferenceValue = ballController;
+                    cameraSo.FindProperty("_ballTransform").objectReferenceValue = golfBall.transform;
+                    cameraSo.ApplyModifiedPropertiesWithoutUndo();
+                    Debug.Log("SceneGenerator: Wired CameraController to BallController");
+                }
             }
             else
             {
@@ -267,11 +272,13 @@ namespace OpenRange.Editor
             }
 
             // Load and instantiate TrajectoryLine prefab
+            Visualization.TrajectoryRenderer trajectoryRenderer = null;
             var trajectoryLinePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Effects/TrajectoryLine.prefab");
             if (trajectoryLinePrefab != null)
             {
                 var trajectoryLine = PrefabUtility.InstantiatePrefab(trajectoryLinePrefab) as GameObject;
                 trajectoryLine.transform.position = Vector3.zero;
+                trajectoryRenderer = trajectoryLine.GetComponent<Visualization.TrajectoryRenderer>();
                 Debug.Log("SceneGenerator: Added TrajectoryLine prefab to scene");
             }
             else
@@ -455,6 +462,8 @@ namespace OpenRange.Editor
             var controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("_backButton").objectReferenceValue = backBtn.GetComponent<Button>();
             controllerSo.FindProperty("_shotDataBar").objectReferenceValue = shotDataBar;
+            controllerSo.FindProperty("_ballController").objectReferenceValue = ballController;
+            controllerSo.FindProperty("_trajectoryRenderer").objectReferenceValue = trajectoryRenderer;
             controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
             SaveScene(scene, $"{RangesPath}/Marina.unity");

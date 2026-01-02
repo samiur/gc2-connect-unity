@@ -6,6 +6,7 @@ using UnityEngine;
 using OpenRange.Core;
 using OpenRange.GC2;
 using OpenRange.Physics;
+using OpenRange.UI;
 using OpenRange.Visualization;
 
 namespace OpenRange.Editor
@@ -284,6 +285,13 @@ namespace OpenRange.Editor
             if (trajectoryRenderer != null)
             {
                 trajectoryRenderer.ShowTrajectory(result);
+            }
+
+            // Update ShotDataBar
+            var shotDataBar = Object.FindAnyObjectByType<ShotDataBar>();
+            if (shotDataBar != null)
+            {
+                shotDataBar.UpdateDisplay(shotData, result);
             }
         }
 

@@ -4,6 +4,7 @@
 using OpenRange.Core;
 using OpenRange.GC2;
 using OpenRange.Physics;
+using OpenRange.Visualization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,6 +19,10 @@ namespace OpenRange.UI
         [Header("UI References")]
         [SerializeField] private Button _backButton;
         [SerializeField] private ShotDataBar _shotDataBar;
+
+        [Header("Visualization References")]
+        [SerializeField] private BallController _ballController;
+        [SerializeField] private TrajectoryRenderer _trajectoryRenderer;
 
         private ShotProcessor _shotProcessor;
 
@@ -86,11 +91,25 @@ namespace OpenRange.UI
 
         private void OnShotProcessed(GC2ShotData shotData, ShotResult result)
         {
+            // Update UI
             if (_shotDataBar != null)
             {
                 _shotDataBar.UpdateDisplay(shotData, result);
-                Debug.Log($"MarinaSceneController: Updated ShotDataBar - Carry: {result.CarryDistance:F1}yd, Total: {result.TotalDistance:F1}yd");
             }
+
+            // Trigger ball animation
+            if (_ballController != null)
+            {
+                _ballController.PlayShot(result);
+            }
+
+            // Show trajectory
+            if (_trajectoryRenderer != null)
+            {
+                _trajectoryRenderer.ShowTrajectory(result);
+            }
+
+            Debug.Log($"MarinaSceneController: Shot processed - Carry: {result.CarryDistance:F1}yd, Total: {result.TotalDistance:F1}yd");
         }
 
         private void OnBackClicked()
