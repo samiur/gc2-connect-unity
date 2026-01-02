@@ -77,7 +77,7 @@ namespace OpenRange.Tests.EditMode
         {
             // Arrange
             var shot = CreateValidShot();
-            shot.BallSpeed = 230f; // Too high (max is 220)
+            shot.BallSpeed = 260f; // Too high (max is 250 per GC2 protocol spec)
 
             string rejectionReason = null;
             _shotProcessor.OnShotRejected += (_, reason) => rejectionReason = reason;
