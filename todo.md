@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5 - UI System (6 of 6 complete)
-**Last Updated**: 2026-01-01
-**Next Prompt**: 17 (Settings Panel) or 32 (Ground Physics Improvement)
+**Phase**: 5 - UI System (7 of 7 complete) ✅
+**Last Updated**: 2026-01-02
+**Next Prompt**: 18 (TCP Connection for Testing) or 32 (Ground Physics Improvement)
 **Physics**: ✅ Carry validated (PR #3) | ⚠️ Bounce/roll needs improvement (see Phase 5.5)
 
 ---
@@ -185,13 +185,14 @@ These components exist and don't need to be rebuilt:
   - [x] Wire into Marina scene via MarinaSceneController and SceneGenerator
   - [x] Tests (122 new tests)
 
-- [ ] **Prompt 17**: Settings Panel
-  - [ ] Create SettingsPanel.cs
-  - [ ] Create SettingToggle.cs
-  - [ ] Create SettingSlider.cs
-  - [ ] Create SettingDropdown.cs
-  - [ ] Create SettingsPanel.prefab
-  - [ ] Tests
+- [x] **Prompt 17**: Settings Panel (PR #31)
+  - [x] Create SettingsPanel.cs
+  - [x] Create SettingToggle.cs
+  - [x] Create SettingSlider.cs
+  - [x] Create SettingDropdown.cs
+  - [x] Create SettingsPanelGenerator.cs (editor tool for prefabs)
+  - [x] Wire into MainMenu and Marina scenes
+  - [x] Tests (101 new tests)
 
 ---
 
@@ -398,6 +399,33 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-02 (Settings Panel)**: Prompt 17 complete. Created comprehensive settings UI (PR #31):
+- `SettingToggle.cs` - Reusable toggle for boolean settings
+  - Label and value binding with OnValueChanged event
+  - SetWithoutNotify() for initialization without triggering events
+  - Responsive font sizing based on ScreenCategory
+- `SettingSlider.cs` - Reusable slider for numeric range settings
+  - Label, suffix, and format support (F0/F1/P0 etc.)
+  - Range configuration with SetRange(min, max)
+  - NormalizedValue property for 0-1 range
+  - WholeNumbers mode for integer values
+- `SettingDropdown.cs` - Reusable dropdown for enum/option settings
+  - Enum helper methods: SetOptionsFromEnum<T>(), GetSelectedEnum<T>(), SetSelectedEnum<T>()
+  - SetWithoutNotify() for initialization
+- `SettingsPanel.cs` - Main panel with all settings sections
+  - Display: QualityTier, DistanceUnit, SpeedUnit, TemperatureUnit dropdowns
+  - Environment: Temperature (40-100°F), Elevation (0-8000ft), Humidity (0-100%) sliders
+  - Wind: Enable toggle, Speed (0-30mph), Direction (0-360°) sliders with conditional visibility
+  - Connection: AutoConnect toggle, GSPro Host/Port input fields
+  - Audio: Master Volume, Effects Volume sliders (0-100%)
+  - Reset button clears all settings to defaults
+  - Binds to SettingsManager for automatic persistence
+- `SettingsPanelGenerator.cs` - Editor tool for prefab creation
+  - Menu: OpenRange > Create Setting Toggle/Slider/Dropdown Prefab, Create Settings Panel Prefab, Create All Settings Panel Prefabs
+- SceneGenerator updates for MainMenu and Marina scenes
+- 101 new unit tests (33 Toggle, 32 Slider, 24 Dropdown, 12 Panel)
+- **Test fix**: P0 format produces "50 %" (with space) on some locales, updated test to use Contains() assertion
 
 **2026-01-01 (Session Info Panel)**: Prompt 16 complete. Created session info and shot history UI (PR #29):
 - `SessionInfoPanel.cs` - Compact top-left panel with live session statistics
