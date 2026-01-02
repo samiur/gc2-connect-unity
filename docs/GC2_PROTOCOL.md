@@ -1,486 +1,312 @@
 # GC2 USB Protocol Specification
-# GC2 Connect Unity
 
-## Document Info
-| Field | Value |
-|-------|-------|
-| Version | 1.0.0 |
-| Device | Foresight GC2 Launch Monitor |
-| Last Updated | December 2024 |
+## Overview
 
----
+The Foresight GC2 launch monitor communicates via USB using a simple text-based protocol. This document describes the protocol format and data fields.
 
-## 1. Overview
+## Device Identification
 
-The Foresight GC2 communicates via USB using a simple text-based protocol. This document describes the USB interface and data format for reading shot data from the GC2.
+| Property | Value |
+|----------|-------|
+| Vendor ID | 0x2C79 (11385) |
+| Product ID | 0x0110 (272) |
+| Manufacturer | Foresight Sports |
+| Product | GC2 |
 
----
+## USB Communication
 
-## 2. USB Device Identification
+### Interface Type
 
-### 2.1 Device Descriptors
+The GC2 exposes multiple USB endpoints:
 
-```
-Vendor ID:  0x2C79 (11385 decimal)
-Product ID: 0x0110 (272 decimal)
-Device Name: "Foresight GC2"
-```
+| Endpoint | Address | Type | Direction | Description |
+|----------|---------|------|-----------|-------------|
+| BULK OUT | 0x07 | Bulk | Host → Device | Commands (if any) |
+| BULK IN | 0x88 | Bulk | Device → Host | Data transfer |
+| INTERRUPT IN | 0x82 | Interrupt | Device → Host | **Primary shot data** |
 
-### 2.2 USB Configuration
+**Note:** Shot data is received on the INTERRUPT IN endpoint (0x82), not the BULK endpoint.
 
-```
-Configuration: 1
-Interface: 0
-Endpoints:
-  - EP 0x81: Bulk IN (device → host)
-  - EP 0x02: Bulk OUT (host → device)
-Max Packet Size: 64 bytes
-```
+### Data Format
+- Encoding: ASCII text
+- Packet size: 64 bytes (data split across multiple packets)
+- Line separator: Newline (`\n`)
+- Field format: `KEY=VALUE`
 
----
+## Shot Data Fields
 
-## 3. Communication Protocol
+### Ball Data (Always Present)
 
-### 3.1 Connection Sequence
+| Field | Type | Unit | Description | Range |
+|-------|------|------|-------------|-------|
+| `SHOT_ID` | int | - | Unique shot identifier | 1+ |
+| `TIME_SEC` | int | s | Shot timestamp (usually 0) | 0+ |
+| `MSEC_SINCE_CONTACT` | int | ms | Time since ball contact | 0-1000+ |
+| `SPEED_MPH` | float | mph | Ball speed off clubface | 0-250 |
+| `ELEVATION_DEG` | float | degrees | Vertical launch angle | -10 to 60 |
+| `AZIMUTH_DEG` | float | degrees | Horizontal launch angle (+ = right) | -45 to 45 |
+| `SPIN_RPM` | float | rpm | Total spin rate | 0-15000 |
+| `BACK_RPM` | float | rpm | Backspin component | 0-15000 |
+| `SIDE_RPM` | float | rpm | Sidespin component (+ = fade) | -5000 to 5000 |
 
-```
-1. Enumerate USB devices
-2. Find device with VID=0x2C79, PID=0x0110
-3. Open device
-4. Claim interface 0
-5. Begin reading from EP 0x81 (bulk transfers)
-6. Parse incoming data for shot information
-```
+**Note:** The GC2 sends multiple updates per shot:
+- **Early reading** (~200ms): Initial ball detection, may have incomplete data
+- **Final reading** (1000ms): Complete data including spin components (`BACK_RPM`, `SIDE_RPM`)
 
-### 3.2 Data Flow
+Always wait for the spin component fields before processing a shot.
 
-```
-┌─────────────┐                    ┌─────────────┐
-│    GC2      │                    │    Host     │
-│  (Device)   │                    │ (Computer)  │
-└──────┬──────┘                    └──────┬──────┘
-       │                                  │
-       │  [Shot detected by GC2]          │
-       │                                  │
-       │  Bulk IN: Shot data (text)       │
-       │─────────────────────────────────>│
-       │                                  │
-       │  (May span multiple transfers)   │
-       │─────────────────────────────────>│
-       │                                  │
-       │  (Terminated by double newline)  │
-       │─────────────────────────────────>│
-       │                                  │
-```
+### Club Data (HMT Only)
 
-### 3.3 Reading Strategy
+These fields are only present when the GC2 is equipped with the HMT (Head Measurement Technology) add-on.
 
-```csharp
-// Continuous read loop
-while (connected)
-{
-    byte[] buffer = new byte[512];
-    int bytesRead = BulkTransfer(EP_IN, buffer, timeout: 100ms);
-    
-    if (bytesRead > 0)
-    {
-        string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-        _buffer.Append(data);
-        ProcessBuffer();
-    }
-}
+| Field | Type | Unit | Description | Range |
+|-------|------|------|-------------|-------|
+| `CLUBSPEED_MPH` | float | mph | Club head speed | 0-150 |
+| `HPATH_DEG` | float | degrees | Swing path (+ = in-to-out) | -15 to 15 |
+| `VPATH_DEG` | float | degrees | Angle of attack (+ = up) | -10 to 10 |
+| `FACE_T_DEG` | float | degrees | Face to target (+ = open) | -15 to 15 |
+| `LIE_DEG` | float | degrees | Lie angle at impact | -10 to 10 |
+| `LOFT_DEG` | float | degrees | Dynamic loft at impact | 0-60 |
+| `HIMPACT_MM` | float | mm | Horizontal impact location | -30 to 30 |
+| `VIMPACT_MM` | float | mm | Vertical impact location | -30 to 30 |
+| `CLOSING_RATE_DEGSEC` | float | deg/s | Face closure rate | 0-2000 |
+| `FAXIS_DEG` | float | degrees | Face axis at impact | -15 to 15 |
+| `HMT` | int | boolean | HMT data present flag | 0 or 1 |
 
-void ProcessBuffer()
-{
-    // Look for message delimiter (double newline)
-    int idx;
-    while ((idx = _buffer.IndexOf("\n\n")) >= 0)
-    {
-        string message = _buffer.Substring(0, idx);
-        _buffer.Remove(0, idx + 2);
-        
-        GC2ShotData shot = ParseMessage(message);
-        if (shot != null)
-        {
-            OnShotReceived?.Invoke(shot);
-        }
-    }
-}
-```
+## Example Data
 
----
-
-## 4. Data Format
-
-### 4.1 Message Structure
-
-The GC2 sends shot data as key-value pairs, one per line:
-
-```
-KEY=VALUE
-KEY=VALUE
-...
-
-```
-
-Messages are terminated by a double newline (`\n\n`).
-
-### 4.2 Ball Data Fields
-
-| Key | Description | Unit | Example |
-|-----|-------------|------|---------|
-| SHOT_ID | Shot sequence number | - | 1 |
-| SPEED_MPH | Ball speed | mph | 156.3 |
-| ELEVATION_DEG | Vertical launch angle | degrees | 12.5 |
-| AZIMUTH_DEG | Horizontal launch angle | degrees | -2.1 |
-| SPIN_RPM | Total spin rate | rpm | 2850 |
-| BACK_RPM | Backspin component | rpm | 2780 |
-| SIDE_RPM | Sidespin component | rpm | 450 |
-| SPIN_AXIS_DEG | Spin axis tilt | degrees | 8.5 |
-
-### 4.3 Club Data Fields (HMT Only)
-
-| Key | Description | Unit | Example |
-|-----|-------------|------|---------|
-| HMT | HMT data present flag | 0/1 | 1 |
-| CLUBSPEED_MPH | Club head speed | mph | 105.2 |
-| HPATH_DEG | Club path (horizontal) | degrees | 2.1 |
-| VPATH_DEG | Attack angle (vertical) | degrees | -3.5 |
-| FACE_T_DEG | Face to target angle | degrees | 1.2 |
-| LOFT_DEG | Dynamic loft | degrees | 28.5 |
-| LIE_DEG | Lie angle | degrees | 0.5 |
-
-### 4.4 Example Messages
-
-#### Ball Data Only (No HMT)
+### Ball Only (No HMT)
 
 ```
 SHOT_ID=1
-SPEED_MPH=156.3
-ELEVATION_DEG=12.5
-AZIMUTH_DEG=-2.1
-SPIN_RPM=2850
-BACK_RPM=2780
-SIDE_RPM=450
-SPIN_AXIS_DEG=8.5
-HMT=0
-
+SPEED_MPH=145.2
+ELEVATION_DEG=11.8
+AZIMUTH_DEG=1.5
+SPIN_RPM=2650
+BACK_RPM=2480
+SIDE_RPM=-320
 ```
 
-#### With HMT Club Data
+### Full Data (With HMT)
 
 ```
-SHOT_ID=5
-SPEED_MPH=120.5
-ELEVATION_DEG=16.2
-AZIMUTH_DEG=1.8
-SPIN_RPM=7200
-BACK_RPM=7100
-SIDE_RPM=850
-SPIN_AXIS_DEG=6.8
-HMT=1
-CLUBSPEED_MPH=87.5
-HPATH_DEG=-2.1
+SHOT_ID=1
+SPEED_MPH=150.5
+ELEVATION_DEG=12.3
+AZIMUTH_DEG=2.1
+SPIN_RPM=2800
+BACK_RPM=2650
+SIDE_RPM=-400
+CLUBSPEED_MPH=105.2
+HPATH_DEG=3.1
 VPATH_DEG=-4.2
-FACE_T_DEG=0.8
-LOFT_DEG=31.5
-LIE_DEG=1.2
-
+FACE_T_DEG=1.5
+LIE_DEG=0.5
+LOFT_DEG=15.2
+HIMPACT_MM=2.5
+VIMPACT_MM=-1.2
+CLOSING_RATE_DEGSEC=500.0
+HMT=1
 ```
 
----
+## Calculated Fields
 
-## 5. Protocol Parser
+### Spin Axis
 
-### 5.1 C# Implementation
+The spin axis can be calculated from back spin and side spin:
 
-```csharp
-namespace OpenRange.GC2
-{
-    public static class GC2Protocol
-    {
-        /// <summary>
-        /// Parse a GC2 shot message into structured data
-        /// </summary>
-        public static GC2ShotData Parse(string message)
-        {
-            if (string.IsNullOrEmpty(message))
-                return null;
+```python
+import math
+
+def calculate_spin_axis(back_spin: float, side_spin: float) -> float:
+    """
+    Calculate spin axis from spin components.
+    
+    Returns:
+        Spin axis in degrees
+        Positive = fade/slice spin axis (tilted right)
+        Negative = draw/hook spin axis (tilted left)
+    """
+    if back_spin == 0:
+        return 0.0
+    return math.degrees(math.atan2(side_spin, back_spin))
+```
+
+## Data Validation
+
+### Misread Detection
+
+The GC2 occasionally produces misreads that should be rejected:
+
+1. **Zero Spin**: `SPIN_RPM == 0` indicates a misread
+2. **2222 Pattern**: `BACK_RPM == 2222` is a known error pattern
+3. **Unrealistic Speed**: `SPEED_MPH < 10` or `SPEED_MPH > 250`
+
+### Duplicate Detection
+
+The GC2 may send the same shot multiple times. Track `SHOT_ID` to detect and ignore duplicates.
+
+```python
+def is_duplicate(shot_id: int, last_shot_id: int) -> bool:
+    return shot_id == last_shot_id
+```
+
+## Parsing Implementation
+
+### Python
+
+```python
+def parse_gc2_data(raw_data: str) -> dict:
+    """Parse raw GC2 USB data into a dictionary."""
+    result = {}
+    
+    for line in raw_data.strip().split('\n'):
+        line = line.strip()
+        if '=' not in line:
+            continue
             
-            var values = new Dictionary<string, string>();
-            
-            // Parse key=value pairs
-            var lines = message.Split('\n');
-            foreach (var line in lines)
-            {
-                var trimmed = line.Trim();
-                if (string.IsNullOrEmpty(trimmed))
-                    continue;
-                
-                var parts = trimmed.Split('=');
-                if (parts.Length == 2)
-                {
-                    values[parts[0]] = parts[1];
-                }
-            }
-            
-            // Validate required fields
-            if (!values.ContainsKey("SPEED_MPH"))
-                return null;
-            
-            // Build shot data
-            var shot = new GC2ShotData
-            {
-                ShotId = GetInt(values, "SHOT_ID", 0),
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                
-                // Ball data
-                BallSpeed = GetFloat(values, "SPEED_MPH"),
-                LaunchAngle = GetFloat(values, "ELEVATION_DEG"),
-                Direction = GetFloat(values, "AZIMUTH_DEG"),
-                TotalSpin = GetFloat(values, "SPIN_RPM"),
-                BackSpin = GetFloat(values, "BACK_RPM"),
-                SideSpin = GetFloat(values, "SIDE_RPM"),
-                SpinAxis = GetFloat(values, "SPIN_AXIS_DEG"),
-                
-                // HMT data
-                HasClubData = GetInt(values, "HMT", 0) == 1
-            };
-            
-            if (shot.HasClubData)
-            {
-                shot.ClubSpeed = GetFloat(values, "CLUBSPEED_MPH");
-                shot.Path = GetFloat(values, "HPATH_DEG");
-                shot.AttackAngle = GetFloat(values, "VPATH_DEG");
-                shot.FaceToTarget = GetFloat(values, "FACE_T_DEG");
-                shot.DynamicLoft = GetFloat(values, "LOFT_DEG");
-                shot.Lie = GetFloat(values, "LIE_DEG");
-            }
-            
-            // Handle spin calculation fallback
-            if (shot.BackSpin == 0 && shot.SideSpin == 0 && shot.TotalSpin > 0)
-            {
-                // Calculate from TotalSpin and SpinAxis
-                float axisRad = shot.SpinAxis * Mathf.Deg2Rad;
-                shot.BackSpin = shot.TotalSpin * Mathf.Cos(axisRad);
-                shot.SideSpin = shot.TotalSpin * Mathf.Sin(axisRad);
-            }
-            
-            return shot;
-        }
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip()
         
-        private static float GetFloat(Dictionary<string, string> values, string key, float defaultValue = 0f)
-        {
-            if (values.TryGetValue(key, out var str) && float.TryParse(str, out var value))
-                return value;
-            return defaultValue;
-        }
+        # Convert to appropriate type
+        if key == 'SHOT_ID':
+            result[key] = int(value)
+        elif key == 'HMT':
+            result[key] = value == '1'
+        else:
+            try:
+                result[key] = float(value)
+            except ValueError:
+                result[key] = value
+    
+    return result
+```
+
+### TypeScript
+
+```typescript
+function parseGC2Data(rawData: string): Record<string, number | boolean> {
+    const result: Record<string, number | boolean> = {};
+    
+    for (const line of rawData.trim().split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed.includes('=')) continue;
         
-        private static int GetInt(Dictionary<string, string> values, string key, int defaultValue = 0)
-        {
-            if (values.TryGetValue(key, out var str) && int.TryParse(str, out var value))
-                return value;
-            return defaultValue;
+        const [key, value] = trimmed.split('=', 2);
+        const k = key.trim();
+        const v = value.trim();
+        
+        if (k === 'SHOT_ID') {
+            result[k] = parseInt(v, 10);
+        } else if (k === 'HMT') {
+            result[k] = v === '1';
+        } else {
+            result[k] = parseFloat(v);
         }
     }
+    
+    return result;
 }
 ```
 
----
+## USB Implementation Notes
 
-## 6. Sign Conventions
+### Linux/macOS
 
-### 6.1 Angles
+- Use `libusb` (via `pyusb` in Python)
+- May require `udev` rules on Linux for non-root access
+- macOS typically allows USB access without special configuration
 
-| Measurement | Positive | Negative |
-|-------------|----------|----------|
-| AZIMUTH_DEG (HLA) | Right of target | Left of target |
-| ELEVATION_DEG (VLA) | Upward | N/A (always positive) |
-| SPIN_AXIS_DEG | Fade/slice | Draw/hook |
-| SIDE_RPM | Fade/slice | Draw/hook |
-| HPATH_DEG (Path) | In-to-out | Out-to-in |
-| VPATH_DEG (AoA) | Upward | Downward |
-| FACE_T_DEG | Open | Closed |
+### Android
 
-### 6.2 Spin Direction
+- Use `android.hardware.usb` APIs
+- Requires USB Host mode support
+- Permission dialog shown to user
+- Can auto-launch app on device connection
+
+### iPad
+
+- Requires DriverKit (USBDriverKit)
+- Only available on M1+ iPads
+- Requires entitlements from Apple
+- Runs as user-space driver extension
+
+## USB Message Structure
+
+The GC2 sends data in 64-byte USB packets over the INTERRUPT IN endpoint (0x82). Each shot generates multiple message types.
+
+### Message Types
+
+| Prefix | Name | Description |
+|--------|------|-------------|
+| `0H` | Shot Header | Shot metrics (speed, spin, launch angle, etc.) |
+| `0M` | Ball Movement | Real-time ball tracking/position updates |
+
+### 0H Messages (Shot Data)
+
+Contains the actual shot metrics. Fields are split across multiple 64-byte packets:
 
 ```
-Backspin: Creates lift (ball rises then falls)
-          Higher = higher trajectory, more stopping power
-
-Sidespin: Creates lateral curve
-          Positive = ball curves right (fade/slice for RH)
-          Negative = ball curves left (draw/hook for RH)
+0H
+SHOT_ID=1
+TIME_SEC=0
+MSEC_SINCE_CONTACT=1000
+SPEED_MPH=145.20
+AZIMUTH_DEG=1.50
+ELEVATION_DEG=11.80
+SPIN_RPM=2650
+BACK_RPM=2480
+SIDE_RPM=-320
 ```
 
----
+### 0M Messages (Ball Tracking)
 
-## 7. Data Validation
+Real-time ball position updates during flight through the camera's field of view. These messages are sent while the ball is being tracked and typically contain position/detection data rather than final shot metrics.
 
-### 7.1 Valid Ranges
+**Recommendation:** Skip 0M messages when parsing shot data. Only accumulate fields from 0H messages.
 
-| Field | Min | Max | Notes |
-|-------|-----|-----|-------|
-| BallSpeed | 10 | 220 | mph |
-| LaunchAngle | -10 | 60 | degrees |
-| Direction | -45 | 45 | degrees |
-| TotalSpin | 0 | 15000 | rpm |
-| BackSpin | 0 | 15000 | rpm |
-| SideSpin | -5000 | 5000 | rpm |
-| ClubSpeed | 10 | 150 | mph (HMT) |
+### Data Accumulation Strategy
 
-### 7.2 Misread Detection
+Shot data is split across multiple USB packets. The recommended approach (based on gc2_to_TGC implementation):
 
-```csharp
-public static bool IsValidShot(GC2ShotData shot)
-{
-    // Speed sanity check
-    if (shot.BallSpeed < 10 || shot.BallSpeed > 220)
-        return false;
-    
-    // Launch angle sanity
-    if (shot.LaunchAngle < -10 || shot.LaunchAngle > 60)
-        return false;
-    
-    // Zero spin with high speed is usually a misread
-    if (shot.BallSpeed > 80 && shot.TotalSpin < 100)
-        return false;
-    
-    // Spin axis must be reasonable
-    if (Mathf.Abs(shot.SpinAxis) > 90)
-        return false;
-    
-    return true;
-}
+1. **Filter by message type**: Only process `0H` messages, skip `0M` messages
+2. **Accumulate fields**: Parse key=value pairs into a dictionary, accumulating across packets
+3. **Wait for complete data**: Don't process until `BACK_RPM` or `SIDE_RPM` is received
+4. **Detect new shots**: When `SHOT_ID` changes, clear the accumulator and start fresh
+5. **Handle timeouts**: If spin components never arrive (~500ms), process with available data
+
+Example packet sequence for one shot:
+```
+Packet 1: 0H\nSHOT_ID=1\nTIME_SEC=0\nMSEC_SINCE_CONTACT=200\nSPEED_MPH=145.
+Packet 2: 20\nAZIMUTH_DEG=1.50\nELEVATION_DEG=11.80\nSPIN_RPM=2650\n
+Packet 3: 0H\nSHOT_ID=1\nTIME_SEC=0\nMSEC_SINCE_CONTACT=1000\nSPEED_MPH=145.
+Packet 4: 20\nAZIMUTH_DEG=1.50\nELEVATION_DEG=11.80\nSPIN_RPM=2650\nBACK_
+Packet 5: RPM=2480\nSIDE_RPM=-320\n
 ```
 
----
+Note: The same shot may be sent multiple times with different `MSEC_SINCE_CONTACT` values as measurements are refined.
 
-## 8. Platform-Specific USB Access
+## Timing Considerations
 
-### 8.1 macOS (libusb)
+- Shot data is sent immediately after each shot
+- Data arrives in multiple 64-byte fragments; accumulate until complete
+- The GC2 sends early readings (~200ms) and final readings (~1000ms)
+- No heartbeat or polling required - GC2 pushes data on shot detection
+- Typical latency: < 50ms from ball impact to first data packet
 
-```c
-// Initialize
-libusb_init(&ctx);
+## Error Conditions
 
-// Find device
-handle = libusb_open_device_with_vid_pid(ctx, 0x2C79, 0x0110);
+| Condition | Behavior |
+|-----------|----------|
+| USB Disconnected | No data; detect via USB events |
+| GC2 Powered Off | USB device disappears |
+| Camera Obscured | May produce misreads (zero spin) |
+| Low Battery | GC2 may disconnect unexpectedly |
 
-// Claim interface
-libusb_claim_interface(handle, 0);
+## References
 
-// Read
-int transferred;
-libusb_bulk_transfer(handle, 0x81, buffer, sizeof(buffer), &transferred, timeout);
-```
-
-### 8.2 iPad (DriverKit)
-
-```swift
-// Match device in Info.plist
-<key>idVendor</key>
-<integer>11385</integer>
-<key>idProduct</key>
-<integer>272</integer>
-
-// Read via IOUserClient
-let data = try connection.read(timeout: 100)
-```
-
-### 8.3 Android (USB Host API)
-
-```kotlin
-// Find device
-val device = usbManager.deviceList.values.find {
-    it.vendorId == 0x2C79 && it.productId == 0x0110
-}
-
-// Open and claim
-val connection = usbManager.openDevice(device)
-connection.claimInterface(device.getInterface(0), true)
-
-// Find bulk IN endpoint
-val endpoint = device.getInterface(0).getEndpoint(0)  // EP 0x81
-
-// Read
-val buffer = ByteArray(512)
-val bytesRead = connection.bulkTransfer(endpoint, buffer, buffer.size, 100)
-```
-
----
-
-## 9. Troubleshooting
-
-### 9.1 Device Not Found
-
-| Cause | Solution |
-|-------|----------|
-| GC2 not powered on | Turn on GC2 |
-| USB cable issue | Try different cable |
-| USB port issue | Try different port |
-| Driver conflict | Check for other GC2 software |
-
-### 9.2 No Data Received
-
-| Cause | Solution |
-|-------|----------|
-| No ball on tee | Place ball on GC2 |
-| GC2 in standby | Wake GC2 (move ball) |
-| Wrong endpoint | Verify EP 0x81 |
-| Interface not claimed | Claim interface 0 |
-
-### 9.3 Garbled Data
-
-| Cause | Solution |
-|-------|----------|
-| Buffer overflow | Increase buffer size |
-| Encoding issue | Use UTF-8 |
-| Partial reads | Accumulate until \n\n |
-
----
-
-## 10. USB Debugging
-
-### 10.1 macOS
-
-```bash
-# List USB devices
-system_profiler SPUSBDataType | grep -A5 "GC2\|2C79"
-
-# USB logging
-sudo log stream --predicate 'subsystem == "com.apple.usb"'
-```
-
-### 10.2 Linux
-
-```bash
-# List USB devices
-lsusb | grep 2c79
-
-# Detailed info
-lsusb -v -d 2c79:0110
-
-# USB traffic (requires root)
-sudo usbmon
-```
-
-### 10.3 Android
-
-```bash
-# ADB shell
-adb shell lsusb
-
-# Logcat USB events
-adb logcat | grep -i usb
-```
-
----
-
-## 11. References
-
-- Foresight Sports GC2 User Manual
 - USB 2.0 Specification
-- libusb Documentation
-- Apple DriverKit Documentation
-- Android USB Host Documentation
+- Foresight Sports GC2 User Manual
+- GSPro Open Connect API v1 Documentation
+- gc2_to_TGC application (reverse engineered for protocol details)
