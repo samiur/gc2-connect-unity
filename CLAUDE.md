@@ -180,9 +180,10 @@ Heartbeat: Every 2 seconds when idle
 - Shot Data Bar with DataTile components (PR #23)
 - Club Data Panel with SwingPathIndicator and AttackAngleIndicator (PR #25)
 - Connection Status UI with indicator, panel, and toasts (PR #27)
+- Session Info Panel with shot history and detail modal (PR #29)
 
 **Not yet implemented:**
-- UI panels (Session Info, Settings)
+- UI panels (Settings)
 - Native USB plugins (macOS, Android, iPad)
 - GSPro relay client
 
@@ -219,6 +220,11 @@ Heartbeat: Every 2 seconds when idle
 | `OpenRange > Create Connection Status Prefab` | Creates ConnectionStatus.prefab (top-right indicator) |
 | `OpenRange > Create Connection Panel Prefab` | Creates ConnectionPanel.prefab (modal) |
 | `OpenRange > Create All Connection UI Prefabs` | Creates all connection UI prefabs |
+| `OpenRange > Create Session Info Panel Prefab` | Creates SessionInfoPanel.prefab (top-left compact stats) |
+| `OpenRange > Create Shot History Panel Prefab` | Creates ShotHistoryPanel.prefab (expandable shot list) |
+| `OpenRange > Create Shot History Item Prefab` | Creates ShotHistoryItem.prefab (shot row template) |
+| `OpenRange > Create Shot Detail Modal Prefab` | Creates ShotDetailModal.prefab (full shot details) |
+| `OpenRange > Create All Session Info Prefabs` | Creates all session info UI prefabs |
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
 
 ## Local Development on macOS

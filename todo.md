@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5 - UI System (5 of 6 complete)
-**Last Updated**: 2026-01-02
-**Next Prompt**: 16 (Session Info Panel) or 32 (Ground Physics Improvement)
+**Phase**: 5 - UI System (6 of 6 complete)
+**Last Updated**: 2026-01-01
+**Next Prompt**: 17 (Settings Panel) or 32 (Ground Physics Improvement)
 **Physics**: ✅ Carry validated (PR #3) | ⚠️ Bounce/roll needs improvement (see Phase 5.5)
 
 ---
@@ -176,13 +176,14 @@ These components exist and don't need to be rebuilt:
   - [x] Wire into MainMenu and Marina scenes via SceneGenerator
   - [x] Tests (86 new tests)
 
-- [ ] **Prompt 16**: Session Info Panel
-  - [ ] Create SessionInfoPanel.cs
-  - [ ] Create ShotHistoryPanel.cs
-  - [ ] Create ShotHistoryItem.cs
-  - [ ] Create ShotDetailModal.cs
-  - [ ] Create prefabs
-  - [ ] Tests
+- [x] **Prompt 16**: Session Info Panel (PR #29)
+  - [x] Create SessionInfoPanel.cs
+  - [x] Create ShotHistoryPanel.cs
+  - [x] Create ShotHistoryItem.cs
+  - [x] Create ShotDetailModal.cs
+  - [x] Create SessionInfoPanelGenerator.cs (editor tool for prefabs)
+  - [x] Wire into Marina scene via MarinaSceneController and SceneGenerator
+  - [x] Tests (122 new tests)
 
 - [ ] **Prompt 17**: Settings Panel
   - [ ] Create SettingsPanel.cs
@@ -397,6 +398,35 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-01 (Session Info Panel)**: Prompt 16 complete. Created session info and shot history UI (PR #29):
+- `SessionInfoPanel.cs` - Compact top-left panel with live session statistics
+  - Elapsed time with auto-updating timer (configurable interval)
+  - Total shots, average speed, longest carry display
+  - Click handler to expand ShotHistoryPanel
+  - SessionManager event subscription for live updates
+- `ShotHistoryPanel.cs` - Expandable shot list panel
+  - ScrollRect with shot history items
+  - Statistics summary header (total, avg speed, avg carry, longest)
+  - Shot selection with OnShotSelected event
+  - Clear history button with confirmation
+- `ShotHistoryItem.cs` - Individual shot row in history list
+  - Shot number, ball speed, carry distance, timestamp
+  - Selection highlighting with configurable colors
+- `ShotDetailModal.cs` - Full-screen shot detail overlay
+  - Ball data section (speed, launch angle, direction, spin)
+  - Result data section (carry, run, total, apex, offline)
+  - Club data section (when HMT data available)
+  - Replay button for shot animation replay
+- `SessionInfoPanelGenerator.cs` - Editor tool for prefab creation
+  - Menu: OpenRange > Create Session Info Panel Prefab / Shot History Panel Prefab / Shot History Item Prefab / Shot Detail Modal Prefab / All Session Info Prefabs
+- `GameManager.cs` - Added public SessionManager property
+- 122 new unit tests (32 SessionInfoPanel, 36 ShotHistoryPanel, 18 ShotHistoryItem, 36 ShotDetailModal)
+- **Fixes during implementation:**
+  - Button listener wasn't set up in EditMode tests (Start() not called) - called SetupButtonListener() in SetReferences()
+  - Club speed text reference missing for tests - added SetClubDataReferences() method
+  - ScrollRect.normalizedPosition needs layout pass - changed tests to DoesNotThrow assertions
+  - Property name mismatches (LateralDeviation→OfflineDistance, ClubPath/SwingPath→Path)
 
 **2026-01-02 (Ground Physics Improvement Plan)**: Added Phase 5.5 (Prompts 32-34) to address bounce/roll physics issues:
 - **Problem**: Carry distances are accurate but post-carry behavior is unrealistic:

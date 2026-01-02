@@ -27,6 +27,7 @@ namespace OpenRange.Core
         public ConnectionState ConnectionState => _connectionState;
         public IGC2Connection GC2Connection => _gc2Connection;
         public ShotProcessor ShotProcessor => _shotProcessor;
+        public SessionManager SessionManager => _sessionManager;
 
         public event Action<AppMode> OnModeChanged;
         public event Action<ConnectionState> OnConnectionStateChanged;

@@ -21,6 +21,11 @@ namespace OpenRange.UI
         [SerializeField] private ShotDataBar _shotDataBar;
         [SerializeField] private ClubDataPanel _clubDataPanel;
 
+        [Header("Session Info UI")]
+        [SerializeField] private SessionInfoPanel _sessionInfoPanel;
+        [SerializeField] private ShotHistoryPanel _shotHistoryPanel;
+        [SerializeField] private ShotDetailModal _shotDetailModal;
+
         [Header("Connection UI")]
         [SerializeField] private ConnectionStatusUI _connectionStatusUI;
         [SerializeField] private ConnectionPanel _connectionPanel;
@@ -35,6 +40,7 @@ namespace OpenRange.UI
         {
             SetupButtonListeners();
             SetupConnectionUI();
+            SetupSessionInfoUI();
             InitializeScene();
             SubscribeToShotProcessor();
         }
@@ -57,6 +63,22 @@ namespace OpenRange.UI
             if (_connectionStatusUI != null)
             {
                 _connectionStatusUI.OnClicked -= OnConnectionStatusClicked;
+            }
+
+            if (_sessionInfoPanel != null)
+            {
+                _sessionInfoPanel.OnExpandClicked -= OnSessionInfoExpandClicked;
+            }
+
+            if (_shotHistoryPanel != null)
+            {
+                _shotHistoryPanel.OnShotSelected -= OnHistoryShotSelected;
+                _shotHistoryPanel.OnReplayRequested -= OnReplayRequested;
+            }
+
+            if (_shotDetailModal != null)
+            {
+                _shotDetailModal.OnReplayRequested -= OnReplayRequested;
             }
 
             UnsubscribeFromShotProcessor();
@@ -162,6 +184,91 @@ namespace OpenRange.UI
             {
                 _connectionPanel.Toggle();
             }
+        }
+
+        private void SetupSessionInfoUI()
+        {
+            // Wire up session info panel expand click
+            if (_sessionInfoPanel != null)
+            {
+                _sessionInfoPanel.OnExpandClicked += OnSessionInfoExpandClicked;
+
+                // Set session manager reference
+                if (GameManager.Instance != null)
+                {
+                    _sessionInfoPanel.SetSessionManager(GameManager.Instance.SessionManager);
+                }
+            }
+
+            // Wire up shot history panel events
+            if (_shotHistoryPanel != null)
+            {
+                _shotHistoryPanel.OnShotSelected += OnHistoryShotSelected;
+                _shotHistoryPanel.OnReplayRequested += OnReplayRequested;
+
+                // Set session manager reference
+                if (GameManager.Instance != null)
+                {
+                    _shotHistoryPanel.SetSessionManager(GameManager.Instance.SessionManager);
+                }
+            }
+
+            // Wire up shot detail modal events
+            if (_shotDetailModal != null)
+            {
+                _shotDetailModal.OnReplayRequested += OnReplayRequested;
+
+                // Set session manager reference
+                if (GameManager.Instance != null)
+                {
+                    _shotDetailModal.SetSessionManager(GameManager.Instance.SessionManager);
+                }
+            }
+        }
+
+        private void OnSessionInfoExpandClicked()
+        {
+            if (_shotHistoryPanel != null)
+            {
+                _shotHistoryPanel.Toggle();
+            }
+        }
+
+        private void OnHistoryShotSelected(SessionShot shot)
+        {
+            if (_shotDetailModal != null && shot != null)
+            {
+                _shotDetailModal.Show(shot);
+            }
+        }
+
+        private void OnReplayRequested(SessionShot shot)
+        {
+            if (shot?.Result == null) return;
+
+            // Replay the shot visualization
+            if (_ballController != null)
+            {
+                _ballController.PlayShot(shot.Result);
+            }
+
+            if (_trajectoryRenderer != null)
+            {
+                _trajectoryRenderer.ShowTrajectory(shot.Result);
+            }
+
+            // Update the data bar with the replayed shot data
+            if (_shotDataBar != null && shot.ShotData != null)
+            {
+                _shotDataBar.UpdateDisplay(shot.ShotData, shot.Result);
+            }
+
+            if (_clubDataPanel != null && shot.ShotData != null)
+            {
+                _clubDataPanel.UpdateDisplay(shot.ShotData);
+            }
+
+            Debug.Log($"MarinaSceneController: Replaying shot #{shot.ShotNumber}");
         }
     }
 }
