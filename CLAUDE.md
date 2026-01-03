@@ -155,6 +155,12 @@ Protocol: TCP JSON (GSPro Open Connect API v1)
 Port: 921
 Heartbeat: Every 2 seconds when idle
 Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BALLS)
+
+Critical Implementation Notes:
+- TCP_NODELAY: Must set NoDelay = true (disables Nagle's algorithm) ✅ Done
+- Response handling: Shots get responses, heartbeats/status do NOT - don't block!
+- Buffer management: Clear receive buffer before sends, parse first JSON only (Prompt 42)
+- Graceful shutdown: Clean socket close required, GSPro doesn't handle abrupt disconnections
 ```
 
 ## Key Documentation

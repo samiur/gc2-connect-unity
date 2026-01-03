@@ -4,9 +4,9 @@
 ## Document Info
 | Field | Value |
 |-------|-------|
-| Version | 1.0.0 |
+| Version | 1.1.0 |
 | API Version | GSPro Open Connect v1 |
-| Last Updated | December 2024 |
+| Last Updated | January 2025 |
 
 ---
 
@@ -18,9 +18,17 @@ GSPro Open Connect is a TCP-based API that allows launch monitors to send shot d
 ```
 Protocol: TCP
 Default Port: 921
-Format: JSON (newline-delimited)
+Format: JSON (no newline delimiter required)
 Direction: Client (GC2 Connect) → Server (GSPro)
 ```
+
+### Critical Implementation Notes
+
+| Requirement | Details |
+|-------------|---------|
+| TCP_NODELAY | **CRITICAL**: Must set `NoDelay = true` to disable Nagle's algorithm. Without this, messages may be buffered and delayed. |
+| Response Handling | Shot data gets responses; heartbeats and status updates do **NOT** get responses. Don't block waiting! |
+| Graceful Shutdown | GSPro doesn't handle abrupt disconnections well. Always close sockets properly. |
 
 ---
 
@@ -179,9 +187,60 @@ Heartbeat messages keep the connection alive and report device status.
 
 ---
 
-## 5. C# Implementation
+## 5. Response Handling
 
-### 5.1 GSProClient Class
+### 5.1 Response Behavior by Message Type
+
+| Message Type | Response Behavior |
+|--------------|-------------------|
+| Shot Data | Responds with status code (200, 201, 5xx) |
+| Heartbeat | **No response** - do not wait! |
+| Status Update | **No response** - do not wait! |
+
+**Critical:** If you wait for a response to heartbeat or status messages, your connection will hang or timeout.
+
+### 5.2 Buffer Management
+
+GSPro may buffer responses and send them together, causing JSON parsing errors:
+
+```
+{"Code":200,"Message":"OK"}{"Code":200,"Message":"OK"}
+```
+
+**Solutions:**
+1. Clear the receive buffer before sending shot data
+2. Parse only the first JSON object from responses
+3. Use a JSON decoder that handles partial reads
+
+### 5.3 Response Codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 201 | Success with player info |
+| 5xx | Error |
+
+### 5.4 Response with Player Info
+
+GSPro sends player information in responses:
+
+```json
+{
+    "Code": 201,
+    "Message": "Player info",
+    "Player": {
+        "Handed": "RH",
+        "Club": "DR",
+        "DistanceToTarget": 450
+    }
+}
+```
+
+---
+
+## 6. C# Implementation
+
+### 6.1 GSProClient Class
 
 ```csharp
 using System;
@@ -353,7 +412,7 @@ namespace OpenRange.Network
 }
 ```
 
-### 5.2 Message Classes
+### 6.2 Message Classes
 
 ```csharp
 namespace OpenRange.Network
@@ -411,9 +470,9 @@ namespace OpenRange.Network
 
 ---
 
-## 6. Example Messages
+## 7. Example Messages
 
-### 6.1 Driver Shot (Ball Data Only)
+### 7.1 Driver Shot (Ball Data Only)
 
 ```json
 {
@@ -440,7 +499,7 @@ namespace OpenRange.Network
 }
 ```
 
-### 6.2 7-Iron Shot (With HMT Club Data)
+### 7.2 7-Iron Shot (With HMT Club Data)
 
 ```json
 {
@@ -475,7 +534,7 @@ namespace OpenRange.Network
 }
 ```
 
-### 6.3 Heartbeat
+### 7.3 Heartbeat
 
 ```json
 {
@@ -496,9 +555,9 @@ namespace OpenRange.Network
 
 ---
 
-## 7. Error Handling
+## 8. Error Handling
 
-### 7.1 Connection Errors
+### 8.1 Connection Errors
 
 | Error | Cause | Action |
 |-------|-------|--------|
@@ -506,7 +565,7 @@ namespace OpenRange.Network
 | Connection timeout | Network issue or firewall | Check network, show retry option |
 | Connection reset | GSPro closed | Auto-reconnect after delay |
 
-### 7.2 Reconnection Strategy
+### 8.2 Reconnection Strategy
 
 ```csharp
 private async Task ReconnectLoop()
@@ -533,9 +592,9 @@ private async Task ReconnectLoop()
 
 ---
 
-## 8. Testing
+## 9. Testing
 
-### 8.1 Test with netcat
+### 9.1 Test with netcat
 
 ```bash
 # Start a simple TCP server to see messages
@@ -544,7 +603,7 @@ nc -l 921
 # GC2 Connect Unity should connect and send JSON
 ```
 
-### 8.2 Test Shot Script
+### 9.2 Test Shot Script
 
 ```csharp
 [ContextMenu("Send Test Shot")]
@@ -567,9 +626,9 @@ public void SendTestShot()
 
 ---
 
-## 9. GSPro Configuration
+## 10. GSPro Configuration
 
-### 9.1 Enable Open Connect in GSPro
+### 10.1 Enable Open Connect in GSPro
 
 1. Open GSPro
 2. Go to Settings → Launch Monitor
@@ -577,7 +636,7 @@ public void SendTestShot()
 4. Note the port (default: 921)
 5. Ensure "Enable Open Connect" is checked
 
-### 9.2 Firewall Rules
+### 10.2 Firewall Rules
 
 If connecting from a different machine:
 - Allow inbound TCP on port 921
@@ -585,7 +644,76 @@ If connecting from a different machine:
 
 ---
 
-## 10. References
+## 11. Common Pitfalls
 
+### 11.1 Waiting for Heartbeat Responses
+
+**Problem:** Connection hangs or times out
+**Cause:** Waiting for response to heartbeat/status messages
+**Solution:** Don't await responses for non-shot messages
+
+### 11.2 Buffered/Concatenated Responses
+
+**Problem:** "Invalid JSON" or "Extra data" parsing errors
+**Cause:** Multiple responses buffered together
+**Solution:** Clear buffer before sending, parse only first JSON object
+
+### 11.3 Nagle's Algorithm Delays
+
+**Problem:** Messages appear delayed or batched together
+**Cause:** TCP Nagle's algorithm buffering small packets
+**Solution:** Set `NoDelay = true` (TCP_NODELAY socket option)
+
+### 11.4 Abrupt Disconnection
+
+**Problem:** GSPro shows "disconnected" state incorrectly after app closes
+**Cause:** Socket closed without proper cleanup
+**Solution:** Implement graceful shutdown, register cleanup handlers (OnApplicationQuit, etc.)
+
+### 11.5 Unit Confusion
+
+**Problem:** Values displayed incorrectly in GSPro
+**Cause:** Wrong unit assumptions (m/s vs mph)
+**Solution:** Always send ball speed in mph (not m/s)
+
+**Note:** The GSPro Open Connect debug window may display incorrect values (appears to apply a unit conversion), but the actual simulator uses values correctly.
+
+---
+
+## 12. Testing Checklist
+
+Before deploying, verify:
+
+- [ ] Connection establishes successfully
+- [ ] Initial heartbeat sent on connect
+- [ ] Shot data receives 200 response
+- [ ] Heartbeats don't block waiting for response
+- [ ] Status updates don't block waiting for response
+- [ ] Buffered responses handled correctly
+- [ ] Graceful shutdown disconnects properly
+- [ ] Ball speed displays correctly in GSPro
+
+---
+
+## 13. References
+
+### Official Resources
 - [GSPro Official Documentation](https://gsprogolf.com/openconnect)
 - [GSPro Discord - Open Connect Channel](https://discord.gg/gspro)
+
+### Reference Implementations
+These implementations were studied for protocol details:
+- [MLM2PRO-GSPro-Connector](https://github.com/springbok/MLM2PRO-GSPro-Connector)
+- [gspro-connect](https://github.com/joebockhorst/gspro-connect)
+
+---
+
+## Summary
+
+Building a reliable GSPro connector requires attention to:
+
+1. **Socket configuration**: Set `NoDelay = true` (TCP_NODELAY) and proper timeouts
+2. **Response handling**: Don't wait for heartbeat/status responses - they don't reply
+3. **Buffer management**: Clear stale data before sending, parse first JSON object only
+4. **Shutdown handling**: Register cleanup handlers for graceful disconnect
+5. **Units**: Send all speeds in mph

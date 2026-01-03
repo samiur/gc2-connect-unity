@@ -1,11 +1,12 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 8 - macOS Build & Release
+**Phase**: 6.5 - GSPro Client Improvements
 **Last Updated**: 2026-01-03
-**Next Prompt**: 36 (macOS Build Script)
+**Next Prompt**: 42 (GSPro Buffer Management)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
+**GSPro**: ⚠️ Buffer management and response handling needed (Prompt 42)
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
@@ -252,6 +253,21 @@ These components exist and don't need to be rebuilt:
   - [x] Create GSProModeUI.cs with ball readiness indicator
   - [x] Create GSProModeUIGenerator.cs (editor tool)
   - [x] Tests (97 new tests: 44 GSProClient, 26 GSProMessage, 27 GSProModeUI)
+
+---
+
+## Phase 6.5: GSPro Client Improvements
+
+- [ ] **Prompt 42**: GSPro Buffer Management
+  - [ ] Add buffer clearing before sending shot data
+  - [ ] Implement response parsing for shot confirmation
+  - [ ] Create GSProResponse.cs (Code, Message, Player)
+  - [ ] Create GSProPlayerInfo.cs (Handed, Club, DistanceToTarget)
+  - [ ] Parse only first JSON object (handle concatenated responses)
+  - [ ] Add OnShotConfirmed/OnShotFailed events
+  - [ ] Add timeout handling for shot responses (5 seconds)
+  - [ ] Test: remove unnecessary newline delimiter
+  - [ ] Unit tests for buffer clearing and response parsing
 
 ---
 
@@ -550,6 +566,17 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (GSPro API Documentation Update)**: Merged GSPRO_CONNECT.md into GSPRO_API.md with critical implementation notes:
+- **TCP_NODELAY**: Must set `NoDelay = true` to disable Nagle's algorithm (already implemented in GSProClient.cs:122)
+- **Response handling**: Shots get responses, heartbeats/status do NOT - don't block waiting!
+- **Buffer management**: GSPro may concatenate multiple JSON responses causing parsing errors
+- **Graceful shutdown**: GSPro doesn't handle abrupt disconnections well
+- **New Prompt 42 added**: GSPro Buffer Management to address buffer clearing and response parsing
+- Current gaps in GSProClient.cs identified:
+  1. No receive buffer clearing before shot sends
+  2. No response parsing after shot sends
+  3. No handling for concatenated JSON responses
 
 **2026-01-03 (macOS C# Bridge - Real Hardware Debug)**: Prompt 22 debugged and verified with real GC2 hardware:
 - **Two critical bugs fixed**:
