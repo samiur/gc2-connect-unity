@@ -3,11 +3,11 @@
 ## Current Status
 **Phase**: 7.5 - UI Refinement & Polish
 **Last Updated**: 2026-01-03
-**Next Prompt**: 44 (Connection Panel and Settings Button Fixes)
+**Next Prompt**: 46 (Test Shot Panel - Runtime UI)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
-**UI**: 🔄 Layout issues identified - Prompts 43-45 added for fixes
+**UI**: 🔄 Layout issues identified - Prompts 43-46 added for fixes and test shots
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
@@ -100,6 +100,40 @@
   - [ ] General UI polish (consistent colors, spacing, fonts)
   - [ ] Update SceneGenerator for proper positioning
   - [ ] Unit tests for dropdown and panel visibility
+
+- [ ] **Prompt 46**: Test Shot Panel (Runtime UI)
+  - [ ] Create TestShotPanel.cs
+    - [ ] Slide-out panel from left side
+    - [ ] Toggle via button or T key
+    - [ ] Quick preset buttons: Driver, 7-Iron, Wedge, Hook, Slice
+    - [ ] Ball data sliders: Speed, Launch Angle, Direction
+    - [ ] Spin data sliders: Backspin, Sidespin
+    - [ ] Optional club data section toggle
+    - [ ] Fire Shot button (green, prominent)
+    - [ ] Reset Ball button
+    - [ ] Event: OnTestShotFired(GC2ShotData)
+  - [ ] Create TestShotPanelGenerator.cs
+    - [ ] Menu: OpenRange > Create Test Shot Panel Prefab
+    - [ ] Create panel hierarchy with all UI components
+    - [ ] Left-side anchoring (300px width)
+  - [ ] Scene Integration
+    - [ ] Add Test Shot button to Marina header
+    - [ ] MarinaSceneController: Add _testShotPanel field
+    - [ ] SceneGenerator: Instantiate and wire prefab
+    - [ ] Hide when GC2 is connected
+  - [ ] Integration with ShotProcessor
+    - [ ] Call ShotProcessor.ProcessShot() with generated data
+    - [ ] Triggers full pipeline (ball, trajectory, UI, session)
+  - [ ] Keyboard shortcuts (optional)
+    - [ ] T: Toggle panel
+    - [ ] D/I/W: Fire preset shots
+    - [ ] Space: Fire current settings
+  - [ ] Unit tests
+    - [ ] Panel visibility toggle
+    - [ ] Preset values applied correctly
+    - [ ] GC2ShotData creation
+    - [ ] Event firing
+    - [ ] Club data toggle
 
 ---
 

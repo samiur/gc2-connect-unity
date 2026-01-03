@@ -9,8 +9,8 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 
 **Test Count**: 1600+ EditMode tests passing
 **Phases Complete**: 1-7, plus prompts 32-35, 42-43
-**Current Phase**: 7.5 - UI Refinement (Prompts 44-45)
-**Next Prompt**: 44
+**Current Phase**: 7.5 - UI Refinement (Prompts 44-46)
+**Next Prompt**: 46
 
 ## Phase Breakdown
 
@@ -21,7 +21,7 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 | 5 | Visualization | 6-11 | ✅ Complete |
 | 6 | UI System | 12-17 | ✅ Complete |
 | 7 | GSPro & Native Plugins | 18-22, 32-35, 42-43 | ✅ Complete |
-| 7.5 | UI Refinement | 43-45 | 🔄 In Progress (43 done) |
+| 7.5 | UI Refinement | 43-46 | 🔄 In Progress (43 done) |
 | 8 | macOS Build & Release | 36-37 | ⏳ Pending |
 | 9 | Android Native Plugin | 23-25 | ⏳ Pending |
 | 10 | iPad Native Plugin | 26-28 | ⏳ Pending |
@@ -217,6 +217,103 @@ Write/update unit tests for:
 - All panels have correct z-order
 - Club Data Panel is present and positioned
 - Ball Ready Indicator is visible
+```
+
+---
+
+### Prompt 46: Test Shot Panel (Runtime UI)
+
+```text
+Create a runtime Test Shot Panel that allows users to fire simulated shots without GC2 hardware in built applications.
+
+Context: The existing TestShotWindow is an Editor-only tool (Assets/Editor/). Users running built applications (macOS, iPad, Android) need a way to test the visualization system without connecting actual GC2 hardware. This is essential for:
+- Demo/showcase mode at trade shows
+- Development testing on devices
+- User experience testing
+- Verifying visualization works before hardware setup
+
+Files to create:
+- Assets/Scripts/UI/TestShotPanel.cs
+- Assets/Editor/TestShotPanelGenerator.cs
+- Assets/Tests/EditMode/TestShotPanelTests.cs
+- Assets/Prefabs/UI/TestShotPanel.prefab (generated)
+
+Requirements:
+
+1. TestShotPanel.cs - Main panel component:
+   - Slide-out panel from left side (opposite of settings)
+   - Toggle via button or keyboard shortcut (T key)
+   - Sections:
+     * Quick Presets: Driver, 7-Iron, Wedge, Hook, Slice (one-tap buttons)
+     * Ball Data: Speed, Launch Angle, Direction sliders
+     * Spin Data: Backspin, Sidespin sliders
+     * Club Data (optional toggle): Club Speed, Attack Angle, Face to Target, Path
+   - "Fire Shot" button (large, prominent, green)
+   - "Reset Ball" button
+   - Environmental conditions toggle (use current SettingsManager values)
+   - Event: OnTestShotFired(GC2ShotData)
+
+2. UI Layout:
+   - Width: 300px panel on left side
+   - CanvasGroup for fade in/out animation
+   - ScrollRect if content exceeds screen height
+   - Consistent styling with UITheme constants
+   - Use existing SettingSlider components for sliders
+   - Use existing SettingToggle for toggles
+
+3. Integration with ShotProcessor:
+   - Create GC2ShotData from panel values
+   - Call ShotProcessor.ProcessShot() to trigger full pipeline:
+     * Ball animation (BallController)
+     * Trajectory rendering (TrajectoryRenderer)
+     * UI updates (ShotDataBar, ClubDataPanel)
+     * Session recording (SessionManager)
+   - Use environmental conditions from SettingsManager
+
+4. Preset shots (match TestShotWindow values for consistency):
+   - Driver: 167 mph, 10.9° launch, 2686 rpm backspin
+   - 7-Iron: 120 mph, 16.3° launch, 7097 rpm backspin
+   - Wedge: 102 mph, 24.2° launch, 9304 rpm backspin
+   - Hook: 150 mph, 12° launch, 3000 rpm back, -1500 rpm side
+   - Slice: 150 mph, 12° launch, 3000 rpm back, +1500 rpm side
+
+5. Optional Club Data (for HMT testing):
+   - Toggle to show/hide club data section
+   - Club Speed (60-130 mph)
+   - Attack Angle (-10 to +10 degrees)
+   - Face to Target (-10 to +10 degrees)
+   - Path (-15 to +15 degrees)
+   - Dynamic Loft (5-50 degrees)
+   - When enabled, sets shotData.HasClubData = true
+
+6. Scene Integration:
+   - Add test shot button to Marina scene header (next to Settings)
+   - Button only visible in development builds OR when no GC2 connected
+   - MarinaSceneController: Add _testShotPanel serialized field
+   - SceneGenerator: Instantiate prefab and wire reference
+   - Hide panel when GC2 is connected (real data takes precedence)
+
+7. Keyboard Shortcuts (optional but nice):
+   - T: Toggle panel visibility
+   - D: Fire Driver preset
+   - I: Fire 7-Iron preset
+   - W: Fire Wedge preset
+   - Space: Fire shot with current settings (when panel open)
+
+8. TestShotPanelGenerator.cs - Editor tool:
+   - Menu: OpenRange > Create Test Shot Panel Prefab
+   - Creates full panel hierarchy with all UI components
+   - Wires up SettingSlider references
+   - Sets proper anchoring for left-side panel
+
+Write comprehensive unit tests for:
+- Panel show/hide toggle
+- Preset values applied correctly
+- GC2ShotData created with correct values
+- Event fires when shot triggered
+- Optional club data included when toggled
+- Keyboard shortcut handling (if implemented)
+- Integration with ShotProcessor via event
 ```
 
 ---

@@ -292,6 +292,7 @@ Critical Implementation Notes:
 | `OpenRange > GC2 Test Window` | Opens TCP test window for simulating GC2 connection (Server/Client modes) |
 | `OpenRange > Create GSPro Mode UI Prefab` | Creates GSProModeUI.prefab for mode toggle and connection status |
 | `OpenRange > Create Ball Ready Indicator Prefab` | Creates BallReadyIndicator.prefab showing device/ball status |
+| `OpenRange > Create Test Shot Panel Prefab` | Creates TestShotPanel.prefab for runtime test shots (works in builds) |
 
 ## Local Development on macOS
 
