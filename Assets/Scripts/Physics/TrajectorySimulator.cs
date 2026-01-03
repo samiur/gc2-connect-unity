@@ -116,6 +116,8 @@ namespace OpenRange.Physics
             float maxHeightTime = 0f;
             float landingTime = 0f;
             Vector3 landingPos = Vector3.zero;
+            Vector3 landingVel = Vector3.zero;
+            float landingBackspin = 0f;
             int bounceCount = 0;
 
             // Add initial point
@@ -157,6 +159,8 @@ namespace OpenRange.Physics
                         {
                             landingTime = t;
                             landingPos = pos;
+                            landingVel = vel;
+                            landingBackspin = spinBack;
                         }
 
                         float speed = vel.magnitude;
@@ -208,6 +212,14 @@ namespace OpenRange.Physics
             float carryZ = UnitConversions.MetersToYards(landingPos.z);
             float carryDistance = Mathf.Sqrt(carryX * carryX + carryZ * carryZ);
 
+            // Calculate landing angle from landing velocity
+            float landingHorizontalSpeed = Mathf.Sqrt(landingVel.x * landingVel.x + landingVel.z * landingVel.z);
+            float landingAngleDeg = Mathf.Atan2(-landingVel.y, landingHorizontalSpeed) * Mathf.Rad2Deg;
+            landingAngleDeg = Mathf.Clamp(landingAngleDeg, 0f, 90f);
+
+            // Convert landing speed to mph
+            float landingSpeedMph = UnitConversions.MsToMph(landingVel.magnitude);
+
             return new ShotResult
             {
                 Trajectory = trajectory,
@@ -220,6 +232,9 @@ namespace OpenRange.Physics
                 FlightTime = landingTime,
                 TotalTime = t,
                 BounceCount = bounceCount,
+                LandingAngle = landingAngleDeg,
+                LandingSpeed = landingSpeedMph,
+                LandingBackspin = landingBackspin,
 
                 LaunchData = new LaunchData
                 {
