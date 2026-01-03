@@ -76,7 +76,7 @@ namespace OpenRange.Editor
             verticalLayout.spacing = SectionSpacing;
             verticalLayout.childAlignment = TextAnchor.UpperCenter;
             verticalLayout.childControlWidth = true;
-            verticalLayout.childControlHeight = false;
+            verticalLayout.childControlHeight = true;  // Enable height control to enforce row heights
             verticalLayout.childForceExpandWidth = true;
             verticalLayout.childForceExpandHeight = false;
 
@@ -123,15 +123,19 @@ namespace OpenRange.Editor
             var row = new GameObject("ModeRow");
             row.transform.SetParent(parent, false);
 
+            var rowRect = row.AddComponent<RectTransform>();
+            rowRect.sizeDelta = new Vector2(0, RowHeight);
+
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
             horizontal.childControlWidth = true;   // Enable width control so children are constrained
-            horizontal.childControlHeight = false;
+            horizontal.childControlHeight = true;  // Enable height control
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
 
             var layout = row.AddComponent<LayoutElement>();
+            layout.minHeight = RowHeight;
             layout.preferredHeight = RowHeight;
 
             // Toggle on left (fixed size)
@@ -206,15 +210,19 @@ namespace OpenRange.Editor
             var row = new GameObject("ConnectionRow");
             row.transform.SetParent(parent, false);
 
+            var rowRect = row.AddComponent<RectTransform>();
+            rowRect.sizeDelta = new Vector2(0, RowHeight);
+
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
             horizontal.childControlWidth = true;   // Enable width control so children are constrained
-            horizontal.childControlHeight = false;
+            horizontal.childControlHeight = true;  // Enable height control
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
 
             var layout = row.AddComponent<LayoutElement>();
+            layout.minHeight = RowHeight;
             layout.preferredHeight = RowHeight;
 
             // LED Indicator (small fixed-size circle)
@@ -288,16 +296,20 @@ namespace OpenRange.Editor
             var row = new GameObject("ReadinessRow");
             row.transform.SetParent(parent, false);
 
+            var rowRect = row.AddComponent<RectTransform>();
+            rowRect.sizeDelta = new Vector2(0, 20f);
+
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleCenter;
             horizontal.childControlWidth = true;   // Enable width control
-            horizontal.childControlHeight = false;
+            horizontal.childControlHeight = true;  // Enable height control
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
 
             var layout = row.AddComponent<LayoutElement>();
-            layout.preferredHeight = 20f;  // Reduced from 22f
+            layout.minHeight = 20f;
+            layout.preferredHeight = 20f;
 
             // Ready indicator pill
             var readyGroup = CreateIndicatorPill(row.transform, "Ready", "Not Ready");
@@ -383,7 +395,7 @@ namespace OpenRange.Editor
             vertical.spacing = 2f;  // Reduced from 4f
             vertical.childAlignment = TextAnchor.UpperLeft;
             vertical.childControlWidth = true;
-            vertical.childControlHeight = false;
+            vertical.childControlHeight = true;  // Enable height control
             vertical.childForceExpandWidth = true;
             vertical.childForceExpandHeight = false;
 
@@ -411,15 +423,19 @@ namespace OpenRange.Editor
             var row = new GameObject(label.Replace(":", "") + "Row");
             row.transform.SetParent(parent, false);
 
+            var rowRect = row.AddComponent<RectTransform>();
+            rowRect.sizeDelta = new Vector2(0, InputHeight);
+
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = 4f;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
             horizontal.childControlWidth = true;   // Enable width control
-            horizontal.childControlHeight = false;
+            horizontal.childControlHeight = true;  // Enable height control
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
 
             var layout = row.AddComponent<LayoutElement>();
+            layout.minHeight = InputHeight;
             layout.preferredHeight = InputHeight;
 
             // Label
@@ -442,12 +458,16 @@ namespace OpenRange.Editor
             var inputBg = inputObj.AddComponent<Image>();
             inputBg.color = new Color(0.18f, 0.18f, 0.22f);
 
+            var inputRect = inputObj.GetComponent<RectTransform>();
+            inputRect.sizeDelta = new Vector2(inputWidth, InputHeight);
+
             var inputLayout = inputObj.AddComponent<LayoutElement>();
             inputLayout.minWidth = inputWidth;
             inputLayout.minHeight = InputHeight;
             inputLayout.preferredWidth = inputWidth;
             inputLayout.preferredHeight = InputHeight;
-            inputLayout.flexibleWidth = 1f;
+            inputLayout.flexibleWidth = 0f;  // Don't allow expansion
+            inputLayout.flexibleHeight = 0f;
 
             var textArea = new GameObject("TextArea");
             textArea.transform.SetParent(inputObj.transform, false);
