@@ -1,5 +1,5 @@
-// ABOUTME: Stub implementation of the macOS GC2 USB plugin using libusb.
-// ABOUTME: Returns false for device operations; actual USB code in Prompt 21.
+// ABOUTME: macOS GC2 USB plugin using libusb for INTERRUPT IN endpoint communication.
+// ABOUTME: Parses 0H (shot data) and 0M (device status) messages from the GC2 launch monitor.
 
 #import "GC2MacPlugin.h"
 #import "libusb.h"
@@ -25,6 +25,15 @@ static void SafeUnitySendMessage(const char* obj, const char* method, const char
 }
 
 // =============================================================================
+// Protocol Constants
+// =============================================================================
+
+static const float kMinBallSpeedMph = 1.1f;      // Minimum putt speed
+static const float kMaxBallSpeedMph = 250.0f;    // Maximum realistic speed
+static const float kMisreadSpinValue = 2222.0f;  // Known GC2 error pattern
+static const int kFlagsReady = 7;                // Device ready (green light)
+
+// =============================================================================
 // Internal State
 // =============================================================================
 
@@ -32,10 +41,13 @@ static libusb_context *g_usbContext = NULL;
 static libusb_device_handle *g_deviceHandle = NULL;
 static dispatch_queue_t g_readQueue = NULL;
 static BOOL g_isRunning = NO;
-static NSMutableString *g_dataBuffer = nil;
+static NSMutableString *g_lineBuffer = nil;            // Buffer for incomplete lines
+static NSMutableDictionary *g_shotAccumulator = nil;   // Accumulates shot fields across packets
 static NSString *g_unityCallbackObject = nil;
 static NSString *g_deviceSerial = nil;
 static NSString *g_firmwareVersion = nil;
+static int g_lastShotId = -1;                          // For duplicate detection
+static NSString *g_currentMessageType = nil;           // Current message type (0H or 0M)
 
 // Callbacks for non-Unity usage
 static GC2ShotCallback g_shotCallback = NULL;
@@ -55,6 +67,12 @@ static void LogInfo(NSString *message) {
 
 static void LogError(NSString *message) {
     NSLog(@"[GC2MacPlugin ERROR] %@", message);
+}
+
+static void LogDebug(NSString *message) {
+#ifdef DEBUG
+    NSLog(@"[GC2MacPlugin DEBUG] %@", message);
+#endif
 }
 
 /// Send message to Unity via UnitySendMessage
@@ -160,44 +178,323 @@ static void NotifyError(NSString *errorMessage) {
     SendToUnity(@"OnNativeError", errorMessage);
 }
 
-#pragma mark - Protocol Parsing (Placeholder)
+#pragma mark - Protocol Parsing
 
-/// Parse GC2 protocol data into shot dictionary
-/// This is a placeholder - full implementation in Prompt 21
-static NSDictionary* ParseGC2ShotData(NSString *data) {
-    // Placeholder: just log that we received data
-    LogInfo([NSString stringWithFormat:@"Parsing data: %@", data]);
+/// Check if shot data represents a misread that should be rejected
+static BOOL IsMisread(NSDictionary *shotData) {
+    // Check for zero spin (camera couldn't track)
+    NSNumber *backSpin = shotData[@"BACK_RPM"];
+    NSNumber *sideSpin = shotData[@"SIDE_RPM"];
+    if (backSpin && sideSpin) {
+        if ([backSpin floatValue] == 0.0f && [sideSpin floatValue] == 0.0f) {
+            LogInfo(@"Misread detected: zero spin");
+            return YES;
+        }
+        // Check for 2222 error pattern
+        if ([backSpin floatValue] == kMisreadSpinValue) {
+            LogInfo(@"Misread detected: 2222 error pattern");
+            return YES;
+        }
+    }
 
-    // For stub, return nil (no valid shot)
-    return nil;
+    // Check for unrealistic ball speed
+    NSNumber *speed = shotData[@"SPEED_MPH"];
+    if (speed) {
+        float speedValue = [speed floatValue];
+        if (speedValue < kMinBallSpeedMph || speedValue > kMaxBallSpeedMph) {
+            LogInfo([NSString stringWithFormat:@"Misread detected: unrealistic speed %.1f mph", speedValue]);
+            return YES;
+        }
+    }
+
+    return NO;
 }
 
-/// Process accumulated buffer for complete messages
+/// Check if shot is a duplicate based on SHOT_ID
+static BOOL IsDuplicate(int shotId) {
+    if (shotId == g_lastShotId) {
+        LogDebug([NSString stringWithFormat:@"Duplicate shot ID: %d", shotId]);
+        return YES;
+    }
+    return NO;
+}
+
+/// Parse a single KEY=VALUE line and add to accumulator
+static void ParseLine(NSString *line) {
+    line = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (line.length == 0) {
+        return;
+    }
+
+    // Check for message type markers
+    if ([line isEqualToString:@"0H"]) {
+        g_currentMessageType = @"0H";
+        LogDebug(@"Message type: 0H (shot data)");
+        return;
+    }
+    if ([line isEqualToString:@"0M"]) {
+        g_currentMessageType = @"0M";
+        LogDebug(@"Message type: 0M (device status)");
+        return;
+    }
+
+    // Parse KEY=VALUE
+    NSRange eqRange = [line rangeOfString:@"="];
+    if (eqRange.location == NSNotFound) {
+        return;
+    }
+
+    NSString *key = [[line substringToIndex:eqRange.location]
+                     stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    NSString *value = [[line substringFromIndex:eqRange.location + 1]
+                       stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+
+    if (key.length == 0) {
+        return;
+    }
+
+    // Convert to appropriate type
+    id parsedValue;
+    if ([key isEqualToString:@"SHOT_ID"] ||
+        [key isEqualToString:@"TIME_SEC"] ||
+        [key isEqualToString:@"MSEC_SINCE_CONTACT"] ||
+        [key isEqualToString:@"FLAGS"] ||
+        [key isEqualToString:@"BALLS"] ||
+        [key isEqualToString:@"IS_LEFT"]) {
+        parsedValue = @([value intValue]);
+    } else if ([key isEqualToString:@"HMT"]) {
+        parsedValue = @([value isEqualToString:@"1"]);
+    } else if ([key isEqualToString:@"BALL1"]) {
+        // Ball position is stored as string "x,y,z"
+        parsedValue = value;
+    } else {
+        // Float values
+        parsedValue = @([value floatValue]);
+    }
+
+    g_shotAccumulator[key] = parsedValue;
+    LogDebug([NSString stringWithFormat:@"Parsed: %@ = %@", key, parsedValue]);
+}
+
+/// Build shot JSON from accumulated data
+static NSDictionary* BuildShotJSON(void) {
+    NSMutableDictionary *shot = [NSMutableDictionary dictionary];
+
+    // Map GC2 field names to GC2ShotData property names
+    if (g_shotAccumulator[@"SHOT_ID"]) {
+        shot[@"ShotNumber"] = g_shotAccumulator[@"SHOT_ID"];
+    }
+    if (g_shotAccumulator[@"SPEED_MPH"]) {
+        shot[@"BallSpeedMph"] = g_shotAccumulator[@"SPEED_MPH"];
+    }
+    if (g_shotAccumulator[@"ELEVATION_DEG"]) {
+        shot[@"LaunchAngleDeg"] = g_shotAccumulator[@"ELEVATION_DEG"];
+    }
+    if (g_shotAccumulator[@"AZIMUTH_DEG"]) {
+        shot[@"DirectionDeg"] = g_shotAccumulator[@"AZIMUTH_DEG"];
+    }
+    if (g_shotAccumulator[@"BACK_RPM"]) {
+        shot[@"BackSpinRpm"] = g_shotAccumulator[@"BACK_RPM"];
+    }
+    if (g_shotAccumulator[@"SIDE_RPM"]) {
+        shot[@"SideSpinRpm"] = g_shotAccumulator[@"SIDE_RPM"];
+    }
+    if (g_shotAccumulator[@"SPIN_RPM"]) {
+        shot[@"SpinRpm"] = g_shotAccumulator[@"SPIN_RPM"];
+    }
+
+    // HMT data (club data)
+    BOOL hasClubData = [g_shotAccumulator[@"HMT"] boolValue];
+    shot[@"HasClubData"] = @(hasClubData);
+
+    if (hasClubData) {
+        if (g_shotAccumulator[@"CLUBSPEED_MPH"]) {
+            shot[@"ClubSpeedMph"] = g_shotAccumulator[@"CLUBSPEED_MPH"];
+        }
+        if (g_shotAccumulator[@"HPATH_DEG"]) {
+            shot[@"PathDeg"] = g_shotAccumulator[@"HPATH_DEG"];
+        }
+        if (g_shotAccumulator[@"VPATH_DEG"]) {
+            shot[@"AttackAngleDeg"] = g_shotAccumulator[@"VPATH_DEG"];
+        }
+        if (g_shotAccumulator[@"FACE_T_DEG"]) {
+            shot[@"FaceToTargetDeg"] = g_shotAccumulator[@"FACE_T_DEG"];
+        }
+        if (g_shotAccumulator[@"LOFT_DEG"]) {
+            shot[@"LoftDeg"] = g_shotAccumulator[@"LOFT_DEG"];
+        }
+        if (g_shotAccumulator[@"LIE_DEG"]) {
+            shot[@"LieDeg"] = g_shotAccumulator[@"LIE_DEG"];
+        }
+        if (g_shotAccumulator[@"HIMPACT_MM"]) {
+            shot[@"HorizontalImpactMm"] = g_shotAccumulator[@"HIMPACT_MM"];
+        }
+        if (g_shotAccumulator[@"VIMPACT_MM"]) {
+            shot[@"VerticalImpactMm"] = g_shotAccumulator[@"VIMPACT_MM"];
+        }
+        if (g_shotAccumulator[@"CLOSING_RATE_DEGSEC"]) {
+            shot[@"ClosureRateDegPerSec"] = g_shotAccumulator[@"CLOSING_RATE_DEGSEC"];
+        }
+    }
+
+    return shot;
+}
+
+/// Process completed 0H message (shot data)
+static void ProcessShotMessage(void) {
+    // Check if we have spin data (indicates complete shot)
+    if (!g_shotAccumulator[@"BACK_RPM"] && !g_shotAccumulator[@"SIDE_RPM"]) {
+        LogDebug(@"Shot message incomplete - waiting for spin data");
+        return;
+    }
+
+    // Check for misreads
+    if (IsMisread(g_shotAccumulator)) {
+        LogInfo(@"Shot rejected: misread detected");
+        [g_shotAccumulator removeAllObjects];
+        return;
+    }
+
+    // Check for duplicates
+    int shotId = [g_shotAccumulator[@"SHOT_ID"] intValue];
+    if (IsDuplicate(shotId)) {
+        LogDebug(@"Shot rejected: duplicate");
+        [g_shotAccumulator removeAllObjects];
+        return;
+    }
+
+    // Update last shot ID
+    g_lastShotId = shotId;
+
+    // Build and send shot JSON
+    NSDictionary *shot = BuildShotJSON();
+    NotifyShot(shot);
+
+    // Clear accumulator for next shot
+    [g_shotAccumulator removeAllObjects];
+}
+
+/// Process completed 0M message (device status)
+static void ProcessDeviceStatusMessage(void) {
+    NSNumber *flags = g_shotAccumulator[@"FLAGS"];
+    NSNumber *balls = g_shotAccumulator[@"BALLS"];
+
+    if (!flags) {
+        LogDebug(@"Device status message incomplete - no FLAGS");
+        return;
+    }
+
+    BOOL isReady = ([flags intValue] == kFlagsReady);
+    BOOL ballDetected = (balls && [balls intValue] > 0);
+
+    NotifyDeviceStatus(isReady, ballDetected);
+
+    // Clear 0M-specific fields but keep accumulator for potential 0H data
+    [g_shotAccumulator removeObjectForKey:@"FLAGS"];
+    [g_shotAccumulator removeObjectForKey:@"BALLS"];
+    [g_shotAccumulator removeObjectForKey:@"BALL1"];
+}
+
+/// Process buffer for complete lines
 static void ProcessBuffer(void) {
-    // Placeholder - will be implemented in Prompt 21
-    // Looks for message terminators (\n\t) and processes complete messages
+    while (YES) {
+        // Look for newline
+        NSRange newlineRange = [g_lineBuffer rangeOfString:@"\n"];
+        if (newlineRange.location == NSNotFound) {
+            break;
+        }
+
+        // Extract complete line
+        NSString *line = [g_lineBuffer substringToIndex:newlineRange.location];
+        [g_lineBuffer deleteCharactersInRange:NSMakeRange(0, newlineRange.location + 1)];
+
+        // Check for message terminator (tab after newline indicates end of message)
+        if ([g_lineBuffer hasPrefix:@"\t"]) {
+            // Remove the tab
+            [g_lineBuffer deleteCharactersInRange:NSMakeRange(0, 1)];
+
+            // Parse the last line
+            ParseLine(line);
+
+            // Process the complete message
+            if ([g_currentMessageType isEqualToString:@"0H"]) {
+                ProcessShotMessage();
+            } else if ([g_currentMessageType isEqualToString:@"0M"]) {
+                ProcessDeviceStatusMessage();
+            }
+
+            g_currentMessageType = nil;
+            continue;
+        }
+
+        // Parse this line
+        ParseLine(line);
+
+        // Check if SHOT_ID changed (indicates new shot)
+        if (g_shotAccumulator[@"SHOT_ID"]) {
+            int currentShotId = [g_shotAccumulator[@"SHOT_ID"] intValue];
+            if (g_lastShotId >= 0 && currentShotId != g_lastShotId) {
+                // New shot ID detected - process previous accumulated data if complete
+                LogDebug([NSString stringWithFormat:@"New shot ID detected: %d (was %d)", currentShotId, g_lastShotId]);
+            }
+        }
+    }
 }
 
-#pragma mark - USB Read Loop (Placeholder)
+#pragma mark - USB Read Loop
 
 /// USB read loop - runs on background queue
-/// This is a placeholder - full implementation in Prompt 21
 static void ReadLoop(void) {
-    LogInfo(@"Read loop started (stub - not actually reading)");
+    LogInfo(@"Read loop started");
 
-    // Placeholder: In actual implementation, this would:
-    // 1. libusb_interrupt_transfer() in a loop
-    // 2. Parse 0H (shot) and 0M (status) messages
-    // 3. Accumulate data until complete message received
-    // 4. Call NotifyShot() or NotifyDeviceStatus()
+    unsigned char buffer[GC2_BUFFER_SIZE];
+    int transferred = 0;
 
-    // For stub, just wait until stopped
     while (g_isRunning && g_deviceHandle) {
-        [NSThread sleepForTimeInterval:0.1];
+        // Read from INTERRUPT IN endpoint
+        int result = libusb_interrupt_transfer(
+            g_deviceHandle,
+            GC2_EP_IN,
+            buffer,
+            GC2_BUFFER_SIZE,
+            &transferred,
+            GC2_READ_TIMEOUT_MS
+        );
+
+        if (result == 0 && transferred > 0) {
+            // Data received - append to line buffer
+            NSString *data = [[NSString alloc] initWithBytes:buffer
+                                                      length:transferred
+                                                    encoding:NSUTF8StringEncoding];
+            if (data) {
+                [g_lineBuffer appendString:data];
+                ProcessBuffer();
+            } else {
+                LogDebug(@"Received non-UTF8 data, skipping");
+            }
+        } else if (result == LIBUSB_ERROR_TIMEOUT) {
+            // Timeout is normal - continue reading
+            continue;
+        } else if (result == LIBUSB_ERROR_NO_DEVICE || result == LIBUSB_ERROR_IO) {
+            // Device disconnected
+            LogInfo([NSString stringWithFormat:@"USB read error: %s", libusb_error_name(result)]);
+            break;
+        } else if (result < 0) {
+            // Other error
+            LogError([NSString stringWithFormat:@"USB transfer error: %s", libusb_error_name(result)]);
+            // Don't break on transient errors, continue trying
+            [NSThread sleepForTimeInterval:0.01];
+        }
     }
 
     LogInfo(@"Read loop exited");
     g_isRunning = NO;
+
+    // Clean up state
+    [g_lineBuffer setString:@""];
+    [g_shotAccumulator removeAllObjects];
+    g_currentMessageType = nil;
+
     NotifyConnection(NO);
 }
 
@@ -220,10 +517,13 @@ void GC2Mac_Initialize(const char* callbackObject) {
     }
 
     // Initialize state
-    g_dataBuffer = [[NSMutableString alloc] init];
+    g_lineBuffer = [[NSMutableString alloc] init];
+    g_shotAccumulator = [[NSMutableDictionary alloc] init];
     g_readQueue = dispatch_queue_create("com.openrange.gc2.read", DISPATCH_QUEUE_SERIAL);
     g_lastIsReady = NO;
     g_lastBallDetected = NO;
+    g_lastShotId = -1;
+    g_currentMessageType = nil;
 
     LogInfo(@"GC2MacPlugin initialized successfully");
 }
@@ -241,11 +541,13 @@ void GC2Mac_Shutdown(void) {
     }
 
     // Cleanup state
-    g_dataBuffer = nil;
+    g_lineBuffer = nil;
+    g_shotAccumulator = nil;
     g_readQueue = nil;
     g_unityCallbackObject = nil;
     g_deviceSerial = nil;
     g_firmwareVersion = nil;
+    g_currentMessageType = nil;
 
     LogInfo(@"GC2MacPlugin shutdown complete");
 }
@@ -328,18 +630,28 @@ bool GC2Mac_Connect(void) {
         return false;
     }
 
-    // Read device serial number (placeholder - will be implemented fully in Prompt 21)
+    // Read device serial number (descriptor index 3 typically contains serial)
     unsigned char serialBuffer[256];
-    // Try to get serial number descriptor (index usually 3)
     int len = libusb_get_string_descriptor_ascii(g_deviceHandle, 3, serialBuffer, sizeof(serialBuffer));
     if (len > 0) {
         g_deviceSerial = [NSString stringWithUTF8String:(char*)serialBuffer];
         LogInfo([NSString stringWithFormat:@"Device serial: %@", g_deviceSerial]);
     }
 
+    // Try to get firmware version (descriptor index 2 might have product info)
+    unsigned char versionBuffer[256];
+    len = libusb_get_string_descriptor_ascii(g_deviceHandle, 2, versionBuffer, sizeof(versionBuffer));
+    if (len > 0) {
+        g_firmwareVersion = [NSString stringWithUTF8String:(char*)versionBuffer];
+        LogInfo([NSString stringWithFormat:@"Device version: %@", g_firmwareVersion]);
+    }
+
     // Start read loop
     g_isRunning = YES;
-    [g_dataBuffer setString:@""];
+    [g_lineBuffer setString:@""];
+    [g_shotAccumulator removeAllObjects];
+    g_lastShotId = -1;
+    g_currentMessageType = nil;
 
     dispatch_async(g_readQueue, ^{
         ReadLoop();
@@ -357,6 +669,9 @@ void GC2Mac_Disconnect(void) {
     // Stop read loop
     g_isRunning = NO;
 
+    // Give read loop time to exit
+    [NSThread sleepForTimeInterval:0.2];
+
     if (g_deviceHandle) {
         libusb_release_interface(g_deviceHandle, 0);
         libusb_close(g_deviceHandle);
@@ -367,6 +682,8 @@ void GC2Mac_Disconnect(void) {
     g_firmwareVersion = nil;
     g_lastIsReady = NO;
     g_lastBallDetected = NO;
+    g_lastShotId = -1;
+    g_currentMessageType = nil;
 
     NotifyConnection(NO);
     LogInfo(@"GC2 disconnected");
