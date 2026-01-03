@@ -89,7 +89,9 @@ make test-play     # Run PlayMode tests only
 make test-physics  # Run physics validation tests only
 
 # Building
-make build         # Build macOS standalone (runs tests first)
+make generate      # Regenerate all prefabs AND scenes from editor scripts
+make build         # Build macOS standalone (runs tests + generate first)
+make build-dev     # Build development build (runs generate first, skips tests)
 make clean         # Remove build artifacts and test results
 ```
 
@@ -395,6 +397,90 @@ Follow the established pattern in editor tools:
 3. Use `SerializedObject` to wire up private serialized fields
 4. Save as prefab with `PrefabUtility.SaveAsPrefabAsset()`
 5. Clean up with `Object.DestroyImmediate()`
+
+### Unity UI Layout System
+
+When creating UI prefabs programmatically, the layout system requires careful configuration to enforce size constraints.
+
+#### Critical LayoutGroup Settings
+
+**VerticalLayoutGroup / HorizontalLayoutGroup** have four critical properties:
+
+| Property | Effect when `true` | Effect when `false` |
+|----------|-------------------|---------------------|
+| `childControlWidth` | Layout enforces width constraints | Children use natural width |
+| `childControlHeight` | Layout enforces height constraints | Children use natural height |
+| `childForceExpandWidth` | Children expand to fill available width | Children use preferred width |
+| `childForceExpandHeight` | Children expand to fill available height | Children use preferred height |
+
+**Common mistake**: Setting `childControlHeight = false` causes children to ignore `preferredHeight` and `minHeight` constraints, resulting in oversized elements.
+
+**Recommended settings for compact layouts:**
+```csharp
+layoutGroup.childControlWidth = true;
+layoutGroup.childControlHeight = true;
+layoutGroup.childForceExpandWidth = false;  // or true depending on needs
+layoutGroup.childForceExpandHeight = false;
+```
+
+#### Size Constraint Hierarchy
+
+For reliable sizing, set constraints at multiple levels:
+
+1. **RectTransform.sizeDelta** - The actual rendered size
+   ```csharp
+   rect.sizeDelta = new Vector2(width, height);
+   ```
+
+2. **LayoutElement** - Constraints for the layout system
+   ```csharp
+   layout.minWidth = width;
+   layout.minHeight = height;
+   layout.preferredWidth = width;
+   layout.preferredHeight = height;
+   layout.flexibleWidth = 0f;   // 0 = don't stretch
+   layout.flexibleHeight = 0f;
+   ```
+
+**Both are needed!** `LayoutElement` controls layout calculation, but `RectTransform.sizeDelta` is what Unity actually renders.
+
+#### Preventing Unwanted Stretching
+
+To prevent elements from expanding:
+- Set `flexibleWidth = 0f` and `flexibleHeight = 0f` on `LayoutElement`
+- Set `childForceExpandWidth/Height = false` on parent `LayoutGroup`
+- Use fixed `minWidth/minHeight` values
+
+#### Prefab and Scene Regeneration
+
+The `make generate` target now regenerates **both** prefabs and scenes:
+```bash
+make generate  # Regenerates all prefabs, then all scenes
+```
+
+This calls:
+1. `SceneGenerator.GenerateAllPrefabs()` - All visualization, environment, and UI prefabs
+2. `SceneGenerator.GenerateAllScenes()` - Bootstrap, MainMenu, and Marina scenes
+
+To regenerate just a specific prefab or scene via CLI:
+```bash
+# Regenerate specific prefab
+/Applications/Unity/Hub/Editor/6000.3.2f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode -nographics -projectPath . \
+  -executeMethod OpenRange.Editor.GSProModeUIGenerator.CreatePrefab -quit -logFile -
+
+# Regenerate specific scene
+/Applications/Unity/Hub/Editor/6000.3.2f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode -nographics -projectPath . \
+  -executeMethod OpenRange.Editor.SceneGenerator.GenerateMarinaScene -quit -logFile -
+```
+
+#### ContentSizeFitter Interaction
+
+When using `ContentSizeFitter` with `VerticalFit = PreferredSize`:
+- The parent will size itself based on children's `preferredHeight`
+- Children must have `childControlHeight = true` on parent for this to work correctly
+- Without it, children report incorrect sizes and the fitter calculates wrong
 
 ### Coordinate System
 
