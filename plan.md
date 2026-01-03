@@ -70,12 +70,14 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 - **Prompt 35**: Ball Ready Indicator ✅ (PR #51) - Visual states, pulse animation
 - **Prompt 42**: GSPro Buffer Management ✅ (PR #53) - Response parsing, shot confirmation
 - **Prompt 43**: GSPro Mode Panel Fixes ✅ (PR #55) - Layout constants, improved sizing
+- **Prompt 44**: Connection Panel Fixes ✅ (PR #57) - Panel height, modal positioning, close button sizing
+- **Prompt 45**: Settings Dropdown & UI Polish 🔄 (PR #58) - Dropdown z-order, ScrollRect wiring, button raycast fixes
 
 ---
 
 ## Incomplete Prompts (Full Detail)
 
-### Prompt 44: Connection Panel and Settings Button Fixes
+### Prompt 44: Connection Panel and Settings Button Fixes ✅ (Completed in PR #57)
 
 ```text
 Fix the Connection Status panel overflow and truncated Settings button.
@@ -148,12 +150,20 @@ Write/update unit tests for:
 
 ---
 
-### Prompt 45: Settings Panel Dropdown and General UI Polish
+### Prompt 45: Settings Panel Dropdown and General UI Polish 🔄 (PR #58 In Progress)
 
 ```text
 Fix Settings panel dropdown issues and general UI polish items.
 
 Context: The Settings panel has dropdown issues where options are cut off, and there are various general UI polish items across the Marina scene.
+
+Progress:
+- ✅ Fixed dropdown z-order with Canvas.overrideSorting
+- ✅ Fixed dropdown ScrollRect (viewport/content not wired)
+- ✅ Fixed button click areas (raycastTarget = false on text)
+- ✅ Fixed Unicode checkmark → Image component (font issue)
+- ✅ Fixed X button from Unicode "✕" to simple "X"
+- ✅ Moved Settings button to left side (next to Back button)
 
 Issues identified:
 - Frame Rate dropdown shows partial text ("um" instead of "Medium")
@@ -1408,3 +1418,18 @@ private static void OnNativeShotCallbackStatic(string jsonData)
 - **Accumulation**: Wait for `BACK_RPM`/`SIDE_RPM` before processing
 - **Misreads**: Reject zero spin, 2222 error, speed <1.1 or >250 mph
 - **Device status**: FLAGS == 7 = ready, BALLS > 0 = ball detected
+
+### Unity UI Programmatic Creation Lessons
+
+**TMP_Dropdown ScrollRect Wiring:**
+The dropdown template requires explicit ScrollRect wiring or items won't display:
+```csharp
+scrollRect.viewport = viewportRect;  // MUST be assigned!
+scrollRect.content = contentRect;    // MUST be assigned!
+```
+
+**Button raycastTarget Issue:**
+TextMeshProUGUI defaults to `raycastTarget = true`, intercepting clicks intended for the Button. Fix by setting `raycastTarget = false` on button text.
+
+**Unicode Font Limitations:**
+LiberationSans SDF (TMP default) lacks many Unicode symbols. Use Image components for symbols like checkmarks, or simple ASCII with bold styling (e.g., "X" instead of "✕").

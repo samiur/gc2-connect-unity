@@ -402,12 +402,14 @@ namespace OpenRange.Editor
             itemCheckRect.anchorMin = new Vector2(0, 0.5f);
             itemCheckRect.anchorMax = new Vector2(0, 0.5f);
             itemCheckRect.pivot = new Vector2(0, 0.5f);
-            itemCheckRect.sizeDelta = new Vector2(20, 20);
-            itemCheckRect.anchoredPosition = new Vector2(5, 0);
+            itemCheckRect.sizeDelta = new Vector2(16, 16);
+            itemCheckRect.anchoredPosition = new Vector2(8, 0);
 
-            // Use Image instead of text for checkmark (Unicode chars not in default TMP font)
+            // Use Unity's built-in Checkmark sprite for proper visual
             var itemCheckImage = itemCheckGo.AddComponent<Image>();
+            itemCheckImage.sprite = UnityEditor.AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd");
             itemCheckImage.color = UITheme.AccentGreen;
+            itemCheckImage.preserveAspect = true;
 
             // Item label
             var itemLabelGo = new GameObject("Item Label");

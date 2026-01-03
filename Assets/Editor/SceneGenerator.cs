@@ -55,13 +55,17 @@ namespace OpenRange.Editor
         [MenuItem("OpenRange/Generate All Scenes", priority = 100)]
         public static void GenerateAllScenes()
         {
-            if (!EditorUtility.DisplayDialog(
-                "Generate Scenes",
-                "This will create Bootstrap.unity, MainMenu.unity, and Ranges/Marina.unity scenes. Existing scenes will be overwritten. Continue?",
-                "Generate",
-                "Cancel"))
+            // In batchmode (CLI), skip the dialog and generate directly
+            if (!Application.isBatchMode)
             {
-                return;
+                if (!EditorUtility.DisplayDialog(
+                    "Generate Scenes",
+                    "This will create Bootstrap.unity, MainMenu.unity, and Ranges/Marina.unity scenes. Existing scenes will be overwritten. Continue?",
+                    "Generate",
+                    "Cancel"))
+                {
+                    return;
+                }
             }
 
             EnsureDirectoriesExist();
