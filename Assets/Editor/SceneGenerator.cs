@@ -588,6 +588,31 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ConnectionPanel.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
             }
 
+            // Ball Ready Indicator (top-center, below connection status)
+            BallReadyIndicator ballReadyIndicator = null;
+            var ballReadyIndicatorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/BallReadyIndicator.prefab");
+            if (ballReadyIndicatorPrefab != null)
+            {
+                var ballReadyIndicatorGo = (GameObject)PrefabUtility.InstantiatePrefab(ballReadyIndicatorPrefab);
+                ballReadyIndicatorGo.name = "BallReadyIndicator";
+                ballReadyIndicatorGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at top-center, below connection status
+                var indicatorRect = ballReadyIndicatorGo.GetComponent<RectTransform>();
+                indicatorRect.anchorMin = new Vector2(0.5f, 1);
+                indicatorRect.anchorMax = new Vector2(0.5f, 1);
+                indicatorRect.pivot = new Vector2(0.5f, 1);
+                indicatorRect.anchoredPosition = new Vector2(0, -60);
+                indicatorRect.sizeDelta = new Vector2(200, 60);
+
+                ballReadyIndicator = ballReadyIndicatorGo.GetComponent<BallReadyIndicator>();
+                Debug.Log("SceneGenerator: Added BallReadyIndicator to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: BallReadyIndicator.prefab not found. Run 'OpenRange > Create Ball Ready Indicator Prefab' first.");
+            }
+
             // Session Info Panel (top-left corner, compact statistics)
             SessionInfoPanel sessionInfoPanel = null;
             var sessionInfoPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/SessionInfoPanel.prefab");
@@ -698,6 +723,7 @@ namespace OpenRange.Editor
             controllerSo.FindProperty("_clubDataPanel").objectReferenceValue = clubDataPanel;
             controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
             controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
+            controllerSo.FindProperty("_ballReadyIndicator").objectReferenceValue = ballReadyIndicator;
             controllerSo.FindProperty("_settingsPanel").objectReferenceValue = settingsPanel;
             controllerSo.FindProperty("_sessionInfoPanel").objectReferenceValue = sessionInfoPanel;
             controllerSo.FindProperty("_shotHistoryPanel").objectReferenceValue = shotHistoryPanel;

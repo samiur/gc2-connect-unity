@@ -30,6 +30,7 @@ namespace OpenRange.UI
         [Header("Connection UI")]
         [SerializeField] private ConnectionStatusUI _connectionStatusUI;
         [SerializeField] private ConnectionPanel _connectionPanel;
+        [SerializeField] private BallReadyIndicator _ballReadyIndicator;
 
         [Header("Settings UI")]
         [SerializeField] private SettingsPanel _settingsPanel;
