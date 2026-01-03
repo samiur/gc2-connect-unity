@@ -613,6 +613,30 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: BallReadyIndicator.prefab not found. Run 'OpenRange > Create Ball Ready Indicator Prefab' first.");
             }
 
+            // GSPro Mode UI (right side, below connection status)
+            GSProModeUI gsProModeUI = null;
+            var gsProModeUIPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/GSProModeUI.prefab");
+            if (gsProModeUIPrefab != null)
+            {
+                var gsProModeUIGo = (GameObject)PrefabUtility.InstantiatePrefab(gsProModeUIPrefab);
+                gsProModeUIGo.name = "GSProModeUI";
+                gsProModeUIGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at right side, below connection status
+                var gsProRect = gsProModeUIGo.GetComponent<RectTransform>();
+                gsProRect.anchorMin = new Vector2(1, 1);
+                gsProRect.anchorMax = new Vector2(1, 1);
+                gsProRect.pivot = new Vector2(1, 1);
+                gsProRect.anchoredPosition = new Vector2(-20, -80);
+
+                gsProModeUI = gsProModeUIGo.GetComponent<GSProModeUI>();
+                Debug.Log("SceneGenerator: Added GSProModeUI to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: GSProModeUI.prefab not found. Run 'OpenRange > Create GSPro Mode UI Prefab' first.");
+            }
+
             // Session Info Panel (top-left corner, compact statistics)
             SessionInfoPanel sessionInfoPanel = null;
             var sessionInfoPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/SessionInfoPanel.prefab");
@@ -656,6 +680,25 @@ namespace OpenRange.Editor
                 historyRect.sizeDelta = new Vector2(350, 0);
 
                 shotHistoryPanel = shotHistoryPanelGo.GetComponent<ShotHistoryPanel>();
+
+                // Wire up the ShotHistoryItem prefab
+                var shotHistoryItemPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ShotHistoryItem.prefab");
+                if (shotHistoryItemPrefab != null)
+                {
+                    var historyPanelSo = new SerializedObject(shotHistoryPanel);
+                    var itemPrefabProp = historyPanelSo.FindProperty("_itemPrefab");
+                    if (itemPrefabProp != null)
+                    {
+                        itemPrefabProp.objectReferenceValue = shotHistoryItemPrefab.GetComponent<ShotHistoryItem>();
+                        historyPanelSo.ApplyModifiedPropertiesWithoutUndo();
+                        Debug.Log("SceneGenerator: Wired ShotHistoryItem prefab to ShotHistoryPanel");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("SceneGenerator: ShotHistoryItem.prefab not found for ShotHistoryPanel");
+                }
+
                 Debug.Log("SceneGenerator: Added ShotHistoryPanel to Marina scene");
             }
             else
@@ -712,6 +755,37 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: SettingsPanel.prefab not found. Run 'OpenRange > Create All Settings Panel Prefabs' first.");
             }
 
+            // UIManager (singleton for toast notifications)
+            var uiManagerGo = new GameObject("UIManager");
+            var uiManager = uiManagerGo.AddComponent<UIManager>();
+
+            // Create toast container
+            var toastContainerGo = new GameObject("ToastContainer");
+            toastContainerGo.transform.SetParent(canvasGo.transform, false);
+            var toastContainerRect = toastContainerGo.AddComponent<RectTransform>();
+            toastContainerRect.anchorMin = new Vector2(0.5f, 1);
+            toastContainerRect.anchorMax = new Vector2(0.5f, 1);
+            toastContainerRect.pivot = new Vector2(0.5f, 1);
+            toastContainerRect.anchoredPosition = new Vector2(0, -20);
+            toastContainerRect.sizeDelta = new Vector2(400, 200);
+
+            // Wire up UIManager
+            var toastPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/Toast.prefab");
+            var uiManagerSo = new SerializedObject(uiManager);
+            uiManagerSo.FindProperty("_toastPrefab").objectReferenceValue = toastPrefab;
+            uiManagerSo.FindProperty("_toastContainer").objectReferenceValue = toastContainerGo.transform;
+            uiManagerSo.FindProperty("_panelContainer").objectReferenceValue = canvasGo.transform;
+            uiManagerSo.ApplyModifiedPropertiesWithoutUndo();
+
+            if (toastPrefab != null)
+            {
+                Debug.Log("SceneGenerator: Added UIManager with Toast prefab to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: Toast.prefab not found. Toasts won't work.");
+            }
+
             // Add MarinaSceneController
             var controllerGo = new GameObject("MarinaSceneController");
             var controller = controllerGo.AddComponent<MarinaSceneController>();
@@ -724,6 +798,7 @@ namespace OpenRange.Editor
             controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
             controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
             controllerSo.FindProperty("_ballReadyIndicator").objectReferenceValue = ballReadyIndicator;
+            controllerSo.FindProperty("_gsProModeUI").objectReferenceValue = gsProModeUI;
             controllerSo.FindProperty("_settingsPanel").objectReferenceValue = settingsPanel;
             controllerSo.FindProperty("_sessionInfoPanel").objectReferenceValue = sessionInfoPanel;
             controllerSo.FindProperty("_shotHistoryPanel").objectReferenceValue = shotHistoryPanel;

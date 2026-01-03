@@ -81,6 +81,12 @@ namespace OpenRange.Tests.EditMode
             Assert.AreEqual(5000, GSProClient.ConnectionTimeoutMs);
         }
 
+        [Test]
+        public void ShotResponseTimeout_Is5000Ms()
+        {
+            Assert.AreEqual(5000, GSProClient.ShotResponseTimeoutMs);
+        }
+
         #endregion
 
         #region UpdateReadyState Tests
@@ -419,6 +425,41 @@ namespace OpenRange.Tests.EditMode
             Assert.DoesNotThrow(() => { });
         }
 
+        [Test]
+        public void OnShotConfirmed_CanSubscribe()
+        {
+            int receivedCode = 0;
+            GSProPlayerInfo receivedPlayer = null;
+            _client.OnShotConfirmed += (code, player) =>
+            {
+                receivedCode = code;
+                receivedPlayer = player;
+            };
+
+            // Verify subscription doesn't throw
+            Assert.DoesNotThrow(() => { });
+        }
+
+        [Test]
+        public void OnShotFailed_CanSubscribe()
+        {
+            string receivedError = null;
+            _client.OnShotFailed += error => receivedError = error;
+
+            // Verify subscription doesn't throw
+            Assert.DoesNotThrow(() => { });
+        }
+
+        [Test]
+        public void OnHeartbeatSent_CanSubscribe()
+        {
+            bool heartbeatFired = false;
+            _client.OnHeartbeatSent += () => heartbeatFired = true;
+
+            // Verify subscription doesn't throw
+            Assert.DoesNotThrow(() => { });
+        }
+
         #endregion
 
         #region Dispose Tests
@@ -478,6 +519,27 @@ namespace OpenRange.Tests.EditMode
             // Verify options
             Assert.IsTrue(parsed["ShotDataOptions"]["ContainsBallData"].Value<bool>());
             Assert.IsFalse(parsed["ShotDataOptions"]["IsHeartBeat"].Value<bool>());
+        }
+
+        [Test]
+        public void CreateShotMessage_ToJson_DoesNotEndWithNewline()
+        {
+            var shot = CreateTestShot();
+            var message = _client.CreateShotMessage(shot, 1);
+            var json = message.ToJson();
+
+            // GSPro doesn't require a newline delimiter
+            Assert.IsFalse(json.EndsWith("\n"));
+        }
+
+        [Test]
+        public void CreateHeartbeatMessage_ToJson_DoesNotEndWithNewline()
+        {
+            var message = _client.CreateHeartbeatMessage();
+            var json = message.ToJson();
+
+            // GSPro doesn't require a newline delimiter
+            Assert.IsFalse(json.EndsWith("\n"));
         }
 
         #endregion

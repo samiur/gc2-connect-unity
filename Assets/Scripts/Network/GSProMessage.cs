@@ -65,7 +65,7 @@ namespace OpenRange.Network
         }
 
         /// <summary>
-        /// Serialize to JSON string with newline terminator.
+        /// Serialize to JSON string.
         /// </summary>
         public string ToJson()
         {
