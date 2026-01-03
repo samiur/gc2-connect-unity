@@ -214,10 +214,19 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
   - Xcode project with bundle output, arm64 build
   - build_mac_plugin.sh - Build script with architecture detection
   - Weak-linked UnitySendMessage for Unity callback support
+- macOS USB read loop implementation (PR #47)
+  - Complete libusb integration with INTERRUPT IN endpoint (0x82)
+  - 0H shot parsing with field accumulation, 0M device status parsing
+  - Misread detection (zero spin, 2222 error, speed range)
+  - Message terminator (\n\t) handling
+- macOS C# bridge (PR #49)
+  - GC2MacConnection.cs implementing IGC2Connection as MonoBehaviour
+  - DllImport declarations for all GC2MacPlugin.bundle functions
+  - UnitySendMessage callbacks: OnNativeShotReceived, OnNativeConnectionChanged, OnNativeError, OnNativeDeviceStatus
+  - JSON parsing for shot data and device status via Unity's JsonUtility
+  - Thread-safe event dispatching via MainThreadDispatcher
 
 **Not yet implemented:**
-- macOS USB read loop (Prompt 21) - actual USB data reading
-- macOS C# bridge (Prompt 22) - Unity integration via DllImport
 - Android native plugin (Prompts 23-25)
 - iPad native plugin (Prompts 26-28)
 

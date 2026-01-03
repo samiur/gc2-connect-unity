@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7 - macOS Native Plugin (2 of 3 complete)
+**Phase**: 7 - macOS Native Plugin (3 of 3 complete) ✅
 **Last Updated**: 2026-01-03
-**Next Prompt**: 22 (macOS C# Bridge)
+**Next Prompt**: 23 (Android Plugin Project)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
@@ -276,12 +276,15 @@ These components exist and don't need to be rebuilt:
   - [x] Misread detection (zero spin, 2222 error, speed range)
   - [x] Hardware testing required (no physical device for automated testing)
 
-- [ ] **Prompt 22**: macOS C# Bridge
-  - [ ] Create GC2MacConnection.cs
-  - [ ] DllImport declarations
-  - [ ] Callback handling (OnNativeShotReceived, OnNativeDeviceStatus)
-  - [ ] Update factory
-  - [ ] Tests
+- [x] **Prompt 22**: macOS C# Bridge (PR #49)
+  - [x] Create GC2MacConnection.cs (MonoBehaviour implementing IGC2Connection)
+  - [x] DllImport declarations for all GC2MacPlugin.bundle functions
+  - [x] Callback handling (OnNativeShotReceived, OnNativeConnectionChanged, OnNativeError, OnNativeDeviceStatus)
+  - [x] JSON parsing for shot data and device status
+  - [x] Thread-safe event dispatching via MainThreadDispatcher
+  - [x] Lifecycle management (Awake, OnDestroy, OnApplicationQuit)
+  - [x] GC2ConnectionFactory already routes UNITY_STANDALONE_OSX (existing)
+  - [x] Tests (38 new tests: JSON parsing, callbacks, lifecycle, edge cases)
 
 ---
 
