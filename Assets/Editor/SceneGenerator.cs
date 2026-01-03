@@ -510,14 +510,15 @@ namespace OpenRange.Editor
             backRect.anchoredPosition = new Vector2(20, -20);
             backRect.sizeDelta = new Vector2(100, 40);
 
-            // Settings Button (top-right, next to connection status)
+            // Settings Button (top-right, left of connection status)
+            // ConnectionStatus is 180px wide at -16px from right edge, so settings needs to be at least -220px
             var settingsBtn = CreateButton(canvasGo.transform, "SettingsButton", "Settings");
             var settingsRect = settingsBtn.GetComponent<RectTransform>();
             settingsRect.anchorMin = new Vector2(1, 1);
             settingsRect.anchorMax = new Vector2(1, 1);
             settingsRect.pivot = new Vector2(1, 1);
-            settingsRect.anchoredPosition = new Vector2(-150, -20);
-            settingsRect.sizeDelta = new Vector2(120, 40); // Width increased from 100 to show full "Settings" text
+            settingsRect.anchoredPosition = new Vector2(-220, -20);
+            settingsRect.sizeDelta = new Vector2(100, 40);
 
             // Shot Data Bar (bottom panel)
             ShotDataBar shotDataBar = null;

@@ -349,9 +349,10 @@ namespace OpenRange.Editor
             viewportRect.offsetMin = Vector2.zero;
             viewportRect.offsetMax = Vector2.zero;
 
-            viewportGo.AddComponent<Mask>();
+            var viewportMask = viewportGo.AddComponent<Mask>();
+            viewportMask.showMaskGraphic = false; // Hide the mask image so dropdown bg shows through
             var viewportImage = viewportGo.AddComponent<Image>();
-            viewportImage.color = Color.white;
+            viewportImage.color = Color.white; // Required for mask but hidden
 
             // Content
             var contentGo = new GameObject("Content");
