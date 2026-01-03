@@ -23,6 +23,35 @@ namespace OpenRange.Editor
         private const string RangesPath = "Assets/Scenes/Ranges";
         private const string MaterialsPath = "Assets/Materials/Environment";
 
+        [MenuItem("OpenRange/Generate All Prefabs", priority = 99)]
+        public static void GenerateAllPrefabs()
+        {
+            Debug.Log("SceneGenerator: Generating all prefabs...");
+
+            // Core visualization prefabs
+            GolfBallPrefabGenerator.CreateGolfBallPrefab();
+            TrajectoryLineGenerator.CreateTrajectoryLinePrefab();
+            CameraRigGenerator.CreateCameraRigPrefab();
+            LandingMarkerGenerator.CreateLandingMarkerPrefab();
+            LandingMarkerGenerator.CreateLandingDustPrefab();
+
+            // Environment prefabs
+            EnvironmentGenerator.CreateAllEnvironmentPrefabs();
+
+            // UI prefabs
+            UICanvasGenerator.CreateAllUIPrefabs();
+            ShotDataBarGenerator.CreateAllPrefabs();
+            ClubDataPanelGenerator.CreateAllPrefabs();
+            ConnectionStatusGenerator.CreateAllPrefabs();
+            SessionInfoPanelGenerator.CreateAllPrefabs();
+            SettingsPanelGenerator.CreateAllPrefabs();
+            GSProModeUIGenerator.CreatePrefab();
+            BallReadyIndicatorGenerator.CreateBallReadyIndicatorPrefab();
+
+            AssetDatabase.Refresh();
+            Debug.Log("SceneGenerator: All prefabs generated successfully!");
+        }
+
         [MenuItem("OpenRange/Generate All Scenes", priority = 100)]
         public static void GenerateAllScenes()
         {

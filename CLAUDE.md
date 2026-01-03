@@ -89,7 +89,7 @@ make test-play     # Run PlayMode tests only
 make test-physics  # Run physics validation tests only
 
 # Building
-make generate      # Regenerate all scenes from editor scripts (NOT prefabs)
+make generate      # Regenerate all prefabs AND scenes from editor scripts
 make build         # Build macOS standalone (runs tests + generate first)
 make build-dev     # Build development build (runs generate first, skips tests)
 make clean         # Remove build artifacts and test results
@@ -451,22 +451,25 @@ To prevent elements from expanding:
 - Set `childForceExpandWidth/Height = false` on parent `LayoutGroup`
 - Use fixed `minWidth/minHeight` values
 
-#### Prefab vs Scene Regeneration
+#### Prefab and Scene Regeneration
 
-**Important**: The `make generate` target regenerates scenes but NOT prefabs.
+The `make generate` target now regenerates **both** prefabs and scenes:
+```bash
+make generate  # Regenerates all prefabs, then all scenes
+```
 
-To update a UI prefab:
-1. Run the specific prefab generator: `OpenRange > Create [Prefab] Prefab`
-2. Then regenerate the scene: `OpenRange > Generate Marina Scene`
+This calls:
+1. `SceneGenerator.GenerateAllPrefabs()` - All visualization, environment, and UI prefabs
+2. `SceneGenerator.GenerateAllScenes()` - Bootstrap, MainMenu, and Marina scenes
 
-Or run via CLI:
+To regenerate just a specific prefab or scene via CLI:
 ```bash
 # Regenerate specific prefab
 /Applications/Unity/Hub/Editor/6000.3.2f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -nographics -projectPath . \
   -executeMethod OpenRange.Editor.GSProModeUIGenerator.CreatePrefab -quit -logFile -
 
-# Then regenerate scene
+# Regenerate specific scene
 /Applications/Unity/Hub/Editor/6000.3.2f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -nographics -projectPath . \
   -executeMethod OpenRange.Editor.SceneGenerator.GenerateMarinaScene -quit -logFile -

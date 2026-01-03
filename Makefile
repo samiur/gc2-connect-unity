@@ -37,7 +37,7 @@ help:
 	@echo "Build targets:"
 	@echo "  build         - Build macOS standalone (runs tests + generate first)"
 	@echo "  build-dev     - Build macOS development build (runs generate first)"
-	@echo "  generate      - Regenerate all prefabs and scenes from editor scripts"
+	@echo "  generate      - Regenerate all prefabs then all scenes from editor scripts"
 	@echo ""
 	@echo "Utility targets:"
 	@echo "  clean         - Remove build artifacts and test results"
@@ -132,8 +132,17 @@ test-physics: check-unity $(TEST_RESULTS_DIR)
 
 # Regenerate all prefabs and scenes from editor scripts
 generate: check-unity
-	@echo "Regenerating prefabs and scenes..."
+	@echo "Regenerating all prefabs..."
 	@mkdir -p $(BUILD_DIR)
+	@$(UNITY_PATH) \
+		-batchmode \
+		-nographics \
+		-silent-crashes \
+		-projectPath "$(PROJECT_PATH)" \
+		-executeMethod OpenRange.Editor.SceneGenerator.GenerateAllPrefabs \
+		-quit \
+		-logFile $(BUILD_DIR)/generate-prefabs.log 2>&1 || true
+	@echo "Prefabs generated. Regenerating all scenes..."
 	@$(UNITY_PATH) \
 		-batchmode \
 		-nographics \
@@ -141,7 +150,7 @@ generate: check-unity
 		-projectPath "$(PROJECT_PATH)" \
 		-executeMethod OpenRange.Editor.SceneGenerator.GenerateAllScenes \
 		-quit \
-		-logFile $(BUILD_DIR)/generate.log 2>&1 || true
+		-logFile $(BUILD_DIR)/generate-scenes.log 2>&1 || true
 	@echo "Generation complete"
 
 # Build macOS standalone
