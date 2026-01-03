@@ -214,10 +214,21 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
   - Xcode project with bundle output, arm64 build
   - build_mac_plugin.sh - Build script with architecture detection
   - Weak-linked UnitySendMessage for Unity callback support
+- macOS USB read loop implementation (PR #47)
+  - Complete libusb integration with INTERRUPT IN endpoint (0x82)
+  - 0H shot parsing with field accumulation, 0M device status parsing
+  - Misread detection (zero spin, 2222 error, speed range)
+  - Message terminator (\n\t) handling
+- macOS C# bridge (PR #49) ✅ **Tested with real GC2 hardware**
+  - GC2MacConnection.cs implementing IGC2Connection as MonoBehaviour
+  - DllImport declarations for all GC2MacPlugin.bundle functions
+  - Function pointer callbacks with `[MonoPInvokeCallback]` for IL2CPP compatibility
+  - JSON parsing for shot data and device status via Unity's JsonUtility
+  - Thread-safe event dispatching via MainThreadDispatcher
+  - **IL2CPP fix**: UnitySendMessage doesn't work in IL2CPP builds - use function pointer callbacks instead
+  - **JSON field fix**: Native plugin field names must match C# property names exactly for JsonUtility
 
 **Not yet implemented:**
-- macOS USB read loop (Prompt 21) - actual USB data reading
-- macOS C# bridge (Prompt 22) - Unity integration via DllImport
 - Android native plugin (Prompts 23-25)
 - iPad native plugin (Prompts 26-28)
 
@@ -400,3 +411,43 @@ new Vector3(
 - **Claude can quit Unity to run tests** using AppleScript: `osascript -e 'quit app "Unity"'`
 - Add `using UnityEngine.TestTools;` for `LogAssert` in tests
 - Use `Is.EqualTo().Or.EqualTo()` instead of `Is.AnyOf()` (not available in NUnit 3.x)
+
+### Native Plugin Development (IL2CPP)
+
+When building native plugins for IL2CPP (standalone macOS/iOS builds):
+
+1. **UnitySendMessage doesn't work in IL2CPP** - The weak-linked `UnitySendMessage` symbol is NULL in IL2CPP builds. Use function pointer callbacks instead:
+   ```csharp
+   // Define delegate matching native callback signature
+   private delegate void NativeShotCallback(string jsonData);
+
+   // Import callback registration function
+   [DllImport(PluginName)]
+   private static extern void GC2Mac_SetShotCallback(NativeShotCallback callback);
+
+   // Static callback method with MonoPInvokeCallback attribute
+   [MonoPInvokeCallback(typeof(NativeShotCallback))]
+   private static void OnNativeShotCallbackStatic(string jsonData)
+   {
+       if (s_instance != null) s_instance.OnNativeShotReceived(jsonData);
+   }
+
+   // Register in initialization
+   GC2Mac_SetShotCallback(OnNativeShotCallbackStatic);
+   ```
+
+2. **JSON field names must match exactly** - Unity's `JsonUtility` requires field names to match C# property names exactly. Native plugin JSON:
+   ```
+   ✗ BallSpeedMph, ShotNumber, SpinRpm
+   ✓ BallSpeed, ShotId, TotalSpin (matching GC2ShotData properties)
+   ```
+
+3. **Player.log location** - Unity standalone player logs are at:
+   ```
+   ~/Library/Logs/<CompanyName>/<ProductName>/Player.log
+   ```
+
+4. **Debugging standalone builds**:
+   - Run from terminal to see console output: `./OpenRange.app/Contents/MacOS/<executable>`
+   - Or check Player.log for errors
+   - Add debug logging in native plugin with `NSLog()` or similar

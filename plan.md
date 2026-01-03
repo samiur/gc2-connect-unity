@@ -44,12 +44,13 @@ The following components are **already implemented** in the skeleton:
 - **TCP Connection**: `GC2TCPConnection.cs`, `GC2TCPListener.cs`, `GC2TestWindow.cs` (PR #41)
 - **GSPro Client**: `GSProClient.cs`, `GSProMessage.cs`, `GSProModeUI.cs` (PR #43)
 - **macOS Plugin Structure**: `GC2MacPlugin.h`, `GC2MacPlugin.mm`, Xcode project, build script (PR #45)
+- **macOS USB Read Loop**: Complete libusb implementation with 0H/0M parsing (PR #47)
+- **macOS C# Bridge**: `GC2MacConnection.cs` with IL2CPP callback support ✅ **Tested with real hardware** (PR #49)
 - **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `SessionInfoPanelGenerator.cs`, `SettingsPanelGenerator.cs`, `GSProModeUIGenerator.cs`, `TestShotWindow.cs`, `GC2TestWindow.cs`
-- **Tests**: 1459+ unit tests across all components
+- **Tests**: 1547+ unit tests across all components
 
 ### ❌ Not Yet Implemented
-- **macOS USB Read Loop**: Prompt 21 - Actual USB data reading from GC2 device
-- **macOS C# Bridge**: Prompt 22 - Unity integration via DllImport
+- **Ball Ready Indicator**: Prompt 35 - UI indicator for device ready + ball detected status
 - **Android Native Plugin**: Prompts 23-25 - USB Host API for Android tablets
 - **iPad Native Plugin**: Prompts 26-28 - DriverKit extension for iPad M1+
 - **Quality & Polish**: Prompts 29-31 - Final integration testing and polish
@@ -75,6 +76,9 @@ Shot data display, HMT panel, connection status, settings, responsive layout.
 
 ### Phase 5.5: Ground Physics Improvement (Prompts 32-34)
 Fix bounce and roll physics for realistic post-carry behavior including spin effects, spin reversal, and landing angle impact.
+
+### Phase 5.6: Ball Ready Indicator (Prompt 35)
+Add prominent UI indicator showing when GC2 is ready and ball is detected.
 
 ### Phase 6: TCP/Network Layer (Prompts 18-19)
 TCP connection for testing and GSPro relay mode.
@@ -2302,6 +2306,80 @@ Update TestShotWindow.cs:
 
 ---
 
+### Prompt 35: Ball Ready Indicator UI
+
+```text
+Create a prominent UI indicator showing when the GC2 device is ready and a ball is detected.
+
+Context: When using the driving range in Open Range mode, users need clear visual feedback
+that:
+1. The GC2 is connected and ready (FLAGS == 7)
+2. A ball is detected in the tee area (BALLS > 0)
+
+This gives users confidence to swing and prevents wasted shots when the device isn't ready.
+
+Existing infrastructure:
+- GC2DeviceStatus struct has IsReady and BallDetected properties
+- GameManager.OnDeviceStatusChanged event fires when 0M messages are received
+- GameManager.CurrentDeviceStatus tracks the latest status
+- GSProModeUI already has indicators but is hidden in Open Range mode
+
+Create Assets/Scripts/UI/BallReadyIndicator.cs:
+
+1. Component structure:
+   - Positioned near tee area in 3D space (world space canvas) OR as prominent HUD element
+   - Two-state display: "READY" (green, pulsing) vs "NOT READY" (gray/red, static)
+   - Shows additional substatus: "No Ball" / "Device Not Ready" / "Disconnected"
+
+2. Visual states:
+   - Disconnected: Gray indicator, "Connect GC2" text
+   - Connected but not ready: Yellow indicator, "Warming Up..." text
+   - Ready but no ball: Green outline, "Place Ball" text
+   - Ready AND ball detected: Solid green with pulse animation, "READY" text
+
+3. Properties:
+   - public bool IsReadyToHit => device connected && IsReady && BallDetected
+   - Events: OnReadyStateChanged(bool isReady)
+
+4. Implementation:
+   - Subscribe to GameManager.OnConnectionStateChanged
+   - Subscribe to GameManager.OnDeviceStatusChanged
+   - Update visual state when either changes
+   - Pulse animation using DOTween or coroutine (scale 1.0 -> 1.05 -> 1.0)
+
+5. Integration:
+   - Add to MarinaSceneController as serialized field
+   - Update SceneGenerator to instantiate and position
+   - Position: Top-center of screen, below connection status
+
+Create Assets/Editor/BallReadyIndicatorGenerator.cs:
+
+1. Menu item: OpenRange > Create Ball Ready Indicator Prefab
+2. Creates prefab with:
+   - Panel background (semi-transparent dark)
+   - Status icon (circle/dot)
+   - Status text (TextMeshPro)
+   - CanvasGroup for fade animations
+
+Update MarinaSceneController.cs:
+- Add [SerializeField] private BallReadyIndicator _ballReadyIndicator;
+- No special initialization needed (component self-subscribes)
+
+Update SceneGenerator.cs:
+- Load and instantiate BallReadyIndicator prefab on canvas
+- Position at top-center, below connection status indicator
+- Wire reference to MarinaSceneController
+
+Write tests (BallReadyIndicatorTests.cs):
+- Visual state updates correctly for each combination
+- Events fire when state changes
+- IsReadyToHit property returns correct value
+- Animation triggers on ready state
+- Handles null GameManager gracefully (for EditMode tests)
+```
+
+---
+
 ## Appendix A: Testing Strategy
 
 ### Test Categories
@@ -2497,6 +2575,73 @@ The Unity version of NUnit 3.x does not include all constraint methods:
 
 - **Use**: `Is.EqualTo(A).Or.EqualTo(B).Or.EqualTo(C)`
 - **Don't use**: `Is.AnyOf(A, B, C)` - not available
+
+### Native Plugin IL2CPP Callbacks
+
+`UnitySendMessage` does NOT work in IL2CPP standalone builds - the weak-linked symbol returns NULL. Use function pointer callbacks instead:
+
+**C# Side (GC2MacConnection.cs):**
+```csharp
+// 1. Define delegate matching native callback signature
+private delegate void NativeShotCallback(string jsonData);
+
+// 2. Import callback registration function
+[DllImport(PluginName)]
+private static extern void GC2Mac_SetShotCallback(NativeShotCallback callback);
+
+// 3. Static callback with MonoPInvokeCallback attribute
+[AOT.MonoPInvokeCallback(typeof(NativeShotCallback))]
+private static void OnNativeShotCallbackStatic(string jsonData)
+{
+    // Route to instance via static reference
+    if (s_instance != null)
+        s_instance.OnNativeShotReceived(jsonData);
+}
+
+// 4. Register in initialization
+private void Initialize()
+{
+    s_instance = this;
+    GC2Mac_SetShotCallback(OnNativeShotCallbackStatic);
+    // ... register other callbacks
+}
+```
+
+**Native Side (GC2MacPlugin.mm):**
+```objc
+// Store function pointers
+typedef void (*ShotCallback)(const char* json);
+static ShotCallback g_shotCallback = nullptr;
+
+// Registration function
+extern "C" void GC2Mac_SetShotCallback(ShotCallback callback) {
+    g_shotCallback = callback;
+}
+
+// Call from native code
+void NotifyShotReceived(NSDictionary* shot) {
+    if (g_shotCallback) {
+        NSData* data = [NSJSONSerialization dataWithJSONObject:shot options:0 error:nil];
+        NSString* json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        g_shotCallback([json UTF8String]);
+    }
+}
+```
+
+**JSON Field Names:**
+Native JSON must use exact C# property names from `GC2ShotData`:
+- ✅ `BallSpeed` (not `BallSpeedMph`)
+- ✅ `ShotId` (not `ShotNumber`)
+- ✅ `TotalSpin` (not `SpinRpm`)
+- ✅ `BackSpin` (not `BackSpinRpm`)
+- ✅ `SideSpin` (not `SideSpinRpm`)
+- ✅ `Timestamp` (milliseconds since epoch)
+
+**Debugging Standalone Builds:**
+1. Build IL2CPP standalone via Unity Build Settings
+2. Run from terminal to see stdout: `/path/to/App.app/Contents/MacOS/executable`
+3. Player.log location: `~/Library/Logs/<CompanyName>/<ProductName>/Player.log`
+4. Native NSLog statements visible in Console.app
 
 ### GC2 USB Protocol Summary (from docs/GC2_PROTOCOL.md)
 

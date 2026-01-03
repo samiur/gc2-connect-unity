@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7 - macOS Native Plugin (2 of 3 complete)
+**Phase**: 5.6 - Ball Ready Indicator
 **Last Updated**: 2026-01-03
-**Next Prompt**: 22 (macOS C# Bridge)
+**Next Prompt**: 35 (Ball Ready Indicator UI)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
@@ -276,12 +276,34 @@ These components exist and don't need to be rebuilt:
   - [x] Misread detection (zero spin, 2222 error, speed range)
   - [x] Hardware testing required (no physical device for automated testing)
 
-- [ ] **Prompt 22**: macOS C# Bridge
-  - [ ] Create GC2MacConnection.cs
-  - [ ] DllImport declarations
-  - [ ] Callback handling (OnNativeShotReceived, OnNativeDeviceStatus)
-  - [ ] Update factory
-  - [ ] Tests
+- [x] **Prompt 22**: macOS C# Bridge (PR #49) ✅ **TESTED WITH REAL HARDWARE**
+  - [x] Create GC2MacConnection.cs (MonoBehaviour implementing IGC2Connection)
+  - [x] DllImport declarations for all GC2MacPlugin.bundle functions
+  - [x] Callback handling (OnNativeShotReceived, OnNativeConnectionChanged, OnNativeError, OnNativeDeviceStatus)
+  - [x] JSON parsing for shot data and device status
+  - [x] Thread-safe event dispatching via MainThreadDispatcher
+  - [x] Lifecycle management (Awake, OnDestroy, OnApplicationQuit)
+  - [x] GC2ConnectionFactory already routes UNITY_STANDALONE_OSX (existing)
+  - [x] Tests (38 new tests: JSON parsing, callbacks, lifecycle, edge cases)
+  - [x] **IL2CPP callback fix**: UnitySendMessage doesn't work in IL2CPP builds - implemented function pointer callbacks with `[MonoPInvokeCallback]`
+  - [x] **JSON field name fix**: Native JSON fields must match C# GC2ShotData property names exactly
+
+---
+
+## Phase 5.6: Ball Ready Indicator
+
+- [ ] **Prompt 35**: Ball Ready Indicator UI
+  - [ ] Create BallReadyIndicator.cs (UI component)
+  - [ ] Visual states: Disconnected, Warming Up, Place Ball, READY
+  - [ ] Subscribe to GameManager.OnConnectionStateChanged
+  - [ ] Subscribe to GameManager.OnDeviceStatusChanged
+  - [ ] Pulse animation when ready to hit
+  - [ ] IsReadyToHit property
+  - [ ] OnReadyStateChanged event
+  - [ ] Create BallReadyIndicatorGenerator.cs (editor tool for prefab)
+  - [ ] Update MarinaSceneController with serialized field
+  - [ ] Update SceneGenerator to instantiate and wire prefab
+  - [ ] Tests (visual states, events, property values, null handling)
 
 ---
 
@@ -418,6 +440,24 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (macOS C# Bridge - Real Hardware Debug)**: Prompt 22 debugged and verified with real GC2 hardware:
+- **Two critical bugs fixed**:
+  1. **UnitySendMessage NULL in IL2CPP**: Weak-linked `UnitySendMessage` symbol returns NULL in IL2CPP standalone builds
+     - **Fix**: Implemented function pointer callbacks with `[MonoPInvokeCallback]` attribute
+     - Register callbacks via `GC2Mac_SetShotCallback()`, `GC2Mac_SetConnectionCallback()`, etc.
+     - Static callback methods route to instance via `s_instance` reference
+  2. **JSON field name mismatch**: Native plugin used different names than C# GC2ShotData properties
+     - Native sent: `BallSpeedMph`, `ShotNumber`, `SpinRpm`, `BackSpinRpm`, `SideSpinRpm`, etc.
+     - C# expected: `BallSpeed`, `ShotId`, `TotalSpin`, `BackSpin`, `SideSpin`, etc.
+     - **Fix**: Updated `BuildShotJSON()` in native plugin to use exact C# property names
+- **Debugging process**:
+  - Built IL2CPP standalone app via Unity Build Settings
+  - Ran from terminal to see stdout: `/path/to/OpenRange.app/Contents/MacOS/gc2-connect-unity`
+  - Found Player.log at: `~/Library/Logs/DefaultCompany/gc2-connect-unity/Player.log`
+  - Added NSLog statements to native plugin, verified with Console.app
+- **Result**: Shots now register correctly from real GC2 hardware
+- **Lesson learned**: Always test IL2CPP builds, not just Unity Editor - native callbacks work differently
 
 **2026-01-03 (macOS USB Read Loop)**: Prompt 21 complete. Implemented full USB read loop (PR #47):
 - `GC2MacPlugin.mm` - Full implementation (~730 lines of Objective-C++):
