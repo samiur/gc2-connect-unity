@@ -18,29 +18,29 @@ namespace OpenRange.Tests.EditMode
         #region Layout Constants Tests
 
         // These constants mirror the private constants in GSProModeUIGenerator
-        // Updated for compact design to fit right-side panel without overflow.
+        // Sized to fit right-side panel with all content visible.
 
         private const float ExpectedPanelWidth = 200f;
         private const float ExpectedPanelPadding = 10f;
-        private const float ExpectedSectionSpacing = 8f;
-        private const float ExpectedItemSpacing = 6f;
+        private const float ExpectedSectionSpacing = 4f;
+        private const float ExpectedItemSpacing = 4f;
         private const float ExpectedLedIndicatorSize = 10f;
         private const float ExpectedToggleWidth = 44f;
         private const float ExpectedToggleHeight = 22f;
         private const float ExpectedButtonWidth = 70f;
-        private const float ExpectedButtonHeight = 24f;
+        private const float ExpectedButtonHeight = 22f;
         private const float ExpectedHostInputWidth = 100f;
         private const float ExpectedPortInputWidth = 50f;
-        private const float ExpectedInputHeight = 22f;
+        private const float ExpectedInputHeight = 20f;
 
         [Test]
         public void PanelWidth_IsCompact()
         {
             // Panel should be compact to fit on the right side of the screen
-            Assert.LessOrEqual(ExpectedPanelWidth, 250f,
-                "Panel width should be compact (max 250px) to fit right-side panel");
-            Assert.GreaterOrEqual(ExpectedPanelWidth, 180f,
-                "Panel width should be at least 180px for readability");
+            Assert.LessOrEqual(ExpectedPanelWidth, 280f,
+                "Panel width should be compact (max 280px) to fit right-side panel");
+            Assert.GreaterOrEqual(ExpectedPanelWidth, 200f,
+                "Panel width should be at least 200px to fit all content");
         }
 
         [Test]
@@ -56,9 +56,9 @@ namespace OpenRange.Tests.EditMode
         public void SectionSpacing_IsCompact()
         {
             // Section spacing should be compact
-            Assert.GreaterOrEqual(ExpectedSectionSpacing, 6f);
+            Assert.GreaterOrEqual(ExpectedSectionSpacing, 4f);
             Assert.LessOrEqual(ExpectedSectionSpacing, 12f,
-                "Section spacing should be 6-12px for compact layout");
+                "Section spacing should be 4-12px for compact layout");
         }
 
         [Test]
@@ -170,7 +170,7 @@ namespace OpenRange.Tests.EditMode
         public void IndicatorPillSize_IsCompact()
         {
             // Indicator pills should be compact but readable
-            const float expectedPillHeight = 20f;
+            const float expectedPillHeight = 18f;  // Updated to match new constants
             const float expectedPillLedSize = 8f;
 
             Assert.LessOrEqual(expectedPillHeight, 24f,

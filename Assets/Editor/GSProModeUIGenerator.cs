@@ -17,23 +17,26 @@ namespace OpenRange.Editor
         private const string PrefabPath = "Assets/Prefabs/UI/GSProModeUI.prefab";
         private const string PrefabFolder = "Assets/Prefabs/UI";
 
-        // Layout constants - compact sizing for right-side panel
+        // Layout constants - sizing for right-side panel
+        // Panel width calculation: padding(10*2) + toggle(44) + spacing(4) + label(~100) = 168
+        // With button row: padding(10*2) + LED(10) + spacing(4) + text(~70) + spacing(4) + button(70) = 178
+        // Using 200px panel width with tighter spacing
         private const float PanelWidth = 200f;
         private const float PanelPadding = 10f;
-        private const float SectionSpacing = 8f;
-        private const float ItemSpacing = 6f;
+        private const float SectionSpacing = 4f;  // Reduced from 8f - less whitespace between rows
+        private const float ItemSpacing = 4f;     // Reduced from 6f - tighter horizontal spacing
         private const float LedIndicatorSize = 10f;
         private const float ToggleWidth = 44f;
         private const float ToggleHeight = 22f;
-        private const float ButtonWidth = 70f;
-        private const float ButtonHeight = 24f;
+        private const float ButtonWidth = 70f;  // Fits "Connect" text
+        private const float ButtonHeight = 22f;
         private const float HostInputWidth = 100f;
         private const float PortInputWidth = 50f;
-        private const float InputHeight = 22f;
+        private const float InputHeight = 20f;
         private const float LabelWidth = 35f;
-        private const float RowHeight = 26f;
-        private const float SmallFontSize = 11f;
-        private const float TitleFontSize = 14f;
+        private const float RowHeight = 22f;  // Reduced from 26f
+        private const float SmallFontSize = 10f;  // Reduced from 11f for compact layout
+        private const float TitleFontSize = 12f;  // Reduced from 14f
 
         [MenuItem("OpenRange/Create GSPro Mode UI Prefab")]
         public static void CreatePrefab()
@@ -110,7 +113,7 @@ namespace OpenRange.Editor
             text.alignment = TextAlignmentOptions.Center;
 
             var layout = header.AddComponent<LayoutElement>();
-            layout.preferredHeight = 20f;
+            layout.preferredHeight = 16f;  // Reduced from 20f
 
             return header;
         }
@@ -123,7 +126,7 @@ namespace OpenRange.Editor
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
-            horizontal.childControlWidth = false;
+            horizontal.childControlWidth = true;   // Enable width control so children are constrained
             horizontal.childControlHeight = false;
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
@@ -206,7 +209,7 @@ namespace OpenRange.Editor
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
-            horizontal.childControlWidth = false;
+            horizontal.childControlWidth = true;   // Enable width control so children are constrained
             horizontal.childControlHeight = false;
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
@@ -247,7 +250,7 @@ namespace OpenRange.Editor
             var buttonImage = buttonObj.AddComponent<Image>();
             buttonImage.color = new Color(0.25f, 0.5f, 0.7f);
             var buttonRect = buttonObj.GetComponent<RectTransform>();
-            buttonRect.sizeDelta = new Vector2(ButtonWidth, ButtonHeight);
+            buttonRect.sizeDelta = new Vector2(ButtonWidth, ButtonHeight);  // 70x22
             var button = buttonObj.AddComponent<Button>();
             button.targetGraphic = buttonImage;
             var buttonLayout = buttonObj.AddComponent<LayoutElement>();
@@ -288,13 +291,13 @@ namespace OpenRange.Editor
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleCenter;
-            horizontal.childControlWidth = false;
+            horizontal.childControlWidth = true;   // Enable width control
             horizontal.childControlHeight = false;
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
 
             var layout = row.AddComponent<LayoutElement>();
-            layout.preferredHeight = 22f;
+            layout.preferredHeight = 20f;  // Reduced from 22f
 
             // Ready indicator pill
             var readyGroup = CreateIndicatorPill(row.transform, "Ready", "Not Ready");
@@ -321,21 +324,21 @@ namespace OpenRange.Editor
             var bgImage = pill.AddComponent<Image>();
             bgImage.color = new Color(0.2f, 0.2f, 0.25f, 0.9f);
             var pillRect = pill.GetComponent<RectTransform>();
-            pillRect.sizeDelta = new Vector2(85f, 20f);
+            pillRect.sizeDelta = new Vector2(75f, 18f);  // Reduced from 85x20
 
             var pillLayout = pill.AddComponent<LayoutElement>();
-            pillLayout.minWidth = 80f;
-            pillLayout.minHeight = 20f;
-            pillLayout.preferredWidth = 85f;
-            pillLayout.preferredHeight = 20f;
+            pillLayout.minWidth = 70f;
+            pillLayout.minHeight = 18f;
+            pillLayout.preferredWidth = 75f;
+            pillLayout.preferredHeight = 18f;
             pillLayout.flexibleWidth = 0f;
             pillLayout.flexibleHeight = 0f;
 
             var horizontal = pill.AddComponent<HorizontalLayoutGroup>();
-            horizontal.spacing = 4f;
-            horizontal.padding = new RectOffset(6, 6, 2, 2);
+            horizontal.spacing = 3f;  // Reduced from 4f
+            horizontal.padding = new RectOffset(4, 4, 2, 2);  // Reduced from 6,6,2,2
             horizontal.childAlignment = TextAnchor.MiddleLeft;
-            horizontal.childControlWidth = false;
+            horizontal.childControlWidth = true;   // Enable width control
             horizontal.childControlHeight = false;
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
@@ -360,12 +363,12 @@ namespace OpenRange.Editor
             textObj.transform.SetParent(pill.transform, false);
             var text = textObj.AddComponent<TextMeshProUGUI>();
             text.text = defaultText;
-            text.fontSize = 10f;
+            text.fontSize = 9f;  // Reduced from 10f
             text.color = Color.white;
             text.alignment = TextAlignmentOptions.Left;
             var textLayout = textObj.AddComponent<LayoutElement>();
-            textLayout.preferredWidth = 55f;
-            textLayout.preferredHeight = 16f;
+            textLayout.preferredWidth = 48f;  // Reduced from 55f
+            textLayout.preferredHeight = 14f;  // Reduced from 16f
             textLayout.flexibleWidth = 1f;
 
             return (indicator, text);
@@ -377,7 +380,7 @@ namespace OpenRange.Editor
             panel.transform.SetParent(parent, false);
 
             var vertical = panel.AddComponent<VerticalLayoutGroup>();
-            vertical.spacing = 4f;
+            vertical.spacing = 2f;  // Reduced from 4f
             vertical.childAlignment = TextAnchor.UpperLeft;
             vertical.childControlWidth = true;
             vertical.childControlHeight = false;
@@ -385,7 +388,7 @@ namespace OpenRange.Editor
             vertical.childForceExpandHeight = false;
 
             var layout = panel.AddComponent<LayoutElement>();
-            layout.preferredHeight = 52f;
+            layout.preferredHeight = 44f;  // Reduced from 52f
 
             // Host row
             var hostRow = CreateInputRow(panel.transform, "Host:", "127.0.0.1", HostInputWidth);
@@ -411,7 +414,7 @@ namespace OpenRange.Editor
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = 4f;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
-            horizontal.childControlWidth = false;
+            horizontal.childControlWidth = true;   // Enable width control
             horizontal.childControlHeight = false;
             horizontal.childForceExpandWidth = false;
             horizontal.childForceExpandHeight = false;
