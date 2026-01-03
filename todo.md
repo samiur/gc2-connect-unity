@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 6 - TCP/Network Layer (3 of 3 complete)
+**Phase**: 7 - macOS Native Plugin (1 of 3 complete)
 **Last Updated**: 2026-01-03
-**Next Prompt**: 20 (macOS Plugin Header)
+**Next Prompt**: 21 (macOS Plugin Implementation)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
@@ -256,13 +256,13 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 7: macOS Native Plugin
 
-- [ ] **Prompt 20**: macOS Plugin Header and Project
-  - [ ] Create GC2MacPlugin.h
-  - [ ] Create Xcode project
-  - [ ] Configure build settings
-  - [ ] Create build script
-  - [ ] Stub implementation
-  - [ ] Verification tests
+- [x] **Prompt 20**: macOS Plugin Header and Project (PR #45)
+  - [x] Create GC2MacPlugin.h - C interface with function declarations
+  - [x] Create Xcode project (GC2MacPlugin.xcodeproj) - Bundle output, macOS 11.0+
+  - [x] Configure build settings - arm64, libusb linking, weak UnitySendMessage
+  - [x] Create build script (build_mac_plugin.sh) - Architecture detection, copy to Unity
+  - [x] Stub implementation (GC2MacPlugin.mm) - libusb init, device detection, callbacks
+  - [x] Verification tests - 1459 EditMode tests pass with plugin loaded
 
 - [ ] **Prompt 21**: macOS Plugin Implementation
   - [ ] Complete GC2MacPlugin.mm
@@ -418,6 +418,36 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (macOS Plugin Structure)**: Prompt 20 complete. Created native USB plugin structure (PR #45):
+- `GC2MacPlugin.h` - C interface header with complete API:
+  - Lifecycle: `GC2Mac_Initialize(callbackObject)`, `GC2Mac_Shutdown()`
+  - Device ops: `IsDeviceAvailable()`, `Connect()`, `Disconnect()`, `IsConnected()`
+  - Device info: `GetDeviceSerial()`, `GetFirmwareVersion()`
+  - Callbacks: `SetShotCallback()`, `SetConnectionCallback()`, `SetErrorCallback()`, `SetDeviceStatusCallback()`
+  - Constants: `GC2_VENDOR_ID (0x2C79)`, `GC2_PRODUCT_ID (0x0110)`
+- `GC2MacPlugin.mm` - Stub implementation with libusb:
+  - libusb initialization and device enumeration
+  - USB device connection with interface claiming
+  - Unity callback support via weak-linked `UnitySendMessage`
+  - `NotifyDeviceStatus()` for 0M message status (deduplication built-in)
+  - Placeholder read loop for actual USB reading (Prompt 21)
+  - Logging via `NSLog()` for debugging
+- `GC2MacPlugin.xcodeproj` - Xcode project for bundle output:
+  - macOS 11.0+ deployment target
+  - arm64 architecture (x86_64 requires universal libusb)
+  - Links Foundation, IOKit, libusb-1.0
+  - `-Wl,-U,_UnitySendMessage` linker flag for weak symbol
+- `build_mac_plugin.sh` - Build script:
+  - Automatic architecture detection (arm64 on Apple Silicon)
+  - Copies bundle to `Assets/Plugins/macOS/`
+  - Fixes library paths with `install_name_tool`
+- `README.md` - Documentation with API reference and troubleshooting
+- **Build fixes applied**:
+  - Added `__attribute__((weak))` and `-Wl,-U` linker flag for UnitySendMessage undefined symbol
+  - Changed `ONLY_ACTIVE_ARCH=YES` and `ARCHS=$BUILD_ARCH` for single-architecture build
+  - Removed CopyFiles build phase (was causing doubled path issue)
+- All 1459 EditMode tests pass with plugin loaded
 
 **2026-01-03 (GSPro Client)**: Prompt 19 complete. Implemented GSPro client for shot relay to golf simulator (PR #43):
 - `GSProMessage.cs` - Message classes for GSPro Open Connect API v1:
