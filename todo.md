@@ -308,93 +308,7 @@ These components exist and don't need to be rebuilt:
 
 ---
 
-## Phase 8: Android Native Plugin
-
-- [ ] **Prompt 23**: Android Plugin Project
-  - [ ] Create Gradle project
-  - [ ] Configure manifest with USB host permission
-  - [ ] USB device filter (VID 11385, PID 272)
-  - [ ] Kotlin stubs
-  - [ ] Build script
-  - [ ] Verification tests
-
-- [ ] **Prompt 24**: Android Plugin Implementation
-  - [ ] Complete GC2Plugin.kt
-  - [ ] USB permission handling (BroadcastReceiver)
-  - [ ] Device enumeration with INTERRUPT IN endpoint
-  - [ ] Read thread with 64-byte interrupt transfers
-  - [ ] Message type filtering (0H for shots, 0M for status)
-  - [ ] Data accumulation until BACK_RPM/SIDE_RPM received
-  - [ ] Wait for message terminator (\n\t)
-  - [ ] Device status callback from 0M (FLAGS=7 ready, BALLS>0 detected)
-  - [ ] Misread detection (zero spin, 2222 error, speed range)
-  - [ ] Tests (device required)
-
-- [ ] **Prompt 25**: Android C# Bridge
-  - [ ] Create GC2AndroidConnection.cs
-  - [ ] AndroidJavaObject calls
-  - [ ] Message handlers (OnNativeShotReceived, OnNativeDeviceStatus)
-  - [ ] Update factory
-  - [ ] Create prefab
-  - [ ] Tests
-
----
-
-## Phase 9: iPad Native Plugin (DriverKit)
-
-- [ ] **Prompt 26**: iPad Plugin Structure
-  - [ ] Create GC2iOSPlugin project
-  - [ ] Create GC2Driver structure
-  - [ ] Configure entitlements
-  - [ ] Stub implementation
-  - [ ] Documentation
-  - [ ] Verification
-
-- [ ] **Prompt 27**: iPad DriverKit Implementation
-  - [ ] Implement GC2Driver
-  - [ ] Implement GC2UserClient
-  - [ ] Implement GC2iOSPlugin
-  - [ ] System extension handling
-  - [ ] Tests (hardware + entitlements required)
-
-- [ ] **Prompt 28**: iPad C# Bridge
-  - [ ] Create GC2iPadConnection.cs
-  - [ ] DriverKit state handling
-  - [ ] Create DriverKitSetupUI.cs
-  - [ ] Update factory
-  - [ ] Tests
-
----
-
-## Phase 10: Quality & Polish
-
-- [ ] **Prompt 29**: Integration Testing
-  - [ ] Create Edit Mode tests
-  - [ ] Create Play Mode tests
-  - [ ] Physics validation tests
-  - [ ] Test shot generator
-  - [ ] Platform verification
-
-- [ ] **Prompt 30**: Quality Tier Polish
-  - [ ] Complete URP asset configuration
-  - [ ] Dynamic adjustment
-  - [ ] Environment adjustments
-  - [ ] UI adjustments
-  - [ ] Visual polish
-  - [ ] Tests
-
-- [ ] **Prompt 31**: Final Polish and Documentation
-  - [ ] Code cleanup
-  - [ ] Performance verification
-  - [ ] Build verification
-  - [ ] README.md
-  - [ ] CLAUDE.md
-  - [ ] DEVELOPMENT.md
-  - [ ] Final tests
-
----
-
-## Phase 11: macOS Build & Release
+## Phase 8: macOS Build & Release
 
 - [ ] **Prompt 36**: macOS Build Script and Configuration
   - [ ] Update Makefile with comprehensive macOS targets
@@ -436,6 +350,92 @@ These components exist and don't need to be rebuilt:
   - [ ] Create entitlements file for USB access
   - [ ] Add GitHub secrets documentation
   - [ ] Update Makefile with signing targets
+
+---
+
+## Phase 9: Android Native Plugin
+
+- [ ] **Prompt 23**: Android Plugin Project
+  - [ ] Create Gradle project
+  - [ ] Configure manifest with USB host permission
+  - [ ] USB device filter (VID 11385, PID 272)
+  - [ ] Kotlin stubs
+  - [ ] Build script
+  - [ ] Verification tests
+
+- [ ] **Prompt 24**: Android Plugin Implementation
+  - [ ] Complete GC2Plugin.kt
+  - [ ] USB permission handling (BroadcastReceiver)
+  - [ ] Device enumeration with INTERRUPT IN endpoint
+  - [ ] Read thread with 64-byte interrupt transfers
+  - [ ] Message type filtering (0H for shots, 0M for status)
+  - [ ] Data accumulation until BACK_RPM/SIDE_RPM received
+  - [ ] Wait for message terminator (\n\t)
+  - [ ] Device status callback from 0M (FLAGS=7 ready, BALLS>0 detected)
+  - [ ] Misread detection (zero spin, 2222 error, speed range)
+  - [ ] Tests (device required)
+
+- [ ] **Prompt 25**: Android C# Bridge
+  - [ ] Create GC2AndroidConnection.cs
+  - [ ] AndroidJavaObject calls
+  - [ ] Message handlers (OnNativeShotReceived, OnNativeDeviceStatus)
+  - [ ] Update factory
+  - [ ] Create prefab
+  - [ ] Tests
+
+---
+
+## Phase 10: iPad Native Plugin (DriverKit)
+
+- [ ] **Prompt 26**: iPad Plugin Structure
+  - [ ] Create GC2iOSPlugin project
+  - [ ] Create GC2Driver structure
+  - [ ] Configure entitlements
+  - [ ] Stub implementation
+  - [ ] Documentation
+  - [ ] Verification
+
+- [ ] **Prompt 27**: iPad DriverKit Implementation
+  - [ ] Implement GC2Driver
+  - [ ] Implement GC2UserClient
+  - [ ] Implement GC2iOSPlugin
+  - [ ] System extension handling
+  - [ ] Tests (hardware + entitlements required)
+
+- [ ] **Prompt 28**: iPad C# Bridge
+  - [ ] Create GC2iPadConnection.cs
+  - [ ] DriverKit state handling
+  - [ ] Create DriverKitSetupUI.cs
+  - [ ] Update factory
+  - [ ] Tests
+
+---
+
+## Phase 11: Quality & Polish
+
+- [ ] **Prompt 29**: Integration Testing
+  - [ ] Create Edit Mode tests
+  - [ ] Create Play Mode tests
+  - [ ] Physics validation tests
+  - [ ] Test shot generator
+  - [ ] Platform verification
+
+- [ ] **Prompt 30**: Quality Tier Polish
+  - [ ] Complete URP asset configuration
+  - [ ] Dynamic adjustment
+  - [ ] Environment adjustments
+  - [ ] UI adjustments
+  - [ ] Visual polish
+  - [ ] Tests
+
+- [ ] **Prompt 31**: Final Polish and Documentation
+  - [ ] Code cleanup
+  - [ ] Performance verification
+  - [ ] Build verification
+  - [ ] README.md
+  - [ ] CLAUDE.md
+  - [ ] DEVELOPMENT.md
+  - [ ] Final tests
 
 ---
 

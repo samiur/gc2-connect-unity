@@ -91,17 +91,17 @@ TCP connection for testing and GSPro relay mode.
 ### Phase 7: macOS Native Plugin (Prompts 20-22)
 libusb-based USB plugin for macOS.
 
-### Phase 8: Android Native Plugin (Prompts 23-25)
+### Phase 8: macOS Build & Release (Prompts 36-37)
+Build script, code signing, notarization for macOS distribution.
+
+### Phase 9: Android Native Plugin (Prompts 23-25)
 USB Host API plugin for Android tablets.
 
-### Phase 9: iPad Native Plugin (Prompts 26-28)
+### Phase 10: iPad Native Plugin (Prompts 26-28)
 DriverKit extension for iPad (M1+).
 
-### Phase 10: Quality & Polish (Prompts 29-31)
+### Phase 11: Quality & Polish (Prompts 29-31)
 Quality tier system, integration testing, final polish.
-
-### Phase 11: macOS Build & Release (Prompts 36-37)
-Build script, code signing, notarization for macOS distribution.
 
 ### Phase 12: iOS & Android Builds (Prompts 38-40) [Future]
 Native plugin completion, build scripts, and signing for mobile platforms.
