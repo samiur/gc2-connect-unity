@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 6 - TCP/Network Layer (1 of 3 complete)
-**Last Updated**: 2026-01-02
-**Next Prompt**: 18b (TCP Connection for Testing)
+**Phase**: 6 - TCP/Network Layer (2 of 3 complete)
+**Last Updated**: 2026-01-03
+**Next Prompt**: 19 (GSPro Client)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
@@ -237,11 +237,11 @@ These components exist and don't need to be rebuilt:
   - [x] Update GameManager.cs to track device status
   - [x] Tests (86 new tests: 50 GC2ProtocolTests, 36 GC2DeviceStatusTests)
 
-- [ ] **Prompt 18b**: TCP Connection for Testing
-  - [ ] Create GC2TCPConnection.cs
-  - [ ] Create GC2TCPListener.cs
-  - [ ] Create GC2TestWindow.cs (Editor)
-  - [ ] Tests
+- [x] **Prompt 18b**: TCP Connection for Testing (PR #41)
+  - [x] Create GC2TCPConnection.cs
+  - [x] Create GC2TCPListener.cs
+  - [x] Create GC2TestWindow.cs (Editor)
+  - [x] Tests
 
 - [ ] **Prompt 19**: GSPro Client
   - [ ] Create GSProClient.cs
@@ -417,6 +417,33 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (TCP Connection for Testing)**: Prompt 18b complete. Implemented TCP-based GC2 connection for Editor testing (PR #41):
+- `GC2TCPConnection.cs` - Full IGC2Connection implementation with TCP transport:
+  - Dual mode support: Server (listen for clients) and Client (connect to host)
+  - Message formatting: `FormatShotMessage()` creates 0H shot messages, `FormatStatusMessage()` creates 0M device status
+  - Message parsing: Processes received 0H/0M messages via GC2Protocol
+  - Async connect/disconnect with CancellationTokenSource for clean shutdown
+  - Read loop with `\n\t` terminator detection for multi-packet messages
+  - Events: OnShotReceived, OnConnectionChanged, OnDeviceStatusChanged, OnError
+- `GC2TCPListener.cs` - Standalone TCP server utility (not MonoBehaviour):
+  - Accepts single client connection at a time
+  - `SendShotAsync()`, `SendDeviceStatusAsync()`, `SendDataAsync()` for sending data
+  - Events: OnClientConnected, OnClientDisconnected, OnDataReceived, OnError
+  - IDisposable pattern for proper resource cleanup
+- `GC2TestWindow.cs` - Editor window for testing without GC2 hardware:
+  - Menu: OpenRange > GC2 Test Window
+  - Mode toggle: Server (listen) or Client (connect to host)
+  - Connection controls: Host/Port configuration, Connect/Disconnect buttons
+  - Shot presets: Driver, 7-Iron, Wedge, Hook, Slice with quick-fire buttons
+  - Device status controls: Ready, Ball Detected, Ball Position
+  - Log panel with timestamped messages
+- `GC2TCPConnectionTests.cs` - 31 unit tests across 3 test fixtures:
+  - `GC2TCPConnectionTests` - Initialization, message formatting, roundtrip parsing (17 tests)
+  - `GC2TCPListenerTests` - Server lifecycle, send without client (10 tests)
+  - `GC2TCPIntegrationTests` - Real TCP socket communication (4 tests)
+- **Bug fix**: Changed `Serial` to `SerialNumber` in DeviceInfo property to match GC2DeviceInfo struct
+- All 1362 EditMode tests passing
 
 **2026-01-02 (Device Status Interface)**: Prompt 18 complete. Implemented device status parsing for GSPro integration (PR #39):
 - `GC2DeviceStatus.cs` - New struct for 0M message data:
