@@ -199,11 +199,14 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
   - GC2DeviceStatus struct with IsReady, BallDetected, BallPosition
   - ParseDeviceStatus() for 0M message parsing
   - GameManager device status tracking with OnDeviceStatusChanged event
+- TCP connection for Editor testing (PR #41)
+  - GC2TCPConnection implementing IGC2Connection with Server/Client modes
+  - GC2TCPListener standalone server for testing
+  - GC2TestWindow editor window for sending test shots/status
 
 **Not yet implemented:**
 - Native USB plugins (macOS, Android, iPad)
 - GSPro relay client
-- TCP connection for development testing
 
 ## Editor Tools
 
@@ -249,6 +252,7 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
 | `OpenRange > Create Settings Panel Prefab` | Creates SettingsPanel.prefab with all sections |
 | `OpenRange > Create All Settings Panel Prefabs` | Creates all settings panel prefabs |
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
+| `OpenRange > GC2 Test Window` | Opens TCP test window for simulating GC2 connection (Server/Client modes) |
 
 ## Local Development on macOS
 
