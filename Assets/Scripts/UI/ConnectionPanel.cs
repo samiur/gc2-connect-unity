@@ -257,6 +257,13 @@ namespace OpenRange.UI
             _isVisible = true;
             gameObject.SetActive(true);
 
+            // Enable interactions for modal panel
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.interactable = true;
+                _canvasGroup.blocksRaycasts = true;
+            }
+
             if (animate && gameObject.activeInHierarchy)
             {
                 StopAnimation();
@@ -275,6 +282,13 @@ namespace OpenRange.UI
         public void Hide(bool animate = true)
         {
             _isVisible = false;
+
+            // Disable interactions to allow clicking behind the hidden panel
+            if (_canvasGroup != null)
+            {
+                _canvasGroup.interactable = false;
+                _canvasGroup.blocksRaycasts = false;
+            }
 
             if (animate && gameObject.activeInHierarchy)
             {
