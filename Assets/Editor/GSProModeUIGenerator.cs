@@ -17,6 +17,22 @@ namespace OpenRange.Editor
         private const string PrefabPath = "Assets/Prefabs/UI/GSProModeUI.prefab";
         private const string PrefabFolder = "Assets/Prefabs/UI";
 
+        // Layout constants
+        private const float PanelMinWidth = 280f;
+        private const float PanelPadding = 12f;
+        private const float SectionSpacing = 12f;
+        private const float ItemSpacing = 8f;
+        private const float LedIndicatorSize = 14f;
+        private const float ToggleWidth = 50f;
+        private const float ToggleHeight = 26f;
+        private const float ButtonMinWidth = 100f;
+        private const float ButtonHeight = 32f;
+        private const float HostInputWidth = 130f;
+        private const float PortInputWidth = 65f;
+        private const float InputHeight = 28f;
+        private const float LabelWidth = 45f;
+        private const float RowHeight = 32f;
+
         [MenuItem("OpenRange/Create GSPro Mode UI Prefab")]
         public static void CreatePrefab()
         {
@@ -41,16 +57,18 @@ namespace OpenRange.Editor
         {
             var root = new GameObject("GSProModeUI");
             var rectTransform = root.AddComponent<RectTransform>();
-            rectTransform.sizeDelta = new Vector2(320f, 280f);
+            rectTransform.sizeDelta = new Vector2(PanelMinWidth, 320f);
 
             var component = root.AddComponent<GSProModeUI>();
 
             var background = root.AddComponent<Image>();
-            background.color = new Color(0.1f, 0.1f, 0.2f, 0.9f);
+            background.color = new Color(0.1f, 0.1f, 0.2f, 0.92f);
 
             var verticalLayout = root.AddComponent<VerticalLayoutGroup>();
-            verticalLayout.padding = new RectOffset(16, 16, 16, 16);
-            verticalLayout.spacing = 12f;
+            verticalLayout.padding = new RectOffset(
+                (int)PanelPadding, (int)PanelPadding,
+                (int)PanelPadding, (int)PanelPadding);
+            verticalLayout.spacing = SectionSpacing;
             verticalLayout.childAlignment = TextAnchor.UpperCenter;
             verticalLayout.childControlWidth = true;
             verticalLayout.childControlHeight = false;
@@ -58,13 +76,19 @@ namespace OpenRange.Editor
             verticalLayout.childForceExpandHeight = false;
 
             var fitter = root.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.MinSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var minSize = root.AddComponent<LayoutElement>();
+            minSize.minWidth = PanelMinWidth;
 
             // Create child elements
             var header = CreateHeader(root.transform);
             var modeRow = CreateModeToggleRow(root.transform);
+            var divider1 = CreateDivider(root.transform);
             var connectionRow = CreateConnectionRow(root.transform);
             var readinessRow = CreateReadinessRow(root.transform);
+            var divider2 = CreateDivider(root.transform);
             var configPanel = CreateConfigPanel(root.transform);
 
             // Wire up references
@@ -80,15 +104,30 @@ namespace OpenRange.Editor
 
             var text = header.AddComponent<TextMeshProUGUI>();
             text.text = "GSPro Mode";
-            text.fontSize = 20;
+            text.fontSize = 18;
             text.fontStyle = FontStyles.Bold;
             text.color = Color.white;
             text.alignment = TextAlignmentOptions.Center;
 
             var layout = header.AddComponent<LayoutElement>();
-            layout.preferredHeight = 30f;
+            layout.preferredHeight = 26f;
 
             return header;
+        }
+
+        private static GameObject CreateDivider(Transform parent)
+        {
+            var divider = new GameObject("Divider");
+            divider.transform.SetParent(parent, false);
+
+            var image = divider.AddComponent<Image>();
+            image.color = new Color(0.3f, 0.3f, 0.4f, 0.6f);
+
+            var layout = divider.AddComponent<LayoutElement>();
+            layout.preferredHeight = 1f;
+            layout.flexibleWidth = 1f;
+
+            return divider;
         }
 
         private static ModeToggleRow CreateModeToggleRow(Transform parent)
@@ -97,44 +136,69 @@ namespace OpenRange.Editor
             row.transform.SetParent(parent, false);
 
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
-            horizontal.spacing = 10f;
+            horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleCenter;
             horizontal.childControlWidth = false;
             horizontal.childControlHeight = true;
             horizontal.childForceExpandWidth = false;
+            horizontal.padding = new RectOffset(0, 0, 2, 2);
 
             var layout = row.AddComponent<LayoutElement>();
-            layout.preferredHeight = 36f;
+            layout.preferredHeight = RowHeight;
 
-            // Mode label
+            // Toggle on left
+            var toggleObj = CreateToggle(row.transform);
+
+            // Mode label on right (shows current mode status)
             var labelObj = new GameObject("ModeLabel");
             labelObj.transform.SetParent(row.transform, false);
 
             var label = labelObj.AddComponent<TextMeshProUGUI>();
             label.text = "Open Range Mode";
-            label.fontSize = 16;
+            label.fontSize = 14;
             label.color = Color.white;
+            label.alignment = TextAlignmentOptions.Left;
 
             var labelLayout = labelObj.AddComponent<LayoutElement>();
-            labelLayout.preferredWidth = 180f;
+            labelLayout.flexibleWidth = 1f;
+            labelLayout.preferredHeight = RowHeight;
 
-            // Toggle
+            return new ModeToggleRow { Toggle = toggleObj.Toggle, Label = label };
+        }
+
+        private static (Toggle Toggle, GameObject Object) CreateToggle(Transform parent)
+        {
             var toggleObj = new GameObject("ModeToggle");
-            toggleObj.transform.SetParent(row.transform, false);
+            toggleObj.transform.SetParent(parent, false);
 
+            var toggleRect = toggleObj.AddComponent<RectTransform>();
+            toggleRect.sizeDelta = new Vector2(ToggleWidth, ToggleHeight);
+
+            // Background track
             var toggleBg = new GameObject("Background");
             toggleBg.transform.SetParent(toggleObj.transform, false);
             var bgImage = toggleBg.AddComponent<Image>();
-            bgImage.color = new Color(0.3f, 0.3f, 0.3f);
+            bgImage.color = new Color(0.25f, 0.25f, 0.3f);
             var bgRect = toggleBg.GetComponent<RectTransform>();
-            bgRect.sizeDelta = new Vector2(50f, 26f);
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.sizeDelta = Vector2.zero;
 
+            // Add rounded corners effect (simulated with padding)
+            bgRect.offsetMin = new Vector2(2f, 2f);
+            bgRect.offsetMax = new Vector2(-2f, -2f);
+
+            // Checkmark/knob area
             var checkmark = new GameObject("Checkmark");
             checkmark.transform.SetParent(toggleBg.transform, false);
             var checkImage = checkmark.AddComponent<Image>();
-            checkImage.color = new Color(0.2f, 0.7f, 0.2f);
+            checkImage.color = new Color(0.2f, 0.7f, 0.3f);
             var checkRect = checkmark.GetComponent<RectTransform>();
-            checkRect.sizeDelta = new Vector2(20f, 20f);
+            checkRect.anchorMin = new Vector2(0.5f, 0f);
+            checkRect.anchorMax = new Vector2(1f, 1f);
+            checkRect.sizeDelta = Vector2.zero;
+            checkRect.offsetMin = new Vector2(2f, 2f);
+            checkRect.offsetMax = new Vector2(-2f, -2f);
 
             var toggle = toggleObj.AddComponent<Toggle>();
             toggle.targetGraphic = bgImage;
@@ -142,10 +206,11 @@ namespace OpenRange.Editor
             toggle.isOn = false;
 
             var toggleLayout = toggleObj.AddComponent<LayoutElement>();
-            toggleLayout.preferredWidth = 50f;
-            toggleLayout.preferredHeight = 26f;
+            toggleLayout.preferredWidth = ToggleWidth;
+            toggleLayout.preferredHeight = ToggleHeight;
+            toggleLayout.minWidth = ToggleWidth;
 
-            return new ModeToggleRow { Toggle = toggle, Label = label };
+            return (toggle, toggleObj);
         }
 
         private static ConnectionRow CreateConnectionRow(Transform parent)
@@ -154,50 +219,53 @@ namespace OpenRange.Editor
             row.transform.SetParent(parent, false);
 
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
-            horizontal.spacing = 8f;
+            horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
             horizontal.childControlWidth = false;
             horizontal.childControlHeight = true;
             horizontal.childForceExpandWidth = false;
 
             var layout = row.AddComponent<LayoutElement>();
-            layout.preferredHeight = 36f;
+            layout.preferredHeight = RowHeight;
 
-            // Indicator
+            // LED Indicator (small circle)
             var indicatorObj = new GameObject("Indicator");
             indicatorObj.transform.SetParent(row.transform, false);
             var indicator = indicatorObj.AddComponent<Image>();
             indicator.color = new Color(0.8f, 0.2f, 0.2f);
             var indicatorLayout = indicatorObj.AddComponent<LayoutElement>();
-            indicatorLayout.preferredWidth = 16f;
-            indicatorLayout.preferredHeight = 16f;
+            indicatorLayout.preferredWidth = LedIndicatorSize;
+            indicatorLayout.preferredHeight = LedIndicatorSize;
+            indicatorLayout.minWidth = LedIndicatorSize;
 
-            // Text
+            // Connection status text
             var textObj = new GameObject("ConnectionText");
             textObj.transform.SetParent(row.transform, false);
             var text = textObj.AddComponent<TextMeshProUGUI>();
             text.text = "Disconnected";
-            text.fontSize = 14;
+            text.fontSize = 13;
             text.color = Color.white;
+            text.alignment = TextAlignmentOptions.Left;
             var textLayout = textObj.AddComponent<LayoutElement>();
-            textLayout.preferredWidth = 120f;
+            textLayout.flexibleWidth = 1f;
 
-            // Button
+            // Connect/Disconnect button
             var buttonObj = new GameObject("ConnectButton");
             buttonObj.transform.SetParent(row.transform, false);
             var buttonImage = buttonObj.AddComponent<Image>();
-            buttonImage.color = new Color(0.2f, 0.4f, 0.6f);
+            buttonImage.color = new Color(0.2f, 0.45f, 0.65f);
             var button = buttonObj.AddComponent<Button>();
             button.targetGraphic = buttonImage;
             var buttonLayout = buttonObj.AddComponent<LayoutElement>();
-            buttonLayout.preferredWidth = 90f;
-            buttonLayout.preferredHeight = 30f;
+            buttonLayout.preferredWidth = ButtonMinWidth;
+            buttonLayout.preferredHeight = ButtonHeight;
+            buttonLayout.minWidth = ButtonMinWidth;
 
             var buttonTextObj = new GameObject("Text");
             buttonTextObj.transform.SetParent(buttonObj.transform, false);
             var buttonText = buttonTextObj.AddComponent<TextMeshProUGUI>();
             buttonText.text = "Connect";
-            buttonText.fontSize = 14;
+            buttonText.fontSize = 13;
             buttonText.color = Color.white;
             buttonText.alignment = TextAlignmentOptions.Center;
             var buttonTextRect = buttonTextObj.GetComponent<RectTransform>();
@@ -222,18 +290,19 @@ namespace OpenRange.Editor
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
             horizontal.spacing = 16f;
             horizontal.childAlignment = TextAnchor.MiddleCenter;
-            horizontal.childControlWidth = false;
+            horizontal.childControlWidth = true;
             horizontal.childControlHeight = true;
-            horizontal.childForceExpandWidth = false;
+            horizontal.childForceExpandWidth = true;
+            horizontal.childForceExpandHeight = false;
 
             var layout = row.AddComponent<LayoutElement>();
-            layout.preferredHeight = 36f;
+            layout.preferredHeight = 28f;
 
-            // Ready indicator
-            var readyGroup = CreateIndicatorGroup(row.transform, "Ready", "Not Ready");
+            // Ready indicator pill
+            var readyGroup = CreateIndicatorPill(row.transform, "Ready", "Not Ready");
 
-            // Ball indicator
-            var ballGroup = CreateIndicatorGroup(row.transform, "Ball", "No Ball");
+            // Ball indicator pill
+            var ballGroup = CreateIndicatorPill(row.transform, "Ball", "No Ball");
 
             return new ReadinessRow
             {
@@ -244,40 +313,48 @@ namespace OpenRange.Editor
             };
         }
 
-        private static (Image Indicator, TextMeshProUGUI Text) CreateIndicatorGroup(
+        private static (Image Indicator, TextMeshProUGUI Text) CreateIndicatorPill(
             Transform parent, string label, string defaultText)
         {
-            var group = new GameObject(label + "Group");
-            group.transform.SetParent(parent, false);
+            var pill = new GameObject(label + "Pill");
+            pill.transform.SetParent(parent, false);
 
-            var horizontal = group.AddComponent<HorizontalLayoutGroup>();
-            horizontal.spacing = 4f;
-            horizontal.childAlignment = TextAnchor.MiddleLeft;
+            // Pill background
+            var bgImage = pill.AddComponent<Image>();
+            bgImage.color = new Color(0.2f, 0.2f, 0.25f, 0.9f);
+
+            var pillLayout = pill.AddComponent<LayoutElement>();
+            pillLayout.preferredHeight = 24f;
+            pillLayout.flexibleWidth = 1f;
+
+            var horizontal = pill.AddComponent<HorizontalLayoutGroup>();
+            horizontal.spacing = 6f;
+            horizontal.padding = new RectOffset(8, 10, 3, 3);
+            horizontal.childAlignment = TextAnchor.MiddleCenter;
             horizontal.childControlWidth = false;
             horizontal.childControlHeight = true;
             horizontal.childForceExpandWidth = false;
 
-            var layout = group.AddComponent<LayoutElement>();
-            layout.preferredWidth = 100f;
-
-            // Indicator
-            var indicatorObj = new GameObject("Indicator");
-            indicatorObj.transform.SetParent(group.transform, false);
+            // LED indicator (small circle)
+            var indicatorObj = new GameObject("LED");
+            indicatorObj.transform.SetParent(pill.transform, false);
             var indicator = indicatorObj.AddComponent<Image>();
             indicator.color = new Color(0.5f, 0.5f, 0.5f);
             var indicatorLayout = indicatorObj.AddComponent<LayoutElement>();
-            indicatorLayout.preferredWidth = 12f;
-            indicatorLayout.preferredHeight = 12f;
+            indicatorLayout.preferredWidth = 10f;
+            indicatorLayout.preferredHeight = 10f;
+            indicatorLayout.minWidth = 10f;
 
-            // Text
+            // Status text
             var textObj = new GameObject("Text");
-            textObj.transform.SetParent(group.transform, false);
+            textObj.transform.SetParent(pill.transform, false);
             var text = textObj.AddComponent<TextMeshProUGUI>();
             text.text = defaultText;
-            text.fontSize = 12;
+            text.fontSize = 11;
             text.color = Color.white;
+            text.alignment = TextAlignmentOptions.Left;
             var textLayout = textObj.AddComponent<LayoutElement>();
-            textLayout.preferredWidth = 80f;
+            textLayout.preferredWidth = 60f;
 
             return (indicator, text);
         }
@@ -288,7 +365,7 @@ namespace OpenRange.Editor
             panel.transform.SetParent(parent, false);
 
             var vertical = panel.AddComponent<VerticalLayoutGroup>();
-            vertical.spacing = 8f;
+            vertical.spacing = ItemSpacing;
             vertical.childAlignment = TextAnchor.UpperCenter;
             vertical.childControlWidth = true;
             vertical.childControlHeight = false;
@@ -296,14 +373,14 @@ namespace OpenRange.Editor
             vertical.childForceExpandHeight = false;
 
             var layout = panel.AddComponent<LayoutElement>();
-            layout.preferredHeight = 80f;
+            layout.preferredHeight = 72f;
 
             // Host row
-            var hostRow = CreateInputRow(panel.transform, "Host:", "127.0.0.1");
+            var hostRow = CreateInputRow(panel.transform, "Host:", "127.0.0.1", HostInputWidth);
             var hostInput = hostRow.GetComponentInChildren<TMP_InputField>();
 
             // Port row
-            var portRow = CreateInputRow(panel.transform, "Port:", "921");
+            var portRow = CreateInputRow(panel.transform, "Port:", "921", PortInputWidth);
             var portInput = portRow.GetComponentInChildren<TMP_InputField>();
 
             return new ConfigPanel
@@ -314,54 +391,58 @@ namespace OpenRange.Editor
             };
         }
 
-        private static GameObject CreateInputRow(Transform parent, string label, string defaultValue)
+        private static GameObject CreateInputRow(Transform parent, string label, string defaultValue, float inputWidth)
         {
             var row = new GameObject(label.Replace(":", "") + "Row");
             row.transform.SetParent(parent, false);
 
             var horizontal = row.AddComponent<HorizontalLayoutGroup>();
-            horizontal.spacing = 8f;
+            horizontal.spacing = ItemSpacing;
             horizontal.childAlignment = TextAnchor.MiddleLeft;
             horizontal.childControlWidth = false;
             horizontal.childControlHeight = true;
             horizontal.childForceExpandWidth = false;
 
             var layout = row.AddComponent<LayoutElement>();
-            layout.preferredHeight = 30f;
+            layout.preferredHeight = InputHeight;
 
             // Label
             var labelObj = new GameObject("Label");
             labelObj.transform.SetParent(row.transform, false);
             var labelText = labelObj.AddComponent<TextMeshProUGUI>();
             labelText.text = label;
-            labelText.fontSize = 14;
-            labelText.color = Color.white;
+            labelText.fontSize = 13;
+            labelText.color = new Color(0.85f, 0.85f, 0.85f);
+            labelText.alignment = TextAlignmentOptions.Left;
             var labelLayout = labelObj.AddComponent<LayoutElement>();
-            labelLayout.preferredWidth = 50f;
+            labelLayout.preferredWidth = LabelWidth;
+            labelLayout.minWidth = LabelWidth;
 
             // Input field
             var inputObj = new GameObject("InputField");
             inputObj.transform.SetParent(row.transform, false);
 
             var inputBg = inputObj.AddComponent<Image>();
-            inputBg.color = new Color(0.2f, 0.2f, 0.25f);
+            inputBg.color = new Color(0.15f, 0.15f, 0.2f);
 
             var inputLayout = inputObj.AddComponent<LayoutElement>();
-            inputLayout.preferredWidth = 200f;
-            inputLayout.preferredHeight = 26f;
+            inputLayout.preferredWidth = inputWidth;
+            inputLayout.preferredHeight = InputHeight;
+            inputLayout.minWidth = inputWidth;
 
             var textArea = new GameObject("TextArea");
             textArea.transform.SetParent(inputObj.transform, false);
             var textAreaRect = textArea.AddComponent<RectTransform>();
-            textAreaRect.anchorMin = new Vector2(0.02f, 0.1f);
-            textAreaRect.anchorMax = new Vector2(0.98f, 0.9f);
+            textAreaRect.anchorMin = new Vector2(0.04f, 0.1f);
+            textAreaRect.anchorMax = new Vector2(0.96f, 0.9f);
             textAreaRect.sizeDelta = Vector2.zero;
 
             var textComponent = new GameObject("Text");
             textComponent.transform.SetParent(textArea.transform, false);
             var text = textComponent.AddComponent<TextMeshProUGUI>();
-            text.fontSize = 14;
+            text.fontSize = 13;
             text.color = Color.white;
+            text.alignment = TextAlignmentOptions.Left;
             var textRect = textComponent.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
@@ -371,9 +452,10 @@ namespace OpenRange.Editor
             placeholder.transform.SetParent(textArea.transform, false);
             var placeholderText = placeholder.AddComponent<TextMeshProUGUI>();
             placeholderText.text = defaultValue;
-            placeholderText.fontSize = 14;
-            placeholderText.color = new Color(0.5f, 0.5f, 0.5f);
+            placeholderText.fontSize = 13;
+            placeholderText.color = new Color(0.5f, 0.5f, 0.55f);
             placeholderText.fontStyle = FontStyles.Italic;
+            placeholderText.alignment = TextAlignmentOptions.Left;
             var placeholderRect = placeholder.GetComponent<RectTransform>();
             placeholderRect.anchorMin = Vector2.zero;
             placeholderRect.anchorMax = Vector2.one;
