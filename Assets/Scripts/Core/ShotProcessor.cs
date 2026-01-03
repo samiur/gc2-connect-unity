@@ -188,9 +188,10 @@ namespace OpenRange.Core
             if (!GC2Protocol.IsValidShot(shot))
             {
                 // Provide more specific error messages
-                if (shot.BallSpeed < 10 || shot.BallSpeed > 220)
+                // Note: Max speed is 250 mph per GC2 protocol spec
+                if (shot.BallSpeed < 10 || shot.BallSpeed > 250)
                 {
-                    return $"Ball speed out of range: {shot.BallSpeed:F1} mph (expected 10-220)";
+                    return $"Ball speed out of range: {shot.BallSpeed:F1} mph (expected 10-250)";
                 }
 
                 if (shot.LaunchAngle < -10 || shot.LaunchAngle > 60)
