@@ -51,7 +51,7 @@ The following components are **already implemented** in the skeleton:
 - **Tests**: 1588+ unit tests across all components
 
 ### ❌ Not Yet Implemented
-- **GSPro Buffer Management**: Prompt 42 - Response handling and buffer clearing for reliable integration
+- **UI Refinement & Polish**: Prompts 43-45 - Fix UI layout issues, truncated buttons, panel overflow
 - **macOS Build & Release**: Prompts 36-37 - Build scripts, code signing, notarization
 - **Android Native Plugin**: Prompts 23-25 - USB Host API for Android tablets
 - **iPad Native Plugin**: Prompts 26-28 - DriverKit extension for iPad M1+
@@ -94,6 +94,9 @@ Buffer management and response handling for reliable GSPro integration.
 
 ### Phase 7: macOS Native Plugin (Prompts 20-22)
 libusb-based USB plugin for macOS.
+
+### Phase 7.5: UI Refinement & Polish (Prompts 43-45)
+Fix UI layout issues, truncated buttons, panel overflow, and improve visual consistency.
 
 ### Phase 8: macOS Build & Release (Prompts 36-37)
 Build script, code signing, notarization for macOS distribution.
@@ -1531,6 +1534,212 @@ Write tests for:
 - Callbacks are received
 - JSON parsing works
 - Connection state is accurate
+```
+
+---
+
+### Prompt 43: GSPro Mode Panel and Right-Side UI Fixes
+
+```text
+Fix layout issues with the GSPro Mode panel and right-side UI elements.
+
+Context: The GSPro Mode panel on the right side of the Marina scene has several layout issues:
+- "Connect" button is truncated (shows "Connec")
+- Panel width is too narrow for content
+- Large red square for disconnected status is visually overwhelming
+- "Not Ready" and "No Ball" indicators look like unfinished gray squares
+- Toggle switch is tiny and misaligned with its label
+- Redundant labeling ("GSPro Mode" title AND "Open Range Mode" label)
+- Host/Port input fields are cramped
+
+Files to modify:
+- Assets/Scripts/UI/GSProModeUI.cs
+- Assets/Editor/GSProModeUIGenerator.cs
+- Assets/Prefabs/UI/GSProModeUI.prefab (regenerate)
+
+Requirements:
+
+1. Fix panel width:
+   - Increase minimum width to accommodate "Connect" button fully
+   - Use ContentSizeFitter or fixed width (e.g., 280px minimum)
+
+2. Improve connection status indicator:
+   - Replace large colored square with smaller LED-style dot (12-16px)
+   - Add status text next to indicator (not below)
+   - Color scheme: Green=connected, Yellow=connecting, Red=disconnected
+
+3. Fix device readiness indicators:
+   - Replace gray squares with styled indicator pills/badges
+   - "Ready" indicator: Green circle + "Ready" text (or gray + "Not Ready")
+   - "Ball" indicator: Green circle + "Ball Detected" (or gray + "No Ball")
+   - Arrange horizontally or vertically with proper spacing
+
+4. Improve toggle layout:
+   - Make toggle switch larger (standard Unity toggle size)
+   - Single label: "GSPro Mode" as header, toggle shows On/Off state
+   - Remove redundant "Open Range Mode" label
+
+5. Fix Host/Port input fields:
+   - Proper width for IP address (min 120px for host)
+   - Proper width for port number (60px)
+   - Labels aligned with fields
+
+6. Improve overall layout:
+   - Use VerticalLayoutGroup with proper spacing (8-12px)
+   - Add section dividers between mode toggle, connection, and config
+   - Consistent padding (12px)
+
+Write/update unit tests for:
+- Panel renders without content overflow
+- All text is fully visible
+- Toggle state reflects mode correctly
+- Indicators update with connection/device status
+```
+
+---
+
+### Prompt 44: Connection Panel and Settings Button Fixes
+
+```text
+Fix the Connection Status panel overflow and truncated Settings button.
+
+Context: The Connection Status modal panel has content overflowing below the panel background, and the Settings button in the top-right is truncated.
+
+Issues identified:
+- Connection Panel content extends below panel background
+- "USB", "Last Shot:", "No shots yet" text appears outside panel
+- "Connect" button is almost entirely hidden at bottom of screen
+- Close button (X) is tiny and hard to click
+- Panel not vertically centered on screen
+- No scrolling for overflow content
+- Settings button shows "Sett" instead of "Settings"
+
+Files to modify:
+- Assets/Scripts/UI/ConnectionPanel.cs
+- Assets/Editor/ConnectionStatusGenerator.cs
+- Assets/Prefabs/UI/ConnectionPanel.prefab (regenerate)
+- Assets/Scripts/UI/MarinaSceneController.cs (for Settings button)
+- Assets/Editor/SceneGenerator.cs (Settings button sizing)
+
+Requirements:
+
+1. Fix Connection Panel height:
+   - Calculate proper height to fit all content
+   - Or use ScrollRect for content that doesn't fit
+   - Ensure minimum height includes all sections:
+     * Status header
+     * Device info (serial, firmware)
+     * Connection mode
+     * Last shot time
+     * Action buttons (Connect/Disconnect/Retry)
+     * Close button
+
+2. Fix panel positioning:
+   - Center panel vertically and horizontally on screen
+   - Add proper modal overlay (semi-transparent background)
+   - Modal should dim/block interaction with elements behind
+
+3. Improve Close button:
+   - Increase size to 32x32px minimum (was tiny)
+   - Position in top-right corner with proper padding
+   - Clear X icon or "Close" text
+
+4. Fix action buttons:
+   - Ensure buttons are fully visible within panel
+   - Proper spacing between buttons
+   - Minimum button width (100px)
+
+5. Add scroll support if needed:
+   - If content exceeds max panel height, add ScrollRect
+   - Show scrollbar indicator when content overflows
+
+6. Fix Settings button:
+   - Increase button width to fit "Settings" text
+   - Or use icon-only button with tooltip
+   - Ensure text doesn't truncate
+
+7. Update prefab generator:
+   - Fix sizing calculations
+   - Test with various content lengths
+
+Write/update unit tests for:
+- Panel fits all content without overflow
+- Close button is clickable (adequate size)
+- Modal overlay blocks interaction
+- Settings button text is not truncated
+```
+
+---
+
+### Prompt 45: Settings Panel Dropdown and General UI Polish
+
+```text
+Fix Settings panel dropdown issues and general UI polish items.
+
+Context: The Settings panel has dropdown issues where options are cut off, and there are various general UI polish items across the Marina scene.
+
+Issues identified:
+- Frame Rate dropdown shows partial text ("um" instead of "Medium")
+- Dropdown options overlay the "Units" section header
+- No visible scroll indicator in Settings panel
+- "Connect GC2" button overlaps "Marina Driving Range" title
+- Club Data Panel (left side) may be missing or not visible
+- Ball Ready Indicator position unclear
+
+Files to modify:
+- Assets/Scripts/UI/SettingsPanel.cs
+- Assets/Scripts/UI/SettingDropdown.cs
+- Assets/Editor/SettingsPanelGenerator.cs
+- Assets/Prefabs/UI/SettingsPanel.prefab (regenerate)
+- Assets/Scripts/UI/MarinaSceneController.cs
+- Assets/Editor/SceneGenerator.cs
+
+Requirements:
+
+1. Fix dropdown component:
+   - Ensure dropdown list has proper z-order (renders above other elements)
+   - Set Canvas.sortingOrder or use OverrideSorting
+   - Fix dropdown option height to show full text
+   - Template item height should accommodate text
+
+2. Fix Settings panel scroll:
+   - Add ScrollRect if not present
+   - Show scrollbar when content exceeds visible area
+   - Test with all sections expanded
+
+3. Fix "Connect GC2" button positioning:
+   - Move button so it doesn't overlap title text
+   - Either position above title or use dedicated header area
+   - Or integrate into top navigation bar
+
+4. Verify Club Data Panel visibility:
+   - Ensure ClubDataPanel prefab is instantiated in scene
+   - Check anchor/position (should be left side)
+   - Verify MarinaSceneController has reference wired
+   - Panel should be visible but show placeholder/empty state
+
+5. Verify Ball Ready Indicator:
+   - Check position and visibility
+   - Should be prominent and clearly visible
+   - Consider positioning near tee area or in HUD
+
+6. General UI polish:
+   - Consistent panel background colors (UITheme.PanelBackground)
+   - Consistent border radius where applicable
+   - Consistent font sizes per UITheme
+   - Consistent spacing/padding (UITheme.Padding/Margin)
+
+7. Update SceneGenerator:
+   - Ensure all UI elements are properly positioned
+   - Check z-order/hierarchy for proper layering
+   - Verify all prefab references are wired
+
+Write/update unit tests for:
+- Dropdown options display correctly
+- Settings panel scrolls when needed
+- All panels have correct z-order
+- Club Data Panel is present and positioned
+- Ball Ready Indicator is visible
 ```
 
 ---

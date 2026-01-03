@@ -1,12 +1,13 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7 - macOS Native Plugin
+**Phase**: 7.5 - UI Refinement & Polish
 **Last Updated**: 2026-01-03
-**Next Prompt**: 36 (macOS Build Script and Configuration)
+**Next Prompt**: 43 (GSPro Mode Panel and Right-Side UI Fixes)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
+**UI**: 🔄 Layout issues identified - Prompts 43-45 added for fixes
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
@@ -321,6 +322,43 @@ These components exist and don't need to be rebuilt:
   - [x] Update MarinaSceneController with serialized field
   - [x] Update SceneGenerator to instantiate and wire prefab
   - [x] Tests (49 tests: visual states, events, property values, null handling)
+
+---
+
+## Phase 7.5: UI Refinement & Polish
+
+- [ ] **Prompt 43**: GSPro Mode Panel and Right-Side UI Fixes
+  - [ ] Fix panel width (increase minimum to 280px)
+  - [ ] Improve connection status indicator (small LED dot instead of large square)
+  - [ ] Fix device readiness indicators (styled pills/badges instead of gray squares)
+  - [ ] Improve toggle layout (larger toggle, remove redundant label)
+  - [ ] Fix Host/Port input field sizing
+  - [ ] Improve overall layout with proper spacing
+  - [ ] Update GSProModeUIGenerator.cs
+  - [ ] Regenerate GSProModeUI.prefab
+  - [ ] Unit tests for layout and state
+
+- [ ] **Prompt 44**: Connection Panel and Settings Button Fixes
+  - [ ] Fix Connection Panel height to fit all content
+  - [ ] Fix panel positioning (center on screen with modal overlay)
+  - [ ] Improve Close button size (32x32px minimum)
+  - [ ] Fix action buttons visibility
+  - [ ] Add scroll support if content exceeds height
+  - [ ] Fix Settings button truncation ("Sett" → "Settings")
+  - [ ] Update ConnectionStatusGenerator.cs
+  - [ ] Regenerate ConnectionPanel.prefab
+  - [ ] Unit tests for overflow and modal behavior
+
+- [ ] **Prompt 45**: Settings Panel Dropdown and General UI Polish
+  - [ ] Fix dropdown z-order (render above other elements)
+  - [ ] Fix dropdown option height to show full text
+  - [ ] Fix Settings panel scroll indicator
+  - [ ] Fix "Connect GC2" button overlapping title
+  - [ ] Verify Club Data Panel visibility
+  - [ ] Verify Ball Ready Indicator position
+  - [ ] General UI polish (consistent colors, spacing, fonts)
+  - [ ] Update SceneGenerator for proper positioning
+  - [ ] Unit tests for dropdown and panel visibility
 
 ---
 
