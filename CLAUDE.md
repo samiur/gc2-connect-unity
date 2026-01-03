@@ -424,6 +424,39 @@ new Vector3(
 - Add `using UnityEngine.TestTools;` for `LogAssert` in tests
 - Use `Is.EqualTo().Or.EqualTo()` instead of `Is.AnyOf()` (not available in NUnit 3.x)
 
+### Scene Integration Validation
+
+The project includes `SceneIntegrationValidationTests.cs` that validates prefab existence and wiring. These tests run automatically in CI and catch common issues like:
+
+- Missing prefabs (not generated via editor tools)
+- Broken script references (caused by moving/renaming scripts)
+- Missing scene controller fields
+- Missing prefab wiring in SceneGenerator
+
+**Key tests:**
+- `AllRequiredPrefabs_Exist` - Verifies all 18 required prefabs exist
+- `AllSubComponentPrefabs_Exist` - Verifies 8 sub-component prefabs
+- `SceneGenerator_ReferencesAllExpectedPrefabs` - Checks SceneGenerator.cs mentions all prefabs
+- `MarinaSceneController_HasAllExpectedSerializedFields` - Validates 10+ serialized fields
+
+**Run locally:**
+```bash
+make test-edit  # Runs all EditMode tests including integration tests
+
+# Or run just the scene integration tests:
+"/Applications/Unity/Hub/Editor/6000.3.2f1/Unity.app/Contents/MacOS/Unity" \
+  -batchmode -nographics -projectPath . \
+  -runTests -testPlatform EditMode \
+  -testFilter "SceneIntegrationValidationTests" -logFile -
+```
+
+**Common fix for broken prefab script references:**
+If a prefab shows `m_Script: {fileID: 0}` in YAML, the script reference is broken. This often happens when:
+1. A MonoBehaviour is defined in the same file as another class
+2. The script file was moved or renamed
+
+Fix: Delete the prefab and regenerate via menu command (e.g., `OpenRange > Create Toast Prefab`)
+
 ### Native Plugin Development (IL2CPP)
 
 When building native plugins for IL2CPP (standalone macOS/iOS builds):
