@@ -27,6 +27,12 @@ namespace OpenRange.Network
         /// <summary>Connection timeout in milliseconds.</summary>
         public const int ConnectionTimeoutMs = 5000;
 
+        /// <summary>Timeout for shot response in milliseconds.</summary>
+        public const int ShotResponseTimeoutMs = 5000;
+
+        /// <summary>Size of receive buffer for reading responses.</summary>
+        private const int ReceiveBufferSize = 4096;
+
         private TcpClient _client;
         private NetworkStream _stream;
         private CancellationTokenSource _heartbeatCts;
@@ -42,6 +48,7 @@ namespace OpenRange.Network
         private bool _launchMonitorBallDetected;
 
         private readonly object _lock = new object();
+        private readonly byte[] _receiveBuffer = new byte[ReceiveBufferSize];
 
         /// <summary>Whether the client is connected to GSPro.</summary>
         public bool IsConnected
@@ -96,6 +103,18 @@ namespace OpenRange.Network
 
         /// <summary>Fired when a heartbeat is sent.</summary>
         public event Action OnHeartbeatSent;
+
+        /// <summary>
+        /// Fired when GSPro confirms a shot was received.
+        /// Parameters: response code (200/201), player info (may be null).
+        /// </summary>
+        public event Action<int, GSProPlayerInfo> OnShotConfirmed;
+
+        /// <summary>
+        /// Fired when GSPro reports an error for a shot.
+        /// Parameter: error message.
+        /// </summary>
+        public event Action<string> OnShotFailed;
 
         /// <summary>
         /// Connect to GSPro.
@@ -222,14 +241,42 @@ namespace OpenRange.Network
             }
 
             _shotNumber++;
+            int currentShotNumber = _shotNumber;
 
-            var message = CreateShotMessage(shot, _shotNumber);
+            var message = CreateShotMessage(shot, currentShotNumber);
 
             try
             {
+                // Clear any stale data from receive buffer before sending
+                ClearReceiveBuffer();
+
                 await SendMessageAsync(message);
-                Debug.Log($"GSProClient: Shot #{_shotNumber} sent to GSPro");
-                OnShotSent?.Invoke(_shotNumber);
+                Debug.Log($"GSProClient: Shot #{currentShotNumber} sent to GSPro");
+                OnShotSent?.Invoke(currentShotNumber);
+
+                // Await response from GSPro (shot messages get responses)
+                var response = await ReadShotResponseAsync();
+
+                if (response != null)
+                {
+                    if (response.IsSuccess)
+                    {
+                        Debug.Log($"GSProClient: Shot #{currentShotNumber} confirmed by GSPro (code: {response.Code})");
+                        OnShotConfirmed?.Invoke(response.Code, response.Player);
+                    }
+                    else
+                    {
+                        var errorMsg = $"GSPro returned error {response.Code}: {response.Message}";
+                        Debug.LogWarning($"GSProClient: {errorMsg}");
+                        OnShotFailed?.Invoke(errorMsg);
+                    }
+                }
+                else
+                {
+                    // No response received (timeout or parse error)
+                    // This is not necessarily an error - some GSPro versions may not respond
+                    Debug.Log($"GSProClient: No response received for shot #{currentShotNumber}");
+                }
             }
             catch (Exception ex)
             {
@@ -306,6 +353,74 @@ namespace OpenRange.Network
             return GSProMessage.CreateHeartbeat(_launchMonitorIsReady, _launchMonitorBallDetected);
         }
 
+        /// <summary>
+        /// Clear any pending data from the receive buffer.
+        /// This prevents stale responses from causing parsing issues.
+        /// </summary>
+        internal void ClearReceiveBuffer()
+        {
+            if (_stream == null || !_stream.CanRead)
+                return;
+
+            try
+            {
+                // Read and discard any available bytes
+                while (_stream.DataAvailable)
+                {
+                    _stream.Read(_receiveBuffer, 0, _receiveBuffer.Length);
+                }
+            }
+            catch
+            {
+                // Ignore errors during buffer clearing
+            }
+        }
+
+        /// <summary>
+        /// Read and parse the response to a shot message from GSPro.
+        /// </summary>
+        /// <returns>Parsed response, or null if timeout or parse error.</returns>
+        private async Task<GSProResponse> ReadShotResponseAsync()
+        {
+            if (_stream == null || !_stream.CanRead)
+                return null;
+
+            try
+            {
+                // Set read timeout for shot response
+                _stream.ReadTimeout = ShotResponseTimeoutMs;
+
+                // Use async read with cancellation
+                using var cts = new CancellationTokenSource(ShotResponseTimeoutMs);
+                var readTask = _stream.ReadAsync(_receiveBuffer, 0, _receiveBuffer.Length, cts.Token);
+
+                int bytesRead = await readTask;
+
+                if (bytesRead > 0)
+                {
+                    // Parse the first JSON object from the response
+                    var response = GSProResponse.ParseFirstObject(_receiveBuffer, bytesRead);
+                    return response;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Timeout - not necessarily an error
+                Debug.Log("GSProClient: Shot response timeout");
+            }
+            catch (System.IO.IOException)
+            {
+                // Read timeout or connection issue
+                Debug.Log("GSProClient: Shot response read timeout");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"GSProClient: Error reading shot response - {ex.Message}");
+            }
+
+            return null;
+        }
+
         private void StartHeartbeat()
         {
             StopHeartbeat();
@@ -341,6 +456,8 @@ namespace OpenRange.Network
                     var message = CreateHeartbeatMessage();
                     await SendMessageAsync(message);
                     OnHeartbeatSent?.Invoke();
+
+                    // Note: Do NOT wait for heartbeat response - GSPro doesn't send one
                 }
                 catch (OperationCanceledException)
                 {
@@ -363,7 +480,7 @@ namespace OpenRange.Network
             }
 
             var json = message.ToJson();
-            var bytes = Encoding.UTF8.GetBytes(json + "\n");
+            var bytes = Encoding.UTF8.GetBytes(json);
 
             await _stream.WriteAsync(bytes, 0, bytes.Length);
             await _stream.FlushAsync();
