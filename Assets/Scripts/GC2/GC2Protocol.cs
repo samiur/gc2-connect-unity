@@ -1,3 +1,6 @@
+// ABOUTME: Parser for GC2 USB protocol messages (0H shots and 0M device status).
+// ABOUTME: Converts raw key=value text format to structured C# data types.
+
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,11 +9,21 @@ namespace OpenRange.GC2
 {
     /// <summary>
     /// Parser for GC2 USB protocol messages.
-    /// The GC2 sends data as key=value pairs separated by newlines,
-    /// with messages terminated by double newlines.
+    /// The GC2 sends data as key=value pairs separated by newlines.
+    /// Message types: 0H (shot data), 0M (device status).
     /// </summary>
     public static class GC2Protocol
     {
+        /// <summary>
+        /// Message prefix for shot data.
+        /// </summary>
+        public const string ShotMessagePrefix = "0H";
+
+        /// <summary>
+        /// Message prefix for device status.
+        /// </summary>
+        public const string StatusMessagePrefix = "0M";
+
         /// <summary>
         /// Parse a GC2 protocol message into structured shot data.
         /// </summary>
@@ -20,9 +33,9 @@ namespace OpenRange.GC2
         {
             if (string.IsNullOrEmpty(message))
                 return null;
-            
+
             var values = new Dictionary<string, string>();
-            
+
             // Parse key=value pairs
             var lines = message.Split('\n');
             foreach (var line in lines)
@@ -30,7 +43,7 @@ namespace OpenRange.GC2
                 var trimmed = line.Trim();
                 if (string.IsNullOrEmpty(trimmed))
                     continue;
-                
+
                 var equalsIndex = trimmed.IndexOf('=');
                 if (equalsIndex > 0)
                 {
@@ -39,20 +52,20 @@ namespace OpenRange.GC2
                     values[key] = value;
                 }
             }
-            
+
             // Validate required field
             if (!values.ContainsKey("SPEED_MPH"))
             {
                 Debug.LogWarning("GC2Protocol: Missing SPEED_MPH field");
                 return null;
             }
-            
+
             // Build shot data
             var shot = new GC2ShotData
             {
                 ShotId = GetInt(values, "SHOT_ID", 0),
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                
+
                 // Ball data
                 BallSpeed = GetFloat(values, "SPEED_MPH"),
                 LaunchAngle = GetFloat(values, "ELEVATION_DEG"),
@@ -61,11 +74,11 @@ namespace OpenRange.GC2
                 BackSpin = GetFloat(values, "BACK_RPM"),
                 SideSpin = GetFloat(values, "SIDE_RPM"),
                 SpinAxis = GetFloat(values, "SPIN_AXIS_DEG"),
-                
+
                 // HMT club data
                 HasClubData = GetInt(values, "HMT", 0) == 1
             };
-            
+
             // Club data if HMT present
             if (shot.HasClubData)
             {
@@ -76,7 +89,7 @@ namespace OpenRange.GC2
                 shot.DynamicLoft = GetFloat(values, "LOFT_DEG");
                 shot.Lie = GetFloat(values, "LIE_DEG");
             }
-            
+
             // Handle spin calculation fallback
             // If BackSpin/SideSpin are zero but TotalSpin is not, calculate from axis
             if (shot.BackSpin == 0 && shot.SideSpin == 0 && shot.TotalSpin > 0)
@@ -85,25 +98,41 @@ namespace OpenRange.GC2
                 shot.BackSpin = shot.TotalSpin * Mathf.Cos(axisRad);
                 shot.SideSpin = shot.TotalSpin * Mathf.Sin(axisRad);
             }
-            
+
             // Validate the shot
             if (!IsValidShot(shot))
             {
                 Debug.LogWarning($"GC2Protocol: Invalid shot data - {shot}");
                 return null;
             }
-            
+
             return shot;
         }
-        
+
+        /// <summary>
+        /// Minimum ball speed for putts (mph). GC2 can track speeds as low as 1.1 mph for putting.
+        /// </summary>
+        public const float MinBallSpeedPuttMph = 1.1f;
+
+        /// <summary>
+        /// Minimum ball speed for non-putt shots (mph). GC2 minimum for regular shots is 3.4 mph.
+        /// </summary>
+        public const float MinBallSpeedShotMph = 3.4f;
+
+        /// <summary>
+        /// Maximum ball speed (mph). Speeds above 250 mph are physically implausible.
+        /// </summary>
+        public const float MaxBallSpeedMph = 250f;
+
         /// <summary>
         /// Validate shot data is within reasonable ranges.
         /// See docs/GC2_PROTOCOL.md for misread detection patterns.
         /// </summary>
         public static bool IsValidShot(GC2ShotData shot)
         {
-            // Speed sanity check (per protocol: reject < 10 or > 250)
-            if (shot.BallSpeed < 10 || shot.BallSpeed > 250)
+            // Speed sanity check (per protocol: reject < 1.1 for putts or > 250)
+            // We use the putt minimum (1.1 mph) since we can't distinguish shot types
+            if (shot.BallSpeed < MinBallSpeedPuttMph || shot.BallSpeed > MaxBallSpeedMph)
                 return false;
 
             // Launch angle sanity
@@ -132,7 +161,7 @@ namespace OpenRange.GC2
 
             return true;
         }
-        
+
         /// <summary>
         /// Convert shot data to JSON string.
         /// </summary>
@@ -140,7 +169,7 @@ namespace OpenRange.GC2
         {
             return JsonUtility.ToJson(shot);
         }
-        
+
         /// <summary>
         /// Parse shot data from JSON string.
         /// </summary>
@@ -156,14 +185,139 @@ namespace OpenRange.GC2
                 return null;
             }
         }
-        
+
+        #region Device Status Parsing
+
+        /// <summary>
+        /// Parse a GC2 protocol message into device status.
+        /// Returns null if the message is not a valid 0M (status) message.
+        /// </summary>
+        /// <param name="message">Raw message string from GC2</param>
+        /// <returns>Parsed device status, or null if not a status message</returns>
+        public static GC2DeviceStatus? ParseDeviceStatus(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return null;
+
+            // Check for 0M prefix (device status message)
+            string trimmedMessage = message.TrimStart();
+            if (!trimmedMessage.StartsWith(StatusMessagePrefix))
+                return null;
+
+            var values = new Dictionary<string, string>();
+
+            // Parse key=value pairs
+            var lines = message.Split('\n');
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed))
+                    continue;
+
+                // Skip the message prefix line
+                if (trimmed == StatusMessagePrefix || trimmed == ShotMessagePrefix)
+                    continue;
+
+                var equalsIndex = trimmed.IndexOf('=');
+                if (equalsIndex > 0)
+                {
+                    var key = trimmed.Substring(0, equalsIndex);
+                    var value = trimmed.Substring(equalsIndex + 1);
+                    values[key] = value;
+                }
+            }
+
+            // FLAGS is required for status messages
+            if (!values.ContainsKey("FLAGS"))
+            {
+                return null;
+            }
+
+            int flags = GetInt(values, "FLAGS", 0);
+            int balls = GetInt(values, "BALLS", 0);
+
+            // Parse ball position if present (format: "x,y,z")
+            Vector3? ballPosition = null;
+            if (values.TryGetValue("BALL1", out var ball1Str))
+            {
+                ballPosition = ParseBallPosition(ball1Str);
+            }
+
+            return new GC2DeviceStatus(flags, balls, ballPosition);
+        }
+
+        /// <summary>
+        /// Determine the message type from raw GC2 data.
+        /// </summary>
+        /// <param name="message">Raw message string from GC2</param>
+        /// <returns>The message type, or Unknown if not recognized</returns>
+        public static GC2MessageType GetMessageType(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return GC2MessageType.Unknown;
+
+            string trimmed = message.TrimStart();
+
+            if (trimmed.StartsWith(ShotMessagePrefix))
+                return GC2MessageType.Shot;
+
+            if (trimmed.StartsWith(StatusMessagePrefix))
+                return GC2MessageType.DeviceStatus;
+
+            return GC2MessageType.Unknown;
+        }
+
+        /// <summary>
+        /// Check if a message is a shot data message (0H).
+        /// </summary>
+        public static bool IsShotMessage(string message)
+        {
+            return GetMessageType(message) == GC2MessageType.Shot;
+        }
+
+        /// <summary>
+        /// Check if a message is a device status message (0M).
+        /// </summary>
+        public static bool IsStatusMessage(string message)
+        {
+            return GetMessageType(message) == GC2MessageType.DeviceStatus;
+        }
+
+        /// <summary>
+        /// Parse ball position from BALL1 field value.
+        /// Format: "x,y,z" where values are in mm.
+        /// </summary>
+        private static Vector3? ParseBallPosition(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return null;
+
+            var parts = value.Split(',');
+            if (parts.Length != 3)
+                return null;
+
+            if (float.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float x) &&
+                float.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float y) &&
+                float.TryParse(parts[2].Trim(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float z))
+            {
+                return new Vector3(x, y, z);
+            }
+
+            return null;
+        }
+
+        #endregion
+
         #region Helper Methods
-        
+
         private static float GetFloat(Dictionary<string, string> values, string key, float defaultValue = 0f)
         {
             if (values.TryGetValue(key, out var str))
             {
-                if (float.TryParse(str, System.Globalization.NumberStyles.Float, 
+                if (float.TryParse(str, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var value))
                 {
                     return value;
@@ -171,7 +325,7 @@ namespace OpenRange.GC2
             }
             return defaultValue;
         }
-        
+
         private static int GetInt(Dictionary<string, string> values, string key, int defaultValue = 0)
         {
             if (values.TryGetValue(key, out var str))
@@ -183,7 +337,22 @@ namespace OpenRange.GC2
             }
             return defaultValue;
         }
-        
+
         #endregion
+    }
+
+    /// <summary>
+    /// Types of messages in the GC2 USB protocol.
+    /// </summary>
+    public enum GC2MessageType
+    {
+        /// <summary>Unrecognized or invalid message</summary>
+        Unknown,
+
+        /// <summary>Shot data message (0H prefix)</summary>
+        Shot,
+
+        /// <summary>Device status message (0M prefix)</summary>
+        DeviceStatus
     }
 }

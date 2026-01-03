@@ -1,3 +1,6 @@
+// ABOUTME: Main application controller managing app lifecycle and GC2 connection.
+// ABOUTME: Coordinates mode switching, connection state, and device status events.
+
 using System;
 using UnityEngine;
 using OpenRange.GC2;
@@ -22,6 +25,7 @@ namespace OpenRange.Core
         [SerializeField] private ConnectionState _connectionState = ConnectionState.Disconnected;
 
         private IGC2Connection _gc2Connection;
+        private GC2DeviceStatus? _currentDeviceStatus;
 
         public AppMode CurrentMode => _currentMode;
         public ConnectionState ConnectionState => _connectionState;
@@ -29,8 +33,20 @@ namespace OpenRange.Core
         public ShotProcessor ShotProcessor => _shotProcessor;
         public SessionManager SessionManager => _sessionManager;
 
+        /// <summary>
+        /// Current device status from 0M messages.
+        /// Null if no status has been received or device is disconnected.
+        /// </summary>
+        public GC2DeviceStatus? CurrentDeviceStatus => _currentDeviceStatus;
+
         public event Action<AppMode> OnModeChanged;
         public event Action<ConnectionState> OnConnectionStateChanged;
+
+        /// <summary>
+        /// Fired when device status changes (from 0M messages).
+        /// Contains readiness state (FLAGS) and ball detection (BALLS).
+        /// </summary>
+        public event Action<GC2DeviceStatus> OnDeviceStatusChanged;
 
         private void Awake()
         {
@@ -80,6 +96,7 @@ namespace OpenRange.Core
             _gc2Connection.OnShotReceived += HandleShotReceived;
             _gc2Connection.OnConnectionChanged += HandleConnectionChanged;
             _gc2Connection.OnError += HandleConnectionError;
+            _gc2Connection.OnDeviceStatusChanged += HandleDeviceStatusChanged;
 
             // Auto-connect if device available
             if (_gc2Connection.IsDeviceAvailable())
@@ -99,8 +116,12 @@ namespace OpenRange.Core
                 _gc2Connection.OnShotReceived -= HandleShotReceived;
                 _gc2Connection.OnConnectionChanged -= HandleConnectionChanged;
                 _gc2Connection.OnError -= HandleConnectionError;
+                _gc2Connection.OnDeviceStatusChanged -= HandleDeviceStatusChanged;
                 _gc2Connection.Disconnect();
             }
+
+            // Clear device status when cleaning up
+            _currentDeviceStatus = null;
         }
 
         public async void ConnectToGC2()
@@ -124,6 +145,7 @@ namespace OpenRange.Core
         public void DisconnectFromGC2()
         {
             _gc2Connection?.Disconnect();
+            _currentDeviceStatus = null;
             SetConnectionState(ConnectionState.Disconnected);
         }
 
@@ -142,6 +164,17 @@ namespace OpenRange.Core
         {
             Debug.LogError($"GameManager: GC2 error - {error}");
             SetConnectionState(ConnectionState.Failed);
+        }
+
+        private void HandleDeviceStatusChanged(GC2DeviceStatus status)
+        {
+            // Only fire event if status actually changed
+            if (!_currentDeviceStatus.HasValue || _currentDeviceStatus.Value != status)
+            {
+                _currentDeviceStatus = status;
+                Debug.Log($"GameManager: Device status changed - {status}");
+                OnDeviceStatusChanged?.Invoke(status);
+            }
         }
 
         private void SetConnectionState(ConnectionState state)

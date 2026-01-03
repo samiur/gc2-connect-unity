@@ -188,9 +188,11 @@ namespace OpenRange.Core
             if (!GC2Protocol.IsValidShot(shot))
             {
                 // Provide more specific error messages
-                if (shot.BallSpeed < 10 || shot.BallSpeed > 220)
+                // Speed range: 1.1 mph (putts) to 250 mph (max)
+                if (shot.BallSpeed < GC2Protocol.MinBallSpeedPuttMph ||
+                    shot.BallSpeed > GC2Protocol.MaxBallSpeedMph)
                 {
-                    return $"Ball speed out of range: {shot.BallSpeed:F1} mph (expected 10-220)";
+                    return $"Ball speed out of range: {shot.BallSpeed:F1} mph (expected {GC2Protocol.MinBallSpeedPuttMph}-{GC2Protocol.MaxBallSpeedMph})";
                 }
 
                 if (shot.LaunchAngle < -10 || shot.LaunchAngle > 60)

@@ -23,6 +23,7 @@ namespace OpenRange.GC2.Platforms.TCP
         public event Action<GC2ShotData> OnShotReceived;
         public event Action<bool> OnConnectionChanged;
         public event Action<string> OnError;
+        public event Action<GC2DeviceStatus> OnDeviceStatusChanged;
 
         /// <summary>
         /// Set TCP connection parameters.
@@ -61,6 +62,7 @@ namespace OpenRange.GC2.Platforms.TCP
             OnShotReceived = null;
             OnConnectionChanged = null;
             OnError = null;
+            OnDeviceStatusChanged = null;
         }
     }
 }

@@ -59,7 +59,7 @@ namespace OpenRange.Tests.EditMode
         {
             // Arrange
             var shot = CreateValidShot();
-            shot.BallSpeed = 5f; // Too low (min is 10)
+            shot.BallSpeed = 0.5f; // Too low (min is 1.1 mph for putts)
 
             string rejectionReason = null;
             _shotProcessor.OnShotRejected += (_, reason) => rejectionReason = reason;
