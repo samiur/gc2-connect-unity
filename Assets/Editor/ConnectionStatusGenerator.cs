@@ -16,6 +16,32 @@ namespace OpenRange.Editor
     {
         private const string PrefabPath = "Assets/Prefabs/UI";
 
+        #region Layout Constants
+
+        // Panel sizing
+        public const float PanelWidth = 400f;
+        public const float PanelMinHeight = 420f; // Minimum height to fit all content
+        public const float PanelMaxHeight = 600f; // Maximum height before scrolling
+
+        // Close button (minimum 32x32 for touch targets)
+        public const float CloseButtonSize = 36f;
+
+        // Row heights
+        public const float HeaderHeight = 50f;
+        public const float StatusRowHeight = 36f;
+        public const float InfoRowHeight = 56f;
+        public const float ButtonRowHeight = 50f;
+        public const float SpacerHeight = 16f;
+
+        // Button sizing
+        public const float ActionButtonMinWidth = 100f;
+        public const float ActionButtonHeight = 44f;
+
+        // Modal overlay
+        public const float OverlayAlpha = 0.6f;
+
+        #endregion
+
         #region Menu Items
 
         [MenuItem("OpenRange/Create Connection Status Prefab")]
@@ -155,30 +181,56 @@ namespace OpenRange.Editor
 
         private static GameObject CreateConnectionPanel()
         {
-            var panelGO = new GameObject("ConnectionPanel");
+            // Create root container that includes modal overlay
+            var rootGO = new GameObject("ConnectionPanel");
 
-            // RectTransform - centered modal
+            // Root RectTransform - full screen for overlay
+            var rootRect = rootGO.AddComponent<RectTransform>();
+            rootRect.anchorMin = Vector2.zero;
+            rootRect.anchorMax = Vector2.one;
+            rootRect.offsetMin = Vector2.zero;
+            rootRect.offsetMax = Vector2.zero;
+
+            // CanvasGroup for animations (on root so overlay fades with panel)
+            var canvasGroup = rootGO.AddComponent<CanvasGroup>();
+            canvasGroup.alpha = 0f;
+
+            // Modal overlay (semi-transparent background that blocks interaction)
+            var overlayGO = new GameObject("ModalOverlay");
+            overlayGO.transform.SetParent(rootGO.transform, false);
+            var overlayRect = overlayGO.AddComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+
+            var overlayImage = overlayGO.AddComponent<Image>();
+            overlayImage.color = new Color(0f, 0f, 0f, OverlayAlpha);
+
+            // Make overlay block raycasts
+            overlayImage.raycastTarget = true;
+
+            // Panel container - centered modal
+            var panelGO = new GameObject("Panel");
+            panelGO.transform.SetParent(rootGO.transform, false);
+
             var rectTransform = panelGO.AddComponent<RectTransform>();
             rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
             rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
             rectTransform.anchoredPosition = Vector2.zero;
-            rectTransform.sizeDelta = new Vector2(400, 350);
+            rectTransform.sizeDelta = new Vector2(PanelWidth, PanelMinHeight);
 
-            // Background
+            // Panel background
             var bgImage = panelGO.AddComponent<Image>();
             bgImage.color = new Color(
                 UITheme.PanelBackground.r,
                 UITheme.PanelBackground.g,
                 UITheme.PanelBackground.b,
-                0.95f
+                0.98f
             );
 
-            // CanvasGroup for animations
-            var canvasGroup = panelGO.AddComponent<CanvasGroup>();
-            canvasGroup.alpha = 0f;
-
-            // Vertical layout
+            // Vertical layout for panel content
             var layoutGroup = panelGO.AddComponent<VerticalLayoutGroup>();
             layoutGroup.spacing = UITheme.Padding.Normal;
             layoutGroup.padding = new RectOffset(
@@ -189,7 +241,7 @@ namespace OpenRange.Editor
             );
             layoutGroup.childAlignment = TextAnchor.UpperCenter;
             layoutGroup.childControlWidth = true;
-            layoutGroup.childControlHeight = false;
+            layoutGroup.childControlHeight = true;
             layoutGroup.childForceExpandWidth = true;
             layoutGroup.childForceExpandHeight = false;
 
@@ -211,17 +263,19 @@ namespace OpenRange.Editor
             // Create last shot row
             var lastShotText = CreateInfoRow(panelGO.transform, "Last Shot:", "No shots yet");
 
-            // Create spacer
+            // Create spacer to push buttons to bottom
             var spacerGO = new GameObject("Spacer");
             spacerGO.transform.SetParent(panelGO.transform, false);
+            spacerGO.AddComponent<RectTransform>();
             var spacerLayout = spacerGO.AddComponent<LayoutElement>();
-            spacerLayout.flexibleHeight = 1;
+            spacerLayout.flexibleHeight = 1f;
+            spacerLayout.minHeight = SpacerHeight;
 
             // Create buttons row
             var (connectButton, disconnectButton, retryButton) = CreateButtonsRow(panelGO.transform);
 
-            // Add ConnectionPanel component and wire up references
-            var connectionPanel = panelGO.AddComponent<ConnectionPanel>();
+            // Add ConnectionPanel component to root and wire up references
+            var connectionPanel = rootGO.AddComponent<ConnectionPanel>();
 
             var so = new SerializedObject(connectionPanel);
             so.FindProperty("_statusDotImage").objectReferenceValue = statusDot;
@@ -236,7 +290,7 @@ namespace OpenRange.Editor
             so.FindProperty("_canvasGroup").objectReferenceValue = canvasGroup;
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            return panelGO;
+            return rootGO;
         }
 
         private static GameObject CreateHeader(Transform parent)
@@ -246,22 +300,24 @@ namespace OpenRange.Editor
 
             var headerRect = headerGO.AddComponent<RectTransform>();
             var headerLayout = headerGO.AddComponent<LayoutElement>();
-            headerLayout.preferredHeight = 40;
-            headerLayout.minHeight = 40;
+            headerLayout.preferredHeight = HeaderHeight;
+            headerLayout.minHeight = HeaderHeight;
 
             // Horizontal layout for title + close button
             var headerLayoutGroup = headerGO.AddComponent<HorizontalLayoutGroup>();
+            headerLayoutGroup.spacing = UITheme.Padding.Small;
             headerLayoutGroup.childAlignment = TextAnchor.MiddleCenter;
             headerLayoutGroup.childControlWidth = true;
             headerLayoutGroup.childControlHeight = true;
             headerLayoutGroup.childForceExpandWidth = false;
-            headerLayoutGroup.childForceExpandHeight = true;
+            headerLayoutGroup.childForceExpandHeight = false;
 
             // Title text
             var titleGO = new GameObject("Title");
             titleGO.transform.SetParent(headerGO.transform, false);
             var titleLayout = titleGO.AddComponent<LayoutElement>();
             titleLayout.flexibleWidth = 1;
+            titleLayout.preferredHeight = HeaderHeight;
 
             var titleText = titleGO.AddComponent<TextMeshProUGUI>();
             titleText.text = "CONNECTION STATUS";
@@ -270,20 +326,30 @@ namespace OpenRange.Editor
             titleText.fontSize = UITheme.FontSizeRegular.Header;
             titleText.fontStyle = FontStyles.Bold;
 
-            // Close button
+            // Close button - minimum 32x32 for accessibility
             var closeGO = new GameObject("CloseButton");
             closeGO.transform.SetParent(headerGO.transform, false);
+            var closeRect = closeGO.AddComponent<RectTransform>();
+            closeRect.sizeDelta = new Vector2(CloseButtonSize, CloseButtonSize);
             var closeLayout = closeGO.AddComponent<LayoutElement>();
-            closeLayout.preferredWidth = 30;
-            closeLayout.preferredHeight = 30;
+            closeLayout.preferredWidth = CloseButtonSize;
+            closeLayout.preferredHeight = CloseButtonSize;
+            closeLayout.minWidth = CloseButtonSize;
+            closeLayout.minHeight = CloseButtonSize;
+            closeLayout.flexibleWidth = 0;
+            closeLayout.flexibleHeight = 0;
 
             var closeImage = closeGO.AddComponent<Image>();
-            closeImage.color = UITheme.TextSecondary;
+            closeImage.color = new Color(0.4f, 0.4f, 0.4f, 1f); // Darker background for visibility
 
             var closeButton = closeGO.AddComponent<Button>();
             closeButton.targetGraphic = closeImage;
+            var colors = closeButton.colors;
+            colors.highlightedColor = new Color(0.5f, 0.5f, 0.5f, 1f);
+            colors.pressedColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            closeButton.colors = colors;
 
-            // X text inside close button
+            // X text inside close button - larger for visibility
             var xGO = new GameObject("X");
             xGO.transform.SetParent(closeGO.transform, false);
             var xRect = xGO.AddComponent<RectTransform>();
@@ -296,7 +362,7 @@ namespace OpenRange.Editor
             xText.text = "✕";
             xText.alignment = TextAlignmentOptions.Center;
             xText.color = UITheme.TextPrimary;
-            xText.fontSize = 18;
+            xText.fontSize = 22; // Larger for visibility
 
             return headerGO;
         }
@@ -307,22 +373,27 @@ namespace OpenRange.Editor
             rowGO.transform.SetParent(parent, false);
 
             var rowLayout = rowGO.AddComponent<LayoutElement>();
-            rowLayout.preferredHeight = 30;
+            rowLayout.preferredHeight = StatusRowHeight;
+            rowLayout.minHeight = StatusRowHeight;
 
             var rowLayoutGroup = rowGO.AddComponent<HorizontalLayoutGroup>();
-            rowLayoutGroup.spacing = UITheme.Padding.Small;
-            rowLayoutGroup.childAlignment = TextAnchor.MiddleCenter;
+            rowLayoutGroup.spacing = UITheme.Padding.Normal;
+            rowLayoutGroup.childAlignment = TextAnchor.MiddleLeft;
             rowLayoutGroup.childControlWidth = false;
             rowLayoutGroup.childControlHeight = true;
             rowLayoutGroup.childForceExpandWidth = false;
-            rowLayoutGroup.childForceExpandHeight = true;
+            rowLayoutGroup.childForceExpandHeight = false;
 
-            // Status dot
+            // Status dot - larger for visibility
             var dotGO = new GameObject("StatusDot");
             dotGO.transform.SetParent(rowGO.transform, false);
+            var dotRect = dotGO.AddComponent<RectTransform>();
+            dotRect.sizeDelta = new Vector2(18, 18);
             var dotLayout = dotGO.AddComponent<LayoutElement>();
-            dotLayout.preferredWidth = 16;
-            dotLayout.preferredHeight = 16;
+            dotLayout.preferredWidth = 18;
+            dotLayout.preferredHeight = 18;
+            dotLayout.minWidth = 18;
+            dotLayout.minHeight = 18;
 
             var dotImage = dotGO.AddComponent<Image>();
             dotImage.color = UITheme.StatusDisconnected;
@@ -332,6 +403,7 @@ namespace OpenRange.Editor
             textGO.transform.SetParent(rowGO.transform, false);
             var textLayout = textGO.AddComponent<LayoutElement>();
             textLayout.flexibleWidth = 1;
+            textLayout.preferredHeight = StatusRowHeight;
 
             var statusText = textGO.AddComponent<TextMeshProUGUI>();
             statusText.text = "Disconnected";
@@ -349,14 +421,14 @@ namespace OpenRange.Editor
             rowGO.transform.SetParent(parent, false);
 
             var rowLayout = rowGO.AddComponent<LayoutElement>();
-            rowLayout.preferredHeight = 50;
-            rowLayout.minHeight = 40;
+            rowLayout.preferredHeight = InfoRowHeight;
+            rowLayout.minHeight = 44f;
 
             var rowLayoutGroup = rowGO.AddComponent<VerticalLayoutGroup>();
-            rowLayoutGroup.spacing = 2;
+            rowLayoutGroup.spacing = 4f;
             rowLayoutGroup.childAlignment = TextAnchor.UpperLeft;
             rowLayoutGroup.childControlWidth = true;
-            rowLayoutGroup.childControlHeight = false;
+            rowLayoutGroup.childControlHeight = true;
             rowLayoutGroup.childForceExpandWidth = true;
             rowLayoutGroup.childForceExpandHeight = false;
 
@@ -364,7 +436,8 @@ namespace OpenRange.Editor
             var labelGO = new GameObject("Label");
             labelGO.transform.SetParent(rowGO.transform, false);
             var labelLayout = labelGO.AddComponent<LayoutElement>();
-            labelLayout.preferredHeight = 16;
+            labelLayout.preferredHeight = 18f;
+            labelLayout.minHeight = 18f;
 
             var labelText = labelGO.AddComponent<TextMeshProUGUI>();
             labelText.text = label;
@@ -376,7 +449,8 @@ namespace OpenRange.Editor
             var valueGO = new GameObject("Value");
             valueGO.transform.SetParent(rowGO.transform, false);
             var valueLayout = valueGO.AddComponent<LayoutElement>();
-            valueLayout.preferredHeight = 24;
+            valueLayout.preferredHeight = 28f;
+            valueLayout.minHeight = 22f;
             valueLayout.flexibleHeight = 1;
 
             var valueText = valueGO.AddComponent<TextMeshProUGUI>();
@@ -394,7 +468,8 @@ namespace OpenRange.Editor
             rowGO.transform.SetParent(parent, false);
 
             var rowLayout = rowGO.AddComponent<LayoutElement>();
-            rowLayout.preferredHeight = 50;
+            rowLayout.preferredHeight = ButtonRowHeight;
+            rowLayout.minHeight = ButtonRowHeight;
 
             var rowLayoutGroup = rowGO.AddComponent<HorizontalLayoutGroup>();
             rowLayoutGroup.spacing = UITheme.Padding.Normal;
@@ -402,7 +477,7 @@ namespace OpenRange.Editor
             rowLayoutGroup.childControlWidth = true;
             rowLayoutGroup.childControlHeight = true;
             rowLayoutGroup.childForceExpandWidth = true;
-            rowLayoutGroup.childForceExpandHeight = true;
+            rowLayoutGroup.childForceExpandHeight = false;
 
             // Connect button
             var connectButton = CreateButton(rowGO.transform, "Connect", UITheme.AccentGreen);
@@ -423,6 +498,9 @@ namespace OpenRange.Editor
             var buttonGO = new GameObject(text + "Button");
             buttonGO.transform.SetParent(parent, false);
 
+            var buttonRect = buttonGO.AddComponent<RectTransform>();
+            buttonRect.sizeDelta = new Vector2(ActionButtonMinWidth, ActionButtonHeight);
+
             var buttonImage = buttonGO.AddComponent<Image>();
             buttonImage.color = color;
 
@@ -431,7 +509,9 @@ namespace OpenRange.Editor
             button.transition = Selectable.Transition.ColorTint;
 
             var buttonLayout = buttonGO.AddComponent<LayoutElement>();
-            buttonLayout.minWidth = 80;
+            buttonLayout.minWidth = ActionButtonMinWidth;
+            buttonLayout.minHeight = ActionButtonHeight;
+            buttonLayout.preferredHeight = ActionButtonHeight;
             buttonLayout.flexibleWidth = 1;
 
             // Button text

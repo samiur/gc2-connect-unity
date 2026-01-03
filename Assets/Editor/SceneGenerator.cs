@@ -517,7 +517,7 @@ namespace OpenRange.Editor
             settingsRect.anchorMax = new Vector2(1, 1);
             settingsRect.pivot = new Vector2(1, 1);
             settingsRect.anchoredPosition = new Vector2(-150, -20);
-            settingsRect.sizeDelta = new Vector2(100, 40);
+            settingsRect.sizeDelta = new Vector2(120, 40); // Width increased from 100 to show full "Settings" text
 
             // Shot Data Bar (bottom panel)
             ShotDataBar shotDataBar = null;

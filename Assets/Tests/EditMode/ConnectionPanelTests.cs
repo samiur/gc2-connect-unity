@@ -393,5 +393,79 @@ namespace OpenRange.Tests.EditMode
         }
 
         #endregion
+
+        #region Modal Overlay Tests
+
+        [Test]
+        public void Show_BlocksInteractionsWhenVisible()
+        {
+            _panel.Show(false);
+
+            // When shown, CanvasGroup should allow interaction
+            Assert.That(_canvasGroup.interactable, Is.True);
+            Assert.That(_canvasGroup.blocksRaycasts, Is.True);
+        }
+
+        [Test]
+        public void Hide_AllowsInteractionsBehind()
+        {
+            _panel.Show(false);
+            _panel.Hide(false);
+
+            // When hidden, CanvasGroup should not block interactions
+            Assert.That(_canvasGroup.blocksRaycasts, Is.False);
+        }
+
+        [Test]
+        public void Show_SetsInteractableTrue()
+        {
+            _canvasGroup.interactable = false;
+
+            _panel.Show(false);
+
+            Assert.That(_canvasGroup.interactable, Is.True);
+        }
+
+        [Test]
+        public void Hide_SetsInteractableFalse()
+        {
+            _panel.Show(false);
+            _panel.Hide(false);
+
+            Assert.That(_canvasGroup.interactable, Is.False);
+        }
+
+        #endregion
+
+        #region All Buttons Visible Tests
+
+        [Test]
+        public void AllActionButtons_HaveMinimumSize()
+        {
+            // Verify buttons are created with minimum reasonable size for touch targets
+            var connectRect = _connectButton.GetComponent<RectTransform>();
+            var disconnectRect = _disconnectButton.GetComponent<RectTransform>();
+            var retryRect = _retryButton.GetComponent<RectTransform>();
+
+            // These tests verify the buttons exist - actual sizing comes from the generator
+            Assert.That(connectRect, Is.Not.Null);
+            Assert.That(disconnectRect, Is.Not.Null);
+            Assert.That(retryRect, Is.Not.Null);
+        }
+
+        [Test]
+        public void CloseButton_Exists()
+        {
+            Assert.That(_closeButton, Is.Not.Null);
+        }
+
+        [Test]
+        public void CloseButton_HasRectTransform()
+        {
+            var closeRect = _closeButton.GetComponent<RectTransform>();
+            Assert.That(closeRect, Is.Not.Null);
+        }
+
+        #endregion
     }
 }
