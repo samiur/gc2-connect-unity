@@ -46,11 +46,12 @@ The following components are **already implemented** in the skeleton:
 - **macOS Plugin Structure**: `GC2MacPlugin.h`, `GC2MacPlugin.mm`, Xcode project, build script (PR #45)
 - **macOS USB Read Loop**: Complete libusb implementation with 0H/0M parsing (PR #47)
 - **macOS C# Bridge**: `GC2MacConnection.cs` with IL2CPP callback support ✅ **Tested with real hardware** (PR #49)
-- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `SessionInfoPanelGenerator.cs`, `SettingsPanelGenerator.cs`, `GSProModeUIGenerator.cs`, `TestShotWindow.cs`, `GC2TestWindow.cs`
-- **Tests**: 1547+ unit tests across all components
+- **Ball Ready Indicator**: `BallReadyIndicator.cs`, `BallReadyIndicatorGenerator.cs` (PR #51)
+- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `SessionInfoPanelGenerator.cs`, `SettingsPanelGenerator.cs`, `GSProModeUIGenerator.cs`, `BallReadyIndicatorGenerator.cs`, `TestShotWindow.cs`, `GC2TestWindow.cs`
+- **Tests**: 1588+ unit tests across all components
 
 ### ❌ Not Yet Implemented
-- **Ball Ready Indicator**: Prompt 35 - UI indicator for device ready + ball detected status
+- **GSPro Buffer Management**: Prompt 42 - Response handling and buffer clearing for reliable integration
 - **macOS Build & Release**: Prompts 36-37 - Build scripts, code signing, notarization
 - **Android Native Plugin**: Prompts 23-25 - USB Host API for Android tablets
 - **iPad Native Plugin**: Prompts 26-28 - DriverKit extension for iPad M1+
@@ -87,6 +88,9 @@ Add prominent UI indicator showing when GC2 is ready and ball is detected.
 
 ### Phase 6: TCP/Network Layer (Prompts 18-19)
 TCP connection for testing and GSPro relay mode.
+
+### Phase 6.5: GSPro Client Improvements (Prompt 42)
+Buffer management and response handling for reliable GSPro integration.
 
 ### Phase 7: macOS Native Plugin (Prompts 20-22)
 libusb-based USB plugin for macOS.
@@ -2795,6 +2799,60 @@ Write verification:
 - All platform builds complete (or skip gracefully)
 - GitHub Release created with correct assets
 - Release notes generated correctly
+```
+
+---
+
+### Prompt 42: GSPro Client Buffer Management
+
+```text
+Improve GSProClient to handle response buffering and shot confirmation.
+
+Context: Based on GSPRO_API.md updates, GSPro may buffer/concatenate responses causing parsing errors. Current implementation doesn't clear buffers or parse shot responses.
+
+Update Assets/Scripts/Network/GSProClient.cs:
+
+1. Buffer Management:
+   - Clear receive buffer before sending shot data
+   - Prevents stale data from causing parsing errors
+
+2. Response Handling (shot data only):
+   - After SendShotAsync(), await and parse response
+   - Parse only first JSON object (handle concatenated responses)
+   - Extract response code (200 = success, 201 = success with player info)
+   - Don't await responses for heartbeats/status (they don't respond)
+
+3. Response Parsing:
+   - Create GSProResponse class (Code, Message, Player optional)
+   - Create GSProPlayerInfo class (Handed, Club, DistanceToTarget)
+   - ReadFirstJsonObject(NetworkStream) helper method
+   - Handle partial reads and concatenated JSON
+
+4. Shot Confirmation:
+   - OnShotConfirmed event with response code
+   - OnShotFailed event with error message
+   - Timeout handling (shot response expected within 5 seconds)
+
+5. Optional: Remove unnecessary newline
+   - Current code adds "\n" but docs say not required
+   - Test both ways, remove if not needed
+
+Implementation notes:
+- Use JsonConvert or manual JSON parsing for first object
+- Buffer clearing: read available bytes and discard
+- Set read timeout to 5 seconds for shot responses
+- Don't block heartbeat loop on response waits
+
+Create Assets/Scripts/Network/GSProResponse.cs:
+- GSProResponse class with Code, Message, Player
+- GSProPlayerInfo class with player details
+
+Write unit tests for:
+- Buffer clearing before shot send
+- Response parsing with single JSON
+- Response parsing with concatenated JSON
+- Timeout handling
+- Shot confirmed/failed events
 ```
 
 ---

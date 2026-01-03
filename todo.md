@@ -1,11 +1,12 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5.6 - Ball Ready Indicator
-**Last Updated**: 2026-01-02
-**Next Prompt**: 35 (Ball Ready Indicator UI)
+**Phase**: 6.5 - GSPro Client Improvements
+**Last Updated**: 2026-01-03
+**Next Prompt**: 42 (GSPro Buffer Management)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
+**GSPro**: ⚠️ Buffer management and response handling needed (Prompt 42)
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
@@ -255,6 +256,21 @@ These components exist and don't need to be rebuilt:
 
 ---
 
+## Phase 6.5: GSPro Client Improvements
+
+- [ ] **Prompt 42**: GSPro Buffer Management
+  - [ ] Add buffer clearing before sending shot data
+  - [ ] Implement response parsing for shot confirmation
+  - [ ] Create GSProResponse.cs (Code, Message, Player)
+  - [ ] Create GSProPlayerInfo.cs (Handed, Club, DistanceToTarget)
+  - [ ] Parse only first JSON object (handle concatenated responses)
+  - [ ] Add OnShotConfirmed/OnShotFailed events
+  - [ ] Add timeout handling for shot responses (5 seconds)
+  - [ ] Test: remove unnecessary newline delimiter
+  - [ ] Unit tests for buffer clearing and response parsing
+
+---
+
 ## Phase 7: macOS Native Plugin
 
 - [x] **Prompt 20**: macOS Plugin Header and Project (PR #45)
@@ -293,18 +309,18 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 5.6: Ball Ready Indicator
 
-- [ ] **Prompt 35**: Ball Ready Indicator UI
-  - [ ] Create BallReadyIndicator.cs (UI component)
-  - [ ] Visual states: Disconnected, Warming Up, Place Ball, READY
-  - [ ] Subscribe to GameManager.OnConnectionStateChanged
-  - [ ] Subscribe to GameManager.OnDeviceStatusChanged
-  - [ ] Pulse animation when ready to hit
-  - [ ] IsReadyToHit property
-  - [ ] OnReadyStateChanged event
-  - [ ] Create BallReadyIndicatorGenerator.cs (editor tool for prefab)
-  - [ ] Update MarinaSceneController with serialized field
-  - [ ] Update SceneGenerator to instantiate and wire prefab
-  - [ ] Tests (visual states, events, property values, null handling)
+- [x] **Prompt 35**: Ball Ready Indicator UI (PR #51)
+  - [x] Create BallReadyIndicator.cs (UI component)
+  - [x] Visual states: Disconnected, Warming Up, Place Ball, READY
+  - [x] Subscribe to GameManager.OnConnectionStateChanged
+  - [x] Subscribe to GameManager.OnDeviceStatusChanged
+  - [x] Pulse animation when ready to hit
+  - [x] IsReadyToHit property
+  - [x] OnReadyStateChanged, OnVisualStateChanged events
+  - [x] Create BallReadyIndicatorGenerator.cs (editor tool for prefab)
+  - [x] Update MarinaSceneController with serialized field
+  - [x] Update SceneGenerator to instantiate and wire prefab
+  - [x] Tests (49 tests: visual states, events, property values, null handling)
 
 ---
 
@@ -550,6 +566,17 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (GSPro API Documentation Update)**: Merged GSPRO_CONNECT.md into GSPRO_API.md with critical implementation notes:
+- **TCP_NODELAY**: Must set `NoDelay = true` to disable Nagle's algorithm (already implemented in GSProClient.cs:122)
+- **Response handling**: Shots get responses, heartbeats/status do NOT - don't block waiting!
+- **Buffer management**: GSPro may concatenate multiple JSON responses causing parsing errors
+- **Graceful shutdown**: GSPro doesn't handle abrupt disconnections well
+- **New Prompt 42 added**: GSPro Buffer Management to address buffer clearing and response parsing
+- Current gaps in GSProClient.cs identified:
+  1. No receive buffer clearing before shot sends
+  2. No response parsing after shot sends
+  3. No handling for concatenated JSON responses
 
 **2026-01-03 (macOS C# Bridge - Real Hardware Debug)**: Prompt 22 debugged and verified with real GC2 hardware:
 - **Two critical bugs fixed**:
