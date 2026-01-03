@@ -453,12 +453,31 @@ SIDE_RPM=-320
         }
 
         [Test]
+        public void IsValidShot_PuttMinimumSpeed_ReturnsTrue()
+        {
+            // Arrange - GC2 can track putts as slow as 1.1 mph
+            var shot = new GC2ShotData
+            {
+                BallSpeed = 1.1f, // Minimum putt speed
+                LaunchAngle = 2f, // Low launch for putt
+                Direction = 0f,
+                TotalSpin = 500f,
+                BackSpin = 500f,
+                SideSpin = 0f,
+                SpinAxis = 0f
+            };
+
+            // Act & Assert
+            Assert.IsTrue(GC2Protocol.IsValidShot(shot));
+        }
+
+        [Test]
         public void IsValidShot_SpeedTooLow_ReturnsFalse()
         {
             // Arrange
             var shot = new GC2ShotData
             {
-                BallSpeed = 5f, // Below 10 mph minimum
+                BallSpeed = 0.5f, // Below 1.1 mph minimum (putts can be as slow as 1.1)
                 LaunchAngle = 12f,
                 Direction = 2f,
                 TotalSpin = 2800f,

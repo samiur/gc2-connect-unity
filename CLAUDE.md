@@ -142,7 +142,8 @@ Wait for: BACK_RPM and SIDE_RPM before processing shot (early readings may be in
 Key fields: SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, SPIN_RPM, BACK_RPM, SIDE_RPM
 HMT fields: CLUBSPEED_MPH, HPATH_DEG, VPATH_DEG, FACE_T_DEG, LOFT_DEG
 
-Misread detection: Zero spin, BACK_RPM == 2222, SPEED_MPH < 10 or > 250
+Misread detection: Zero spin, BACK_RPM == 2222, SPEED_MPH < 1.1 or > 250
+Speed range: 1.1 mph (putts) to 250 mph (max), non-putt shots require 3.4+ mph
 
 Device status (0M): FLAGS == 7 = ready, BALLS > 0 = ball detected
 ```
@@ -194,10 +195,15 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
 - Connection Status UI with indicator, panel, and toasts (PR #27)
 - Session Info Panel with shot history and detail modal (PR #29)
 - Settings Panel with SettingToggle, SettingSlider, SettingDropdown components (PR #31)
+- GC2 device status parsing for GSPro integration (PR #39)
+  - GC2DeviceStatus struct with IsReady, BallDetected, BallPosition
+  - ParseDeviceStatus() for 0M message parsing
+  - GameManager device status tracking with OnDeviceStatusChanged event
 
 **Not yet implemented:**
 - Native USB plugins (macOS, Android, iPad)
 - GSPro relay client
+- TCP connection for development testing
 
 ## Editor Tools
 

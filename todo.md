@@ -1,11 +1,11 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5.5 - Ground Physics Improvement (3 of 3 complete)
-**Last Updated**: 2026-01-03
-**Next Prompt**: 18 (Device Status Interface)
+**Phase**: 6 - TCP/Network Layer (1 of 3 complete)
+**Last Updated**: 2026-01-02
+**Next Prompt**: 18b (TCP Connection for Testing)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
-**Protocol**: ✅ 0H shot parsing | ⏳ 0M device status (Prompt 18)
+**Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
 ---
 
@@ -230,12 +230,12 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 6: TCP/Network Layer
 
-- [ ] **Prompt 18**: Update IGC2Connection Interface for Device Status
-  - [ ] Add OnDeviceStatusChanged event to IGC2Connection.cs
-  - [ ] Create GC2DeviceStatus.cs (IsReady, BallDetected, BallPosition)
-  - [ ] Add ParseDeviceStatus() to GC2Protocol.cs (parses 0M messages)
-  - [ ] Update GameManager.cs to track device status
-  - [ ] Tests
+- [x] **Prompt 18**: Update IGC2Connection Interface for Device Status (PR #39)
+  - [x] Add OnDeviceStatusChanged event to IGC2Connection.cs
+  - [x] Create GC2DeviceStatus.cs (IsReady, BallDetected, BallPosition)
+  - [x] Add ParseDeviceStatus() to GC2Protocol.cs (parses 0M messages)
+  - [x] Update GameManager.cs to track device status
+  - [x] Tests (86 new tests: 50 GC2ProtocolTests, 36 GC2DeviceStatusTests)
 
 - [ ] **Prompt 18b**: TCP Connection for Testing
   - [ ] Create GC2TCPConnection.cs
@@ -417,6 +417,32 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-02 (Device Status Interface)**: Prompt 18 complete. Implemented device status parsing for GSPro integration (PR #39):
+- `GC2DeviceStatus.cs` - New struct for 0M message data:
+  - `IsReady` - True when FLAGS == 7 (device green light)
+  - `BallDetected` - True when BALLS > 0
+  - `BallPosition` - Optional Vector3 from BALL1 field (mm from sensor)
+  - `RawFlags`, `BallCount` - Raw protocol values
+  - `FlagsReady = 7`, `FlagsNotReady = 1` - Constants
+  - Full equality operators and `ToString()` for debugging
+- `GC2Protocol.cs` - Added device status parsing:
+  - `ParseDeviceStatus(string)` - Parses 0M messages, returns GC2DeviceStatus?
+  - `GetMessageType(string)` - Returns GC2MessageType (Shot, DeviceStatus, Unknown)
+  - `IsShotMessage(string)` / `IsStatusMessage(string)` - Helper methods
+  - `ShotMessagePrefix = "0H"`, `StatusMessagePrefix = "0M"` - Constants
+  - Handles leading whitespace, partial data, invalid positions
+- `IGC2Connection.cs` - Added event for platform plugins:
+  - `event Action<GC2DeviceStatus> OnDeviceStatusChanged`
+- `GameManager.cs` - Added device status tracking:
+  - `CurrentDeviceStatus` property (nullable)
+  - `OnDeviceStatusChanged` event for UI/GSPro
+  - `HandleDeviceStatusChanged()` with deduplication
+- `GC2TCPConnection.cs` - Implemented OnDeviceStatusChanged event (stub for now)
+- `GC2ProtocolTests.cs` - 50 new unit tests covering all parsing scenarios
+- `GC2DeviceStatusTests.cs` - 36 new unit tests for struct behavior
+- **Bug fix**: ShotProcessor.ValidateShot error message said 10-220 mph, updated to 10-250 mph per protocol spec
+- All 985 EditMode tests passing
 
 **2026-01-03 (Physics Validation)**: Prompt 34 complete. Added landing data tracking and integration tests (PR #37):
 - `ShotResult.cs` - Added 3 new landing data fields:

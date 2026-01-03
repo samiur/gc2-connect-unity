@@ -179,13 +179,24 @@ def calculate_club_metrics(swing_path: float, face_to_target: float) -> tuple[fl
 
 ## Data Validation
 
+### Minimum Ball Speed
+
+The GC2 has different minimum trackable speeds depending on shot type:
+
+| Shot Type | Minimum Speed | Notes |
+|-----------|---------------|-------|
+| Putts | 1.1 mph | Low-speed putting strokes |
+| Other Shots | 3.4 mph | Chips, pitches, full swings |
+
+Since the GC2 doesn't report shot type, validation should use the putt minimum (1.1 mph) to allow all valid shots.
+
 ### Misread Detection
 
 The GC2 occasionally produces misreads that should be rejected (from gc2_to_TGC implementation):
 
 1. **Zero Total Spin**: Reject if `BACK_RPM == 0` AND `SIDE_RPM == 0` (not just total spin)
 2. **2222 Pattern**: `BACK_RPM == 2222` is a known error code indicating misread
-3. **Unrealistic Speed**: `SPEED_MPH < 10` or `SPEED_MPH > 250`
+3. **Unrealistic Speed**: `SPEED_MPH < 1.1` or `SPEED_MPH > 250`
 
 ```python
 def is_misread(back_spin: float, side_spin: float) -> bool:

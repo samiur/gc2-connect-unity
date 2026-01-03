@@ -110,13 +110,29 @@ namespace OpenRange.GC2
         }
 
         /// <summary>
+        /// Minimum ball speed for putts (mph). GC2 can track speeds as low as 1.1 mph for putting.
+        /// </summary>
+        public const float MinBallSpeedPuttMph = 1.1f;
+
+        /// <summary>
+        /// Minimum ball speed for non-putt shots (mph). GC2 minimum for regular shots is 3.4 mph.
+        /// </summary>
+        public const float MinBallSpeedShotMph = 3.4f;
+
+        /// <summary>
+        /// Maximum ball speed (mph). Speeds above 250 mph are physically implausible.
+        /// </summary>
+        public const float MaxBallSpeedMph = 250f;
+
+        /// <summary>
         /// Validate shot data is within reasonable ranges.
         /// See docs/GC2_PROTOCOL.md for misread detection patterns.
         /// </summary>
         public static bool IsValidShot(GC2ShotData shot)
         {
-            // Speed sanity check (per protocol: reject < 10 or > 250)
-            if (shot.BallSpeed < 10 || shot.BallSpeed > 250)
+            // Speed sanity check (per protocol: reject < 1.1 for putts or > 250)
+            // We use the putt minimum (1.1 mph) since we can't distinguish shot types
+            if (shot.BallSpeed < MinBallSpeedPuttMph || shot.BallSpeed > MaxBallSpeedMph)
                 return false;
 
             // Launch angle sanity
