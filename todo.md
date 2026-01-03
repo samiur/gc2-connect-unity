@@ -3,7 +3,7 @@
 ## Current Status
 **Phase**: 7.5 - UI Refinement & Polish
 **Last Updated**: 2026-01-03
-**Next Prompt**: 43 (GSPro Mode Panel and Right-Side UI Fixes)
+**Next Prompt**: 44 (Connection Panel and Settings Button Fixes)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
@@ -327,16 +327,16 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 7.5: UI Refinement & Polish
 
-- [ ] **Prompt 43**: GSPro Mode Panel and Right-Side UI Fixes
-  - [ ] Fix panel width (increase minimum to 280px)
-  - [ ] Improve connection status indicator (small LED dot instead of large square)
-  - [ ] Fix device readiness indicators (styled pills/badges instead of gray squares)
-  - [ ] Improve toggle layout (larger toggle, remove redundant label)
-  - [ ] Fix Host/Port input field sizing
-  - [ ] Improve overall layout with proper spacing
-  - [ ] Update GSProModeUIGenerator.cs
-  - [ ] Regenerate GSProModeUI.prefab
-  - [ ] Unit tests for layout and state
+- [x] **Prompt 43**: GSPro Mode Panel and Right-Side UI Fixes (PR #55)
+  - [x] Fix panel width (increase minimum to 280px)
+  - [x] Improve connection status indicator (small LED dot instead of large square)
+  - [x] Fix device readiness indicators (styled pills/badges instead of gray squares)
+  - [x] Improve toggle layout (larger toggle, remove redundant label)
+  - [x] Fix Host/Port input field sizing
+  - [x] Improve overall layout with proper spacing
+  - [x] Update GSProModeUIGenerator.cs
+  - [x] Regenerate GSProModeUI.prefab
+  - [x] Unit tests for layout and state
 
 - [ ] **Prompt 44**: Connection Panel and Settings Button Fixes
   - [ ] Fix Connection Panel height to fit all content
@@ -604,6 +604,26 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (GSPro Mode Panel Layout Fixes)**: Prompt 43 complete. Fixed GSPro Mode UI layout issues (PR #55):
+- `GSProModeUIGenerator.cs` - Complete layout constant overhaul:
+  - PanelMinWidth: 280px (enforced via LayoutElement)
+  - PanelPadding: 12px on all sides
+  - LedIndicatorSize: 14px (small LED-style, not large square)
+  - Toggle: 50x26px with proper touch target
+  - Button: 100px min width, 32px height
+  - Host input: 130px, Port input: 65px
+- New CreateDivider() method for section separation
+- New CreateIndicatorPill() for styled Ready/Ball indicators (24px height with 10px LED)
+- ContentSizeFitter with MinSize mode for proper sizing
+- `GSProModeUIGeneratorTests.cs` - 19 unit tests validating layout constraints:
+  - Layout constants meet design specs (panel width, padding, spacing)
+  - Content fits within panel (host + port + labels + padding ≤ 280px)
+  - Touch targets meet accessibility guidelines (44x44px min area)
+  - Proportional spacing (item ≤ section spacing)
+- **Bug fix during implementation**: Input fields were 287px total, reduced to fit 280px:
+  - Host: 140px → 130px, Port: 70px → 65px
+- All 1623 EditMode tests passing
 
 **2026-01-03 (GSPro API Documentation Update)**: Merged GSPRO_CONNECT.md into GSPRO_API.md with critical implementation notes:
 - **TCP_NODELAY**: Must set `NoDelay = true` to disable Nagle's algorithm (already implemented in GSProClient.cs:122)
