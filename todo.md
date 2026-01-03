@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 6 - TCP/Network Layer (2 of 3 complete)
+**Phase**: 6 - TCP/Network Layer (3 of 3 complete)
 **Last Updated**: 2026-01-03
-**Next Prompt**: 19 (GSPro Client)
+**Next Prompt**: 20 (macOS Plugin Header)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
@@ -243,13 +243,14 @@ These components exist and don't need to be rebuilt:
   - [x] Create GC2TestWindow.cs (Editor)
   - [x] Tests
 
-- [ ] **Prompt 19**: GSPro Client
-  - [ ] Create GSProClient.cs
-  - [ ] Create GSProMessage.cs with PlayerInfo (LaunchMonitorIsReady, LaunchMonitorBallDetected)
-  - [ ] Heartbeat system with device readiness
-  - [ ] UpdateReadyState() method for 0M status
-  - [ ] Create GSProModeUI.cs with ball readiness indicator
-  - [ ] Tests
+- [x] **Prompt 19**: GSPro Client (PR #43)
+  - [x] Create GSProClient.cs
+  - [x] Create GSProMessage.cs with PlayerInfo (LaunchMonitorIsReady, LaunchMonitorBallDetected)
+  - [x] Heartbeat system with device readiness
+  - [x] UpdateReadyState() method for 0M status
+  - [x] Create GSProModeUI.cs with ball readiness indicator
+  - [x] Create GSProModeUIGenerator.cs (editor tool)
+  - [x] Tests (97 new tests: 44 GSProClient, 26 GSProMessage, 27 GSProModeUI)
 
 ---
 
@@ -417,6 +418,42 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (GSPro Client)**: Prompt 19 complete. Implemented GSPro client for shot relay to golf simulator (PR #43):
+- `GSProMessage.cs` - Message classes for GSPro Open Connect API v1:
+  - `GSProMessage` - Main message with DeviceID ("GC2 Connect Unity"), Units ("Yards"), APIversion ("1"), ShotNumber
+  - `GSProBallData` - Speed, SpinAxis, TotalSpin, BackSpin, SideSpin, HLA (horizontal launch), VLA (vertical launch)
+  - `GSProClubData` - Speed, AngleOfAttack, FaceToTarget, Lie, Loft, Path, SpeedAtImpact, impact locations, ClosureRate
+  - `GSProShotOptions` - ContainsBallData, ContainsClubData, LaunchMonitorIsReady, LaunchMonitorBallDetected, IsHeartBeat
+  - `CreateHeartbeat(bool isReady, bool ballDetected)` - Factory method for heartbeat messages
+  - Newtonsoft.Json serialization with `NullValueHandling.Ignore` for ClubData
+- `GSProClient.cs` - TCP client implementing IGSProClient interface:
+  - Async `ConnectAsync(host, port)` with 5-second connection timeout
+  - Exponential backoff reconnection (2s → 4s → 8s → 16s → 32s max)
+  - Heartbeat loop every 2 seconds when idle
+  - `UpdateReadyState(bool isReady, bool ballDetected)` for 0M message status integration
+  - `CreateShotMessage(GC2ShotData, shotNumber)` converts GC2 data to GSPro format
+  - `CreateHeartbeatMessage()` for idle status updates
+  - Events: OnConnected, OnDisconnected, OnShotSent, OnError
+  - Thread-safe with proper CancellationTokenSource and IDisposable pattern
+- `GSProModeUI.cs` - UI component for mode toggle and connection status:
+  - Mode toggle (OpenRange/GSPro) with label text update
+  - Connection status indicator: Connected (green), Connecting (yellow), Disconnected/Failed (red)
+  - Device readiness indicators: Ready (green) / Not Ready (gray), Ball (green) / No Ball (gray)
+  - Host/Port configuration input fields with defaults (127.0.0.1:921)
+  - Connect/Disconnect button with state-based text
+  - Event subscriptions to GSProClient for status updates via MainThreadDispatcher
+  - Events: OnModeChanged, OnConnectClicked, OnDisconnectClicked
+- `GSProModeUIGenerator.cs` - Editor prefab generator:
+  - Menu: OpenRange > Create GSPro Mode UI Prefab
+  - Creates full UI hierarchy with layout groups, indicators, input fields
+  - Wires SerializedObject references to all UI elements
+- 97 new unit tests:
+  - `GSProClientTests.cs` (44 tests) - Client state, message creation, shot/club data mapping
+  - `GSProMessageTests.cs` (26 tests) - Message defaults, JSON serialization, field preservation
+  - `GSProModeUITests.cs` (27 tests) - UI state, mode toggle, connection status, events
+- **Assembly fix**: Added `Newtonsoft.Json.dll` to test assembly precompiledReferences
+- All 1459 EditMode tests passing
 
 **2026-01-03 (TCP Connection for Testing)**: Prompt 18b complete. Implemented TCP-based GC2 connection for Editor testing (PR #41):
 - `GC2TCPConnection.cs` - Full IGC2Connection implementation with TCP transport:

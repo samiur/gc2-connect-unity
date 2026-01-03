@@ -203,10 +203,14 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
   - GC2TCPConnection implementing IGC2Connection with Server/Client modes
   - GC2TCPListener standalone server for testing
   - GC2TestWindow editor window for sending test shots/status
+- GSPro client for shot relay (PR #43)
+  - GSProClient implementing IGSProClient with TCP connection
+  - GSProMessage with BallData, ClubData, ShotDataOptions for JSON protocol
+  - GSProModeUI for mode toggle, connection status, device readiness
+  - 2-second heartbeat with LaunchMonitorIsReady/BallDetected flags
 
 **Not yet implemented:**
 - Native USB plugins (macOS, Android, iPad)
-- GSPro relay client
 
 ## Editor Tools
 
@@ -253,6 +257,7 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
 | `OpenRange > Create All Settings Panel Prefabs` | Creates all settings panel prefabs |
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
 | `OpenRange > GC2 Test Window` | Opens TCP test window for simulating GC2 connection (Server/Client modes) |
+| `OpenRange > Create GSPro Mode UI Prefab` | Creates GSProModeUI.prefab for mode toggle and connection status |
 
 ## Local Development on macOS
 
