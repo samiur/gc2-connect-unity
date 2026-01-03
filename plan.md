@@ -50,6 +50,7 @@ The following components are **already implemented** in the skeleton:
 - **Tests**: 1547+ unit tests across all components
 
 ### ❌ Not Yet Implemented
+- **Ball Ready Indicator**: Prompt 35 - UI indicator for device ready + ball detected status
 - **Android Native Plugin**: Prompts 23-25 - USB Host API for Android tablets
 - **iPad Native Plugin**: Prompts 26-28 - DriverKit extension for iPad M1+
 - **Quality & Polish**: Prompts 29-31 - Final integration testing and polish
@@ -75,6 +76,9 @@ Shot data display, HMT panel, connection status, settings, responsive layout.
 
 ### Phase 5.5: Ground Physics Improvement (Prompts 32-34)
 Fix bounce and roll physics for realistic post-carry behavior including spin effects, spin reversal, and landing angle impact.
+
+### Phase 5.6: Ball Ready Indicator (Prompt 35)
+Add prominent UI indicator showing when GC2 is ready and ball is detected.
 
 ### Phase 6: TCP/Network Layer (Prompts 18-19)
 TCP connection for testing and GSPro relay mode.
@@ -2298,6 +2302,80 @@ Update TestShotWindow.cs:
 - Add display of landing angle and roll distance
 - Show spin-at-landing value
 - Add "Check/Bite" indicator for high-spin shots
+```
+
+---
+
+### Prompt 35: Ball Ready Indicator UI
+
+```text
+Create a prominent UI indicator showing when the GC2 device is ready and a ball is detected.
+
+Context: When using the driving range in Open Range mode, users need clear visual feedback
+that:
+1. The GC2 is connected and ready (FLAGS == 7)
+2. A ball is detected in the tee area (BALLS > 0)
+
+This gives users confidence to swing and prevents wasted shots when the device isn't ready.
+
+Existing infrastructure:
+- GC2DeviceStatus struct has IsReady and BallDetected properties
+- GameManager.OnDeviceStatusChanged event fires when 0M messages are received
+- GameManager.CurrentDeviceStatus tracks the latest status
+- GSProModeUI already has indicators but is hidden in Open Range mode
+
+Create Assets/Scripts/UI/BallReadyIndicator.cs:
+
+1. Component structure:
+   - Positioned near tee area in 3D space (world space canvas) OR as prominent HUD element
+   - Two-state display: "READY" (green, pulsing) vs "NOT READY" (gray/red, static)
+   - Shows additional substatus: "No Ball" / "Device Not Ready" / "Disconnected"
+
+2. Visual states:
+   - Disconnected: Gray indicator, "Connect GC2" text
+   - Connected but not ready: Yellow indicator, "Warming Up..." text
+   - Ready but no ball: Green outline, "Place Ball" text
+   - Ready AND ball detected: Solid green with pulse animation, "READY" text
+
+3. Properties:
+   - public bool IsReadyToHit => device connected && IsReady && BallDetected
+   - Events: OnReadyStateChanged(bool isReady)
+
+4. Implementation:
+   - Subscribe to GameManager.OnConnectionStateChanged
+   - Subscribe to GameManager.OnDeviceStatusChanged
+   - Update visual state when either changes
+   - Pulse animation using DOTween or coroutine (scale 1.0 -> 1.05 -> 1.0)
+
+5. Integration:
+   - Add to MarinaSceneController as serialized field
+   - Update SceneGenerator to instantiate and position
+   - Position: Top-center of screen, below connection status
+
+Create Assets/Editor/BallReadyIndicatorGenerator.cs:
+
+1. Menu item: OpenRange > Create Ball Ready Indicator Prefab
+2. Creates prefab with:
+   - Panel background (semi-transparent dark)
+   - Status icon (circle/dot)
+   - Status text (TextMeshPro)
+   - CanvasGroup for fade animations
+
+Update MarinaSceneController.cs:
+- Add [SerializeField] private BallReadyIndicator _ballReadyIndicator;
+- No special initialization needed (component self-subscribes)
+
+Update SceneGenerator.cs:
+- Load and instantiate BallReadyIndicator prefab on canvas
+- Position at top-center, below connection status indicator
+- Wire reference to MarinaSceneController
+
+Write tests (BallReadyIndicatorTests.cs):
+- Visual state updates correctly for each combination
+- Events fire when state changes
+- IsReadyToHit property returns correct value
+- Animation triggers on ready state
+- Handles null GameManager gracefully (for EditMode tests)
 ```
 
 ---

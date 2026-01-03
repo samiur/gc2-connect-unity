@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7 - macOS Native Plugin (3 of 3 complete) ✅
+**Phase**: 5.6 - Ball Ready Indicator
 **Last Updated**: 2026-01-03
-**Next Prompt**: 23 (Android Plugin Project)
+**Next Prompt**: 35 (Ball Ready Indicator UI)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
@@ -287,6 +287,23 @@ These components exist and don't need to be rebuilt:
   - [x] Tests (38 new tests: JSON parsing, callbacks, lifecycle, edge cases)
   - [x] **IL2CPP callback fix**: UnitySendMessage doesn't work in IL2CPP builds - implemented function pointer callbacks with `[MonoPInvokeCallback]`
   - [x] **JSON field name fix**: Native JSON fields must match C# GC2ShotData property names exactly
+
+---
+
+## Phase 5.6: Ball Ready Indicator
+
+- [ ] **Prompt 35**: Ball Ready Indicator UI
+  - [ ] Create BallReadyIndicator.cs (UI component)
+  - [ ] Visual states: Disconnected, Warming Up, Place Ball, READY
+  - [ ] Subscribe to GameManager.OnConnectionStateChanged
+  - [ ] Subscribe to GameManager.OnDeviceStatusChanged
+  - [ ] Pulse animation when ready to hit
+  - [ ] IsReadyToHit property
+  - [ ] OnReadyStateChanged event
+  - [ ] Create BallReadyIndicatorGenerator.cs (editor tool for prefab)
+  - [ ] Update MarinaSceneController with serialized field
+  - [ ] Update SceneGenerator to instantiate and wire prefab
+  - [ ] Tests (visual states, events, property values, null handling)
 
 ---
 
