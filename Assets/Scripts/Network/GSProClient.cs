@@ -191,26 +191,74 @@ namespace OpenRange.Network
         /// </summary>
         public void Disconnect()
         {
+            Debug.Log("GSProClient: Disconnect() called");
+
             StopHeartbeat();
             StopReconnect();
 
+            bool wasConnected;
             lock (_lock)
             {
+                wasConnected = _isConnected;
                 _isConnected = false;
             }
 
+            Debug.Log($"GSProClient: wasConnected={wasConnected}");
+
+            // Flush stream to ensure any pending data is sent
             try
             {
-                _stream?.Close();
-                _client?.Close();
+                if (_stream != null && _stream.CanWrite)
+                {
+                    Debug.Log("GSProClient: Flushing stream...");
+                    _stream.Flush();
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore cleanup errors
+                Debug.LogWarning($"GSProClient: Error flushing stream: {ex.Message}");
+            }
+
+            // Close stream explicitly before closing client
+            try
+            {
+                if (_stream != null)
+                {
+                    Debug.Log("GSProClient: Closing stream...");
+                    _stream.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"GSProClient: Error closing stream: {ex.Message}");
+            }
+
+            // Close TcpClient
+            if (_client != null)
+            {
+                try
+                {
+                    Debug.Log("GSProClient: Closing TcpClient...");
+                    _client.Close();
+                    Debug.Log("GSProClient: TcpClient closed");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"GSProClient: Error closing client: {ex.Message}");
+                }
             }
 
             _stream = null;
             _client = null;
+
+            // Notify listeners if we were connected
+            if (wasConnected)
+            {
+                Debug.Log("GSProClient: Firing OnDisconnected event");
+                OnDisconnected?.Invoke();
+            }
+
+            Debug.Log("GSProClient: Disconnect complete");
         }
 
         /// <summary>
