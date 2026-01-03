@@ -39,7 +39,16 @@ namespace OpenRange.Physics
         
         /// <summary>Number of bounces</summary>
         public int BounceCount;
-        
+
+        /// <summary>Landing angle in degrees (0 = horizontal, 90 = vertical)</summary>
+        public float LandingAngle;
+
+        /// <summary>Landing speed in mph</summary>
+        public float LandingSpeed;
+
+        /// <summary>Backspin at landing in rpm</summary>
+        public float LandingBackspin;
+
         /// <summary>Launch conditions used</summary>
         public LaunchData LaunchData;
         

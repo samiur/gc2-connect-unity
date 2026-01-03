@@ -271,7 +271,8 @@ namespace OpenRange.Editor
                 shotData.SideSpin
             );
 
-            Debug.Log($"TestShotWindow: Simulated - Carry: {result.CarryDistance:F1} yds, Total: {result.TotalDistance:F1} yds, Apex: {result.MaxHeight:F1} ft");
+            Debug.Log($"TestShotWindow: Simulated - Carry: {result.CarryDistance:F1} yds, Total: {result.TotalDistance:F1} yds, Apex: {result.MaxHeight:F1} ft, " +
+                      $"Landing: {result.LandingAngle:F1}° @ {result.LandingSpeed:F1} mph, Roll: {result.RollDistance:F1} yds");
 
             // Try to play the result
             var ballController = Object.FindAnyObjectByType<BallController>();
