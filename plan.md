@@ -51,9 +51,14 @@ The following components are **already implemented** in the skeleton:
 
 ### ❌ Not Yet Implemented
 - **Ball Ready Indicator**: Prompt 35 - UI indicator for device ready + ball detected status
+- **macOS Build & Release**: Prompts 36-37 - Build scripts, code signing, notarization
 - **Android Native Plugin**: Prompts 23-25 - USB Host API for Android tablets
 - **iPad Native Plugin**: Prompts 26-28 - DriverKit extension for iPad M1+
 - **Quality & Polish**: Prompts 29-31 - Final integration testing and polish
+- **iOS Build Configuration**: Prompt 38 [Future] - Xcode project, signing, TestFlight
+- **Android Build Configuration**: Prompt 39 [Future] - APK/AAB signing, Play Store
+- **Mobile Environment Setup**: Prompt 40 [Future] - Developer environment scripts
+- **GitHub Release Workflow**: Prompt 41 [Future] - CI/CD for automated releases
 
 ---
 
@@ -94,6 +99,15 @@ DriverKit extension for iPad (M1+).
 
 ### Phase 10: Quality & Polish (Prompts 29-31)
 Quality tier system, integration testing, final polish.
+
+### Phase 11: macOS Build & Release (Prompts 36-37)
+Build script, code signing, notarization for macOS distribution.
+
+### Phase 12: iOS & Android Builds (Prompts 38-40) [Future]
+Native plugin completion, build scripts, and signing for mobile platforms.
+
+### Phase 13: CI/CD Release Workflow (Prompt 41) [Future]
+GitHub Actions workflow for automated testing and release artifact creation.
 
 ---
 
@@ -2376,6 +2390,411 @@ Write tests (BallReadyIndicatorTests.cs):
 - IsReadyToHit property returns correct value
 - Animation triggers on ready state
 - Handles null GameManager gracefully (for EditMode tests)
+```
+
+---
+
+### Prompt 36: macOS Build Script and Configuration
+
+```text
+Create a comprehensive build script for macOS that handles native plugin compilation, Unity build, and app bundle creation.
+
+Context: The macOS app needs to be distributed as a signed, notarized .app bundle or DMG. This requires building the native plugin, the Unity project, and packaging everything correctly.
+
+Create/Update Makefile:
+
+1. Add new build targets:
+   - `make build-plugin` - Build native macOS plugin only
+   - `make build-app` - Full macOS app build (plugin + Unity)
+   - `make build-release` - Release build with version tagging
+   - `make package` - Create DMG for distribution
+
+2. Plugin build integration:
+   - Call `NativePlugins/macOS/build_mac_plugin.sh`
+   - Verify plugin builds successfully before Unity build
+   - Copy plugin bundle and libusb.dylib to correct location
+
+3. Unity build configuration:
+   - Use `-buildOSXUniversalPlayer` for universal (Intel + Apple Silicon)
+   - Configure player settings via `-executeMethod`
+   - Set version number from git tag or parameter
+
+Create Scripts/build_macos.sh:
+
+1. Pre-build validation:
+   - Check Unity version installed
+   - Check Xcode installed
+   - Check libusb available
+   - Verify all required files exist
+
+2. Native plugin build:
+   - Build GC2MacPlugin.bundle
+   - Verify bundle architecture (universal or native)
+   - Copy to Assets/Plugins/macOS/
+
+3. Unity project build:
+   - Run EditMode tests first (fail fast)
+   - Build player with IL2CPP
+   - Output to Builds/macOS/OpenRange.app
+
+4. Post-build steps:
+   - Verify app bundle structure
+   - Check native plugin is included
+   - Verify libusb.dylib is bundled
+   - Fix @rpath references if needed
+
+5. Version management:
+   - Read version from git tag or VERSION file
+   - Update ProjectSettings/ProjectSettings.asset
+   - Embed version in app bundle
+
+Update CLAUDE.md:
+- Add "Building for macOS" section with full instructions
+- Document build requirements
+- Explain build script options
+
+Create docs/BUILD_MACOS.md:
+- Detailed build instructions
+- Troubleshooting guide
+- Release checklist
+
+Write verification:
+- Build completes without errors
+- App launches on clean macOS system
+- Native plugin loads correctly
+- GC2 device detection works (if hardware available)
+```
+
+---
+
+### Prompt 37: macOS Code Signing and Notarization
+
+```text
+Add code signing and notarization to the macOS build process for distribution outside the App Store.
+
+Context: macOS Gatekeeper requires apps to be signed and notarized for users to run them without security warnings.
+
+Prerequisites:
+- Apple Developer account ($99/year)
+- Developer ID Application certificate
+- Developer ID Installer certificate (for PKG)
+- App-specific password for notarization
+
+Create Scripts/sign_and_notarize.sh:
+
+1. Code signing:
+   - Sign libusb.dylib with hardened runtime
+   - Sign GC2MacPlugin.bundle with hardened runtime
+   - Sign OpenRange.app with:
+     - --deep (sign all nested code)
+     - --force (replace existing signatures)
+     - --options runtime (enable hardened runtime)
+     - --entitlements entitlements.plist
+   - Verify signatures with codesign --verify --deep --strict
+
+2. Entitlements (Scripts/entitlements.plist):
+   - com.apple.security.cs.allow-unsigned-executable-memory (for IL2CPP)
+   - com.apple.security.device.usb (for USB access)
+   - com.apple.security.cs.disable-library-validation (for libusb)
+
+3. Notarization:
+   - Create ZIP of signed app
+   - Submit to Apple: xcrun notarytool submit
+   - Wait for completion: xcrun notarytool wait
+   - Check result and handle errors
+   - Staple ticket: xcrun stapler staple
+
+4. Create DMG:
+   - Use create-dmg or hdiutil
+   - Include app and README
+   - Sign and notarize DMG itself
+   - Final output: OpenRange-{version}.dmg
+
+5. Update Makefile targets:
+   - `make sign` - Sign app bundle
+   - `make notarize` - Submit for notarization and staple
+   - `make dmg` - Create signed DMG
+   - `make release-macos` - Full release pipeline (build → sign → notarize → dmg)
+
+6. Environment variables for credentials:
+   - APPLE_TEAM_ID
+   - APPLE_DEVELOPER_ID
+   - APPLE_APP_PASSWORD
+   - KEYCHAIN_PASSWORD (for CI)
+
+Create Scripts/setup_signing.sh:
+- Import certificates from base64 env vars
+- Create temporary keychain for CI
+- Unlock keychain and set ACLs
+
+Update .github/workflows/tests.yml (preparation for Prompt 41):
+- Add job for macOS build
+- Use GitHub secrets for certificates
+- Cache Unity Library folder
+
+Document:
+- Code signing requirements
+- Certificate management
+- Troubleshooting notarization failures
+- Common errors and solutions
+
+Write verification:
+- Signed app passes: codesign --verify --deep --strict
+- Notarization succeeds: xcrun notarytool log shows "Accepted"
+- DMG opens on fresh macOS without Gatekeeper warnings
+```
+
+---
+
+### Prompt 38: iOS Build Configuration [Future]
+
+```text
+[FUTURE - Requires DriverKit entitlements from Apple]
+
+Create build configuration and scripts for iOS/iPad deployment.
+
+Context: The iPad version requires DriverKit extension for USB access. This prompt prepares the build infrastructure once entitlements are approved.
+
+Prerequisites:
+- Apple Developer account with DriverKit entitlements
+- Distribution certificates and provisioning profiles
+- iPad with M1 chip or later for testing
+
+Create Scripts/build_ios.sh:
+
+1. Pre-build:
+   - Verify Xcode version (15+)
+   - Check provisioning profiles
+   - Verify DriverKit entitlements
+
+2. Native plugin build:
+   - Build GC2iOSPlugin.framework
+   - Build GC2Driver.dext (system extension)
+   - Verify entitlements in both
+
+3. Unity iOS build:
+   - Generate Xcode project: -buildTarget iOS
+   - Apply iOS-specific settings
+   - Include native plugin
+
+4. Xcode project modification:
+   - Add DriverKit extension target
+   - Configure signing for both targets
+   - Set deployment target (iOS 16+)
+
+5. Archive and export:
+   - xcodebuild archive
+   - Export for App Store or Ad Hoc
+
+Create configs/ios/ExportOptions.plist:
+- App Store distribution settings
+- Ad Hoc distribution settings
+
+Update Makefile:
+- `make build-ios` - Build iOS Xcode project
+- `make archive-ios` - Create archive
+- `make export-ios` - Export IPA
+
+Document:
+- iOS build requirements
+- DriverKit extension deployment
+- TestFlight distribution
+- App Store submission
+
+Note: This prompt is marked [Future] as it requires DriverKit entitlements which may take weeks to obtain from Apple.
+```
+
+---
+
+### Prompt 39: Android Build Configuration [Future]
+
+```text
+[FUTURE - Requires Android native plugin completion (Prompts 23-25)]
+
+Create build configuration and scripts for Android deployment.
+
+Context: The Android version uses USB Host API which is standard Android functionality (no special permissions needed beyond manifest).
+
+Prerequisites:
+- Android SDK with API level 26+
+- Android Studio or command-line tools
+- Keystore for signing
+
+Create Scripts/build_android.sh:
+
+1. Pre-build validation:
+   - Check Android SDK path
+   - Verify Gradle version
+   - Check keystore exists
+
+2. Native plugin build:
+   - Run ./gradlew assembleRelease in NativePlugins/Android/
+   - Copy AAR to Assets/Plugins/Android/
+   - Verify AAR contents
+
+3. Unity Android build:
+   - Configure player settings:
+     - Minimum API: 26
+     - Target API: 34
+     - IL2CPP backend
+     - ARM64 architecture
+   - Build APK: -buildTarget Android
+   - Or Build AAB: -exportAsGooglePlayBundle
+
+4. Signing:
+   - Sign with release keystore
+   - Use zipalign for APK
+   - Verify signature
+
+5. Output:
+   - OpenRange-{version}.apk (side-loading)
+   - OpenRange-{version}.aab (Play Store)
+
+Create configs/android/keystore.properties.template:
+- Template for keystore configuration
+- Never commit actual credentials
+
+Update Makefile:
+- `make build-android-plugin` - Build native AAR
+- `make build-android` - Full Android build
+- `make apk` - Create signed APK
+- `make aab` - Create signed AAB for Play Store
+
+Document:
+- Android build requirements
+- USB Host permissions
+- Device compatibility list
+- Play Store submission
+
+Note: This prompt is marked [Future] as it depends on Android native plugin completion (Prompts 23-25).
+```
+
+---
+
+### Prompt 40: Mobile Build Environment Setup [Future]
+
+```text
+[FUTURE - Supporting infrastructure for iOS and Android builds]
+
+Create environment setup scripts and documentation for mobile builds.
+
+Context: Developers and CI systems need consistent environment configuration for mobile builds.
+
+Create Scripts/setup_mobile_env.sh:
+
+1. iOS environment:
+   - Verify Xcode installation
+   - Install required simulators
+   - Configure code signing
+   - Setup DriverKit development profile
+
+2. Android environment:
+   - Install/update Android SDK
+   - Accept licenses
+   - Install required build tools
+   - Configure ANDROID_HOME
+
+3. Unity license activation:
+   - Support for serial license
+   - Support for Unity Plus/Pro floating license
+   - Handle CI activation/deactivation
+
+Create configs/mobile-requirements.txt:
+- Minimum Xcode version
+- Minimum Android SDK version
+- Required Unity modules
+- Recommended device specs
+
+Update CLAUDE.md:
+- Add "Mobile Development Setup" section
+- Link to detailed docs
+
+Create docs/MOBILE_DEVELOPMENT.md:
+- Full environment setup guide
+- Platform-specific notes
+- Troubleshooting section
+
+Note: This prompt is marked [Future] as it depends on iOS (Prompt 38) and Android (Prompt 39) build configurations.
+```
+
+---
+
+### Prompt 41: GitHub Actions Release Workflow
+
+```text
+Create GitHub Actions workflow for automated testing, building, and releasing all platform binaries.
+
+Context: Automate the release process to create consistent, tested builds for macOS, iOS, and Android whenever a release is tagged.
+
+Create .github/workflows/release.yml:
+
+1. Trigger configuration:
+   - On push to tags matching 'v*' (e.g., v1.0.0)
+   - Manual trigger with version input
+
+2. Job: test
+   - Reuse existing test workflow
+   - Must pass before build jobs run
+
+3. Job: build-macos (runs-on: macos-latest)
+   - Checkout with LFS
+   - Install Unity via game-ci/unity-builder
+   - Build native plugin (requires Xcode)
+   - Build Unity project
+   - Sign and notarize (using secrets)
+   - Create DMG
+   - Upload artifact
+
+4. Job: build-ios (runs-on: macos-latest) [Conditional]
+   - Skip if DriverKit not ready
+   - Build Xcode project
+   - Archive and export
+   - Sign with distribution certificate
+   - Upload IPA artifact
+
+5. Job: build-android (runs-on: ubuntu-latest) [Conditional]
+   - Skip if native plugin not ready
+   - Build native AAR
+   - Build Unity project
+   - Sign APK/AAB
+   - Upload artifacts
+
+6. Job: create-release (runs-on: ubuntu-latest)
+   - Depends on all build jobs
+   - Download all artifacts
+   - Create GitHub Release
+   - Upload release assets:
+     - OpenRange-{version}-macOS.dmg
+     - OpenRange-{version}-iOS.ipa (when ready)
+     - OpenRange-{version}-Android.apk (when ready)
+   - Generate release notes from commits
+
+Secrets required:
+- UNITY_LICENSE, UNITY_EMAIL, UNITY_PASSWORD
+- APPLE_TEAM_ID, APPLE_DEVELOPER_ID, APPLE_APP_PASSWORD
+- APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD
+- ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD
+- GITHUB_TOKEN (automatic)
+
+Create .github/workflows/build-check.yml:
+- Run on PR to verify builds complete
+- Don't create releases, just verify
+
+Update README.md:
+- Add badges for CI status
+- Document release process
+
+Create docs/RELEASE_PROCESS.md:
+- How to create a release
+- Version numbering scheme
+- Pre-release checklist
+- Post-release verification
+
+Write verification:
+- Workflow runs on tag push
+- All platform builds complete (or skip gracefully)
+- GitHub Release created with correct assets
+- Release notes generated correctly
 ```
 
 ---

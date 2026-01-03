@@ -2,10 +2,11 @@
 
 ## Current Status
 **Phase**: 5.6 - Ball Ready Indicator
-**Last Updated**: 2026-01-03
+**Last Updated**: 2026-01-02
 **Next Prompt**: 35 (Ball Ready Indicator UI)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
+**Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
 
@@ -390,6 +391,115 @@ These components exist and don't need to be rebuilt:
   - [ ] CLAUDE.md
   - [ ] DEVELOPMENT.md
   - [ ] Final tests
+
+---
+
+## Phase 11: macOS Build & Release
+
+- [ ] **Prompt 36**: macOS Build Script and Configuration
+  - [ ] Update Makefile with comprehensive macOS targets
+    - [ ] `make build-macos` - Full macOS build with native plugin
+    - [ ] `make build-macos-dev` - Development build with debugging
+    - [ ] `make package-macos` - Create DMG installer
+    - [ ] `make clean-builds` - Clean all build artifacts
+  - [ ] Create build configuration script (`Scripts/build_macos.sh`)
+    - [ ] Build native plugin first (call `build_mac_plugin.sh`)
+    - [ ] Unity CLI build with correct parameters
+    - [ ] Post-build validation (bundle structure, library linking)
+    - [ ] Architecture verification (arm64/x86_64/universal)
+  - [ ] Update Unity Player Settings for production
+    - [ ] Bundle identifier: `com.openrange.gc2connect`
+    - [ ] Version numbering scheme (semver)
+    - [ ] IL2CPP scripting backend
+    - [ ] Architecture: Apple Silicon + Intel
+  - [ ] Create DMG packaging script
+    - [ ] Application folder symlink
+    - [ ] Background image and icon placement
+    - [ ] Compressed DMG output
+  - [ ] Add build verification tests
+  - [ ] Update CLAUDE.md with build instructions
+
+- [ ] **Prompt 37**: macOS Code Signing and Notarization
+  - [ ] Document Apple Developer requirements
+    - [ ] Developer ID Application certificate
+    - [ ] Developer ID Installer certificate
+    - [ ] App-specific password for notarization
+  - [ ] Create signing script (`Scripts/sign_macos.sh`)
+    - [ ] Sign native plugin (GC2MacPlugin.bundle)
+    - [ ] Sign libusb dylib
+    - [ ] Sign main application bundle
+    - [ ] Deep signing with entitlements
+  - [ ] Create notarization script (`Scripts/notarize_macos.sh`)
+    - [ ] Upload to Apple notary service
+    - [ ] Wait for notarization result
+    - [ ] Staple ticket to app
+  - [ ] Create entitlements file for USB access
+  - [ ] Add GitHub secrets documentation
+  - [ ] Update Makefile with signing targets
+
+---
+
+## Phase 12: iOS & Android Builds [Future]
+
+- [ ] **Prompt 38**: iOS Build Configuration [Future]
+  - [ ] Prerequisites: iPad native plugin complete (Prompts 26-28)
+  - [ ] Configure Unity iOS Player Settings
+    - [ ] Bundle identifier
+    - [ ] Deployment target (iPadOS 15.0+)
+    - [ ] Architecture (arm64)
+    - [ ] DriverKit entitlements
+  - [ ] Create Xcode export options plist
+  - [ ] Create iOS build script
+  - [ ] Document TestFlight submission process
+
+- [ ] **Prompt 39**: Android Build Configuration [Future]
+  - [ ] Prerequisites: Android native plugin complete (Prompts 23-25)
+  - [ ] Configure Unity Android Player Settings
+    - [ ] Package name
+    - [ ] Minimum API level (26+)
+    - [ ] Target API level
+    - [ ] USB host permission in manifest
+  - [ ] Create keystore for signing
+  - [ ] Create Android build script
+  - [ ] Document Play Store submission process
+
+- [ ] **Prompt 40**: Mobile Build Environment Setup [Future]
+  - [ ] Document Xcode requirements
+  - [ ] Document Android SDK requirements
+  - [ ] Create combined mobile build script
+  - [ ] Add mobile build targets to Makefile
+
+---
+
+## Phase 13: CI/CD Release Workflow [Future]
+
+- [ ] **Prompt 41**: GitHub Actions Release Workflow
+  - [ ] Create `.github/workflows/release.yml`
+    - [ ] Trigger on version tags (v*)
+    - [ ] Build matrix: macOS, iOS (future), Android (future)
+    - [ ] Use `game-ci/unity-builder` for Unity builds
+  - [ ] macOS release job
+    - [ ] Build native plugin
+    - [ ] Build Unity app (IL2CPP)
+    - [ ] Code sign with secrets
+    - [ ] Notarize with Apple
+    - [ ] Package as DMG
+    - [ ] Upload as release artifact
+  - [ ] iOS release job [Future]
+    - [ ] Build Xcode project
+    - [ ] Export IPA
+    - [ ] Upload to TestFlight (optional)
+  - [ ] Android release job [Future]
+    - [ ] Build APK and AAB
+    - [ ] Sign with keystore
+    - [ ] Upload as release artifacts
+  - [ ] Create GitHub Release with all artifacts
+  - [ ] Document required secrets:
+    - [ ] `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD`
+    - [ ] `APPLE_CERTIFICATE_P12`, `APPLE_CERTIFICATE_PASSWORD`
+    - [ ] `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
+    - [ ] `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`
+  - [ ] Add release badge to README.md
 
 ---
 
