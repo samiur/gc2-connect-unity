@@ -442,7 +442,11 @@ Additional physics tests also passing:
 - `GC2ProtocolTests.cs` - 50 new unit tests covering all parsing scenarios
 - `GC2DeviceStatusTests.cs` - 36 new unit tests for struct behavior
 - **Bug fix**: ShotProcessor.ValidateShot error message said 10-220 mph, updated to 10-250 mph per protocol spec
-- All 985 EditMode tests passing
+- **Enhancement**: Updated minimum speed from 10 mph to 1.1 mph to support putt tracking:
+  - GC2 supports putts at 1.1+ mph, other shots at 3.4+ mph
+  - Added constants: MinBallSpeedPuttMph (1.1), MinBallSpeedShotMph (3.4), MaxBallSpeedMph (250)
+  - Using putt minimum since GC2 doesn't report shot type
+- All 986 EditMode tests passing
 
 **2026-01-03 (Physics Validation)**: Prompt 34 complete. Added landing data tracking and integration tests (PR #37):
 - `ShotResult.cs` - Added 3 new landing data fields:
