@@ -38,14 +38,21 @@ The following components are **already implemented** in the skeleton:
 - **Club Data Panel**: `ClubDataPanel.cs`, `SwingPathIndicator.cs`, `AttackAngleIndicator.cs` (PR #25)
 - **Connection Status UI**: `ConnectionStatusUI.cs`, `ConnectionPanel.cs`, `ConnectionToast.cs` (PR #27)
 - **Session Info Panel**: `SessionInfoPanel.cs`, `ShotHistoryPanel.cs`, `ShotHistoryItem.cs`, `ShotDetailModal.cs` (PR #29)
-- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `SessionInfoPanelGenerator.cs`, `TestShotWindow.cs`
-- **Tests**: 800+ unit tests across all components
+- **Settings Panel**: `SettingsPanel.cs`, `SettingToggle.cs`, `SettingSlider.cs`, `SettingDropdown.cs` (PR #31)
+- **Ground Physics**: Spin-dependent bounce (PR #33), Improved roll model (PR #35), Validation (PR #37)
+- **Device Status**: `GC2DeviceStatus.cs`, `GC2Protocol.ParseDeviceStatus()` (PR #39)
+- **TCP Connection**: `GC2TCPConnection.cs`, `GC2TCPListener.cs`, `GC2TestWindow.cs` (PR #41)
+- **GSPro Client**: `GSProClient.cs`, `GSProMessage.cs`, `GSProModeUI.cs` (PR #43)
+- **macOS Plugin Structure**: `GC2MacPlugin.h`, `GC2MacPlugin.mm`, Xcode project, build script (PR #45)
+- **Editor Tools**: `SceneGenerator.cs`, `GolfBallPrefabGenerator.cs`, `TrajectoryLineGenerator.cs`, `CameraRigGenerator.cs`, `LandingMarkerGenerator.cs`, `EnvironmentGenerator.cs`, `UICanvasGenerator.cs`, `ShotDataBarGenerator.cs`, `ClubDataPanelGenerator.cs`, `ConnectionStatusGenerator.cs`, `SessionInfoPanelGenerator.cs`, `SettingsPanelGenerator.cs`, `GSProModeUIGenerator.cs`, `TestShotWindow.cs`, `GC2TestWindow.cs`
+- **Tests**: 1459+ unit tests across all components
 
 ### ❌ Not Yet Implemented
-- **Ground Physics**: Bounce and roll physics need improvement (spin effects, landing angle, spin reversal)
-- **UI Panels**: Settings Panel
-- **Native Plugins**: All platforms (macOS, Android, iPad)
-- **Network**: GSProClient, TCP connections
+- **macOS USB Read Loop**: Prompt 21 - Actual USB data reading from GC2 device
+- **macOS C# Bridge**: Prompt 22 - Unity integration via DllImport
+- **Android Native Plugin**: Prompts 23-25 - USB Host API for Android tablets
+- **iPad Native Plugin**: Prompts 26-28 - DriverKit extension for iPad M1+
+- **Quality & Polish**: Prompts 29-31 - Final integration testing and polish
 
 ---
 

@@ -208,9 +208,18 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
   - GSProMessage with BallData, ClubData, ShotDataOptions for JSON protocol
   - GSProModeUI for mode toggle, connection status, device readiness
   - 2-second heartbeat with LaunchMonitorIsReady/BallDetected flags
+- macOS native plugin structure (PR #45)
+  - GC2MacPlugin.h - C interface header with complete API
+  - GC2MacPlugin.mm - Stub implementation with libusb init, device detection
+  - Xcode project with bundle output, arm64 build
+  - build_mac_plugin.sh - Build script with architecture detection
+  - Weak-linked UnitySendMessage for Unity callback support
 
 **Not yet implemented:**
-- Native USB plugins (macOS, Android, iPad)
+- macOS USB read loop (Prompt 21) - actual USB data reading
+- macOS C# bridge (Prompt 22) - Unity integration via DllImport
+- Android native plugin (Prompts 23-25)
+- iPad native plugin (Prompts 26-28)
 
 ## Editor Tools
 
