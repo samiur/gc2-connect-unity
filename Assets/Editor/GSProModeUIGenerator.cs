@@ -22,9 +22,9 @@ namespace OpenRange.Editor
         // With button row: padding(10*2) + LED(10) + spacing(4) + text(~70) + spacing(4) + button(70) = 178
         // Using 200px panel width with tighter spacing
         private const float PanelWidth = 200f;
-        private const float PanelPadding = 10f;
-        private const float SectionSpacing = 4f;  // Reduced from 8f - less whitespace between rows
-        private const float ItemSpacing = 4f;     // Reduced from 6f - tighter horizontal spacing
+        private const float PanelPadding = 8f;
+        private const float SectionSpacing = 2f;  // Minimal spacing between rows
+        private const float ItemSpacing = 4f;     // Tighter horizontal spacing
         private const float LedIndicatorSize = 10f;
         private const float ToggleWidth = 44f;
         private const float ToggleHeight = 22f;

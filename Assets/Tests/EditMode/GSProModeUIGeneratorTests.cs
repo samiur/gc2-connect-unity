@@ -21,8 +21,8 @@ namespace OpenRange.Tests.EditMode
         // Sized to fit right-side panel with all content visible.
 
         private const float ExpectedPanelWidth = 200f;
-        private const float ExpectedPanelPadding = 10f;
-        private const float ExpectedSectionSpacing = 4f;
+        private const float ExpectedPanelPadding = 8f;
+        private const float ExpectedSectionSpacing = 2f;
         private const float ExpectedItemSpacing = 4f;
         private const float ExpectedLedIndicatorSize = 10f;
         private const float ExpectedToggleWidth = 44f;
@@ -56,9 +56,9 @@ namespace OpenRange.Tests.EditMode
         public void SectionSpacing_IsCompact()
         {
             // Section spacing should be compact
-            Assert.GreaterOrEqual(ExpectedSectionSpacing, 4f);
+            Assert.GreaterOrEqual(ExpectedSectionSpacing, 2f);
             Assert.LessOrEqual(ExpectedSectionSpacing, 12f,
-                "Section spacing should be 4-12px for compact layout");
+                "Section spacing should be 2-12px for compact layout");
         }
 
         [Test]

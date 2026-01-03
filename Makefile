@@ -15,7 +15,7 @@ TEST_RESULTS_DIR := TestResults
 EDITMODE_RESULTS := $(TEST_RESULTS_DIR)/editmode-results.xml
 PLAYMODE_RESULTS := $(TEST_RESULTS_DIR)/playmode-results.xml
 
-.PHONY: all test test-edit test-play build clean help check-unity run run-marina
+.PHONY: all test test-edit test-play build clean help check-unity run run-marina generate
 
 # Default target
 all: test
@@ -35,8 +35,9 @@ help:
 	@echo "  test-physics  - Run physics validation tests only"
 	@echo ""
 	@echo "Build targets:"
-	@echo "  build         - Build macOS standalone"
-	@echo "  build-dev     - Build macOS development build"
+	@echo "  build         - Build macOS standalone (runs tests + generate first)"
+	@echo "  build-dev     - Build macOS development build (runs generate first)"
+	@echo "  generate      - Regenerate all prefabs and scenes from editor scripts"
 	@echo ""
 	@echo "Utility targets:"
 	@echo "  clean         - Remove build artifacts and test results"
@@ -129,8 +130,22 @@ test-physics: check-unity $(TEST_RESULTS_DIR)
 		exit 1; \
 	fi
 
+# Regenerate all prefabs and scenes from editor scripts
+generate: check-unity
+	@echo "Regenerating prefabs and scenes..."
+	@mkdir -p $(BUILD_DIR)
+	@$(UNITY_PATH) \
+		-batchmode \
+		-nographics \
+		-silent-crashes \
+		-projectPath "$(PROJECT_PATH)" \
+		-executeMethod OpenRange.Editor.SceneGenerator.GenerateAllScenes \
+		-quit \
+		-logFile $(BUILD_DIR)/generate.log 2>&1 || true
+	@echo "Generation complete"
+
 # Build macOS standalone
-build: check-unity test
+build: check-unity test generate
 	@echo "Building macOS standalone..."
 	@mkdir -p $(BUILD_DIR)/macOS
 	$(UNITY_PATH) \
@@ -143,7 +158,7 @@ build: check-unity test
 	@echo "Build complete: $(MACOS_BUILD)"
 
 # Build development build (faster, with debugging)
-build-dev: check-unity
+build-dev: check-unity generate
 	@echo "Building macOS development build..."
 	@mkdir -p $(BUILD_DIR)/macOS
 	$(UNITY_PATH) \
