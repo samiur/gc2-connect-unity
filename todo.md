@@ -1,12 +1,12 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 6.5 - GSPro Client Improvements
+**Phase**: 7 - macOS Native Plugin
 **Last Updated**: 2026-01-03
-**Next Prompt**: 42 (GSPro Buffer Management)
+**Next Prompt**: 36 (macOS Build Script and Configuration)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
-**GSPro**: ⚠️ Buffer management and response handling needed (Prompt 42)
+**GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
@@ -258,16 +258,16 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 6.5: GSPro Client Improvements
 
-- [ ] **Prompt 42**: GSPro Buffer Management
-  - [ ] Add buffer clearing before sending shot data
-  - [ ] Implement response parsing for shot confirmation
-  - [ ] Create GSProResponse.cs (Code, Message, Player)
-  - [ ] Create GSProPlayerInfo.cs (Handed, Club, DistanceToTarget)
-  - [ ] Parse only first JSON object (handle concatenated responses)
-  - [ ] Add OnShotConfirmed/OnShotFailed events
-  - [ ] Add timeout handling for shot responses (5 seconds)
-  - [ ] Test: remove unnecessary newline delimiter
-  - [ ] Unit tests for buffer clearing and response parsing
+- [x] **Prompt 42**: GSPro Buffer Management (PR #53)
+  - [x] Add buffer clearing before sending shot data
+  - [x] Implement response parsing for shot confirmation
+  - [x] Create GSProResponse.cs (Code, Message, Player)
+  - [x] Create GSProPlayerInfo.cs (Handed, Club, DistanceToTarget)
+  - [x] Parse only first JSON object (handle concatenated responses)
+  - [x] Add OnShotConfirmed/OnShotFailed events
+  - [x] Add timeout handling for shot responses (5 seconds)
+  - [x] Test: remove unnecessary newline delimiter
+  - [x] Unit tests for buffer clearing and response parsing (52 new tests)
 
 ---
 
@@ -1114,6 +1114,30 @@ Additional physics tests also passing:
   - EstimateRollWithSpin (5 tests)
 - **Test fix during implementation:**
   - `RollStep_HighSpinModerateSpeed_SlowsButNoReverse` - loosened threshold from 80% to 95% (realistic expectation)
+
+**2026-01-03 (GSPro Buffer Management)**: Prompt 42 complete. Implemented buffer clearing and response parsing (PR #53):
+- `GSProResponse.cs` - Response model for GSPro shot confirmations:
+  - `Code` (int), `Message` (string), `Player` (GSProPlayerInfo) fields
+  - `IsSuccess` property (Code == 200 || Code == 201)
+  - `HasPlayerInfo` property for checking Player presence
+  - `FromJson()` static factory method
+  - `ParseFirstObject()` - Brace-matching algorithm to extract first complete JSON from concatenated responses
+  - Handles byte buffer input with UTF-8 decoding
+- `GSProPlayerInfo.cs` - Player info for shot confirmation:
+  - `Handed` (string) - "RH" or "LH"
+  - `Club` (string) - Current club name
+  - `DistanceToTarget` (float) - Distance in yards
+- `GSProClient.cs` - Buffer management and response handling:
+  - `ClearReceiveBuffer()` - Clears any stale data before sending shots
+  - `ReadShotResponseAsync()` - Reads and parses shot response with timeout
+  - `OnShotConfirmed` event - Fired when Code == 200/201
+  - `OnShotFailed` event - Fired on error or timeout
+  - `OnHeartbeatSent` event - Fired after heartbeat sent (no response expected)
+  - `ShotResponseTimeoutMs = 5000` - 5 second timeout constant
+- `GSProMessage.cs` - Fixed ToJson() comment (removed incorrect "with newline terminator")
+- 52 new unit tests:
+  - `GSProResponseTests.cs` (43 tests) - JSON parsing, ParseFirstObject, byte buffer
+  - `GSProClientTests.cs` (9 new tests) - Events, timeout constant, JSON format
 
 **2025-12-31 (Physics)**: Physics calibration complete. Used libgolf C++ library as reference implementation for Nathan model coefficients. Key changes:
 - Quadratic lift formula: `Cl = 1.99×S - 3.25×S²` (capped at 0.305)
