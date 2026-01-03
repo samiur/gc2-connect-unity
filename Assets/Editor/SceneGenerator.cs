@@ -613,6 +613,30 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: BallReadyIndicator.prefab not found. Run 'OpenRange > Create Ball Ready Indicator Prefab' first.");
             }
 
+            // GSPro Mode UI (right side, below connection status)
+            GSProModeUI gsProModeUI = null;
+            var gsProModeUIPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/GSProModeUI.prefab");
+            if (gsProModeUIPrefab != null)
+            {
+                var gsProModeUIGo = (GameObject)PrefabUtility.InstantiatePrefab(gsProModeUIPrefab);
+                gsProModeUIGo.name = "GSProModeUI";
+                gsProModeUIGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at right side, below connection status
+                var gsProRect = gsProModeUIGo.GetComponent<RectTransform>();
+                gsProRect.anchorMin = new Vector2(1, 1);
+                gsProRect.anchorMax = new Vector2(1, 1);
+                gsProRect.pivot = new Vector2(1, 1);
+                gsProRect.anchoredPosition = new Vector2(-20, -80);
+
+                gsProModeUI = gsProModeUIGo.GetComponent<GSProModeUI>();
+                Debug.Log("SceneGenerator: Added GSProModeUI to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: GSProModeUI.prefab not found. Run 'OpenRange > Create GSPro Mode UI Prefab' first.");
+            }
+
             // Session Info Panel (top-left corner, compact statistics)
             SessionInfoPanel sessionInfoPanel = null;
             var sessionInfoPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/SessionInfoPanel.prefab");
@@ -724,6 +748,7 @@ namespace OpenRange.Editor
             controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;
             controllerSo.FindProperty("_connectionPanel").objectReferenceValue = connectionPanel;
             controllerSo.FindProperty("_ballReadyIndicator").objectReferenceValue = ballReadyIndicator;
+            controllerSo.FindProperty("_gsProModeUI").objectReferenceValue = gsProModeUI;
             controllerSo.FindProperty("_settingsPanel").objectReferenceValue = settingsPanel;
             controllerSo.FindProperty("_sessionInfoPanel").objectReferenceValue = sessionInfoPanel;
             controllerSo.FindProperty("_shotHistoryPanel").objectReferenceValue = shotHistoryPanel;
