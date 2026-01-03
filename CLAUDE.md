@@ -227,6 +227,11 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
   - Thread-safe event dispatching via MainThreadDispatcher
   - **IL2CPP fix**: UnitySendMessage doesn't work in IL2CPP builds - use function pointer callbacks instead
   - **JSON field fix**: Native plugin field names must match C# property names exactly for JsonUtility
+- Ball Ready Indicator UI (PR #51)
+  - BallReadyIndicator.cs showing device ready and ball detected status
+  - Visual states: Disconnected (gray), Warming Up (yellow), Place Ball (green outline), Ready (solid green)
+  - Pulse animation when ready to hit
+  - BallReadyIndicatorGenerator.cs editor tool for prefab creation
 
 **Not yet implemented:**
 - Android native plugin (Prompts 23-25)
@@ -278,6 +283,7 @@ Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BA
 | `OpenRange > Test Shot Window` | Opens editor window for firing test shots (Play Mode) |
 | `OpenRange > GC2 Test Window` | Opens TCP test window for simulating GC2 connection (Server/Client modes) |
 | `OpenRange > Create GSPro Mode UI Prefab` | Creates GSProModeUI.prefab for mode toggle and connection status |
+| `OpenRange > Create Ball Ready Indicator Prefab` | Creates BallReadyIndicator.prefab showing device/ball status |
 
 ## Local Development on macOS
 
