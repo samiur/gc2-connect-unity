@@ -79,16 +79,17 @@
 
 ### Phase 7.5: UI Refinement & Polish (Continued)
 
-- [ ] **Prompt 44**: Connection Panel and Settings Button Fixes
-  - [ ] Fix Connection Panel height to fit all content
-  - [ ] Fix panel positioning (center on screen with modal overlay)
-  - [ ] Improve Close button size (32x32px minimum)
-  - [ ] Fix action buttons visibility
-  - [ ] Add scroll support if content exceeds height
-  - [ ] Fix Settings button truncation ("Sett" → "Settings")
-  - [ ] Update ConnectionStatusGenerator.cs
-  - [ ] Regenerate ConnectionPanel.prefab
-  - [ ] Unit tests for overflow and modal behavior
+- [x] **Prompt 44**: Connection Panel and Settings Button Fixes (PR #57)
+  - [x] Fix Connection Panel height to fit all content (420px vs ~400px required)
+  - [x] Fix panel positioning (center on screen with modal overlay at 60% opacity)
+  - [x] Improve Close button size (36px, exceeds 32px minimum)
+  - [x] Fix action buttons visibility (100px min width, 44px height)
+  - [x] Add interactable/blocksRaycasts modal behavior
+  - [x] Fix Settings button truncation ("Sett" → "Settings", 120px width)
+  - [x] Update ConnectionStatusGenerator.cs with layout constants
+  - [x] Regenerate ConnectionPanel.prefab
+  - [x] Unit tests: 19 layout validation + 7 modal behavior tests
+  - [x] Created OpenRange.Editor.asmdef for test references
 
 - [ ] **Prompt 45**: Settings Panel Dropdown and General UI Polish
   - [ ] Fix dropdown z-order (render above other elements)

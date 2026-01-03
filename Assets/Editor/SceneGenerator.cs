@@ -617,7 +617,8 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ConnectionPanel.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
             }
 
-            // Ball Ready Indicator (top-center, below connection status)
+            // Ball Ready Indicator (top-center, below title - must not overlap "Marina Driving Range")
+            // Title is at anchor 0.9 (~108px from top on 1080p), indicator goes below it
             BallReadyIndicator ballReadyIndicator = null;
             var ballReadyIndicatorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/BallReadyIndicator.prefab");
             if (ballReadyIndicatorPrefab != null)
@@ -626,13 +627,15 @@ namespace OpenRange.Editor
                 ballReadyIndicatorGo.name = "BallReadyIndicator";
                 ballReadyIndicatorGo.transform.SetParent(canvasGo.transform, false);
 
-                // Position at top-center, below connection status
+                // Position at top-center, below title (title at anchor 0.9 = 10% from top)
+                // On 1080p: anchor 0.9 = 972px from bottom = 108px from top
+                // Title is 50px tall, so indicator starts at ~160px from top
                 var indicatorRect = ballReadyIndicatorGo.GetComponent<RectTransform>();
                 indicatorRect.anchorMin = new Vector2(0.5f, 1);
                 indicatorRect.anchorMax = new Vector2(0.5f, 1);
                 indicatorRect.pivot = new Vector2(0.5f, 1);
-                indicatorRect.anchoredPosition = new Vector2(0, -60);
-                indicatorRect.sizeDelta = new Vector2(200, 60);
+                indicatorRect.anchoredPosition = new Vector2(0, -160);
+                indicatorRect.sizeDelta = new Vector2(200, 50);
 
                 ballReadyIndicator = ballReadyIndicatorGo.GetComponent<BallReadyIndicator>();
                 Debug.Log("SceneGenerator: Added BallReadyIndicator to Marina scene");
