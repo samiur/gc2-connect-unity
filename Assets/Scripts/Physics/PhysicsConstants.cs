@@ -115,6 +115,46 @@ namespace OpenRange.Physics
 
         #endregion
 
+        #region Roll Physics Constants
+
+        /// <summary>Denominator for spin braking effect during roll: brake = backspin / SpinRollBrakingBase</summary>
+        public const float SpinRollBrakingBase = 5000f;
+
+        /// <summary>Minimum backspin RPM to have any roll braking effect</summary>
+        public const float MinSpinForRollEffect = 500f;
+
+        /// <summary>Backspin RPM threshold for enhanced spin braking during roll</summary>
+        public const float SpinBackThreshold = 3000f;
+
+        /// <summary>Speed threshold (m/s) below which spin-back effects are possible</summary>
+        public const float SpinBackVelocityThreshold = 1.0f;
+
+        /// <summary>High backspin RPM threshold for actual backward roll</summary>
+        public const float SpinBackHighThreshold = 5000f;
+
+        /// <summary>Speed threshold (m/s) below which backward roll is possible</summary>
+        public const float SpinBackHighVelocityThreshold = 0.5f;
+
+        /// <summary>Speed threshold (m/s) for stopped detection during roll</summary>
+        public const float RollStoppedSpeedThreshold = 0.05f;
+
+        /// <summary>Spin threshold (rpm) for stopped detection during roll</summary>
+        public const float RollStoppedSpinThreshold = 100f;
+
+        /// <summary>Base spin decay rate per second during roll</summary>
+        public const float SpinDecayBaseRate = 0.15f;
+
+        /// <summary>Factor for increased spin decay at slower speeds</summary>
+        public const float SpinDecaySpeedFactor = 1.0f;
+
+        /// <summary>Maximum spin braking contribution to deceleration (m/s²)</summary>
+        public const float MaxSpinRollBraking = 3.0f;
+
+        /// <summary>Backward roll velocity factor (fraction of forward velocity to reverse)</summary>
+        public const float BackwardRollVelocityFactor = 0.3f;
+
+        #endregion
+
         #region Drag Coefficient Table (Nathan Model)
 
         /// <summary>
@@ -220,6 +260,12 @@ namespace OpenRange.Physics
         /// <summary>Multiplier applied to velocity-dependent COR (soft surfaces lower this)</summary>
         public float CORMultiplier;
 
+        /// <summary>How much spin is retained per roll step (0.8 = 20% decay per step)</summary>
+        public float SpinRetentionDuringRoll;
+
+        /// <summary>Multiplier for spin braking effect during roll (higher = spin bites more)</summary>
+        public float SpinBrakingMultiplier;
+
         // Pre-defined surfaces
         public static readonly GroundSurface Fairway = new GroundSurface
         {
@@ -229,7 +275,9 @@ namespace OpenRange.Physics
             Friction = 0.50f,
             TangentialFriction = 0.70f,
             SpinAbsorption = 0.60f,
-            CORMultiplier = 1.0f
+            CORMultiplier = 1.0f,
+            SpinRetentionDuringRoll = 0.90f,
+            SpinBrakingMultiplier = 1.0f
         };
 
         public static readonly GroundSurface Rough = new GroundSurface
@@ -240,7 +288,9 @@ namespace OpenRange.Physics
             Friction = 0.70f,
             TangentialFriction = 0.90f,
             SpinAbsorption = 0.80f,
-            CORMultiplier = 0.50f
+            CORMultiplier = 0.50f,
+            SpinRetentionDuringRoll = 0.80f,
+            SpinBrakingMultiplier = 0.6f
         };
 
         public static readonly GroundSurface Green = new GroundSurface
@@ -251,7 +301,9 @@ namespace OpenRange.Physics
             Friction = 0.30f,
             TangentialFriction = 0.80f,
             SpinAbsorption = 0.70f,
-            CORMultiplier = 0.85f
+            CORMultiplier = 0.85f,
+            SpinRetentionDuringRoll = 0.95f,
+            SpinBrakingMultiplier = 1.2f
         };
     }
 }

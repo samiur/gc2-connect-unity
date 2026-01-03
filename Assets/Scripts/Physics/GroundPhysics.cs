@@ -171,7 +171,8 @@ namespace OpenRange.Physics
         }
 
         /// <summary>
-        /// Simulate one step of rolling.
+        /// Simulate one step of rolling with spin-dependent effects.
+        /// High backspin causes additional braking and can reverse ball direction.
         /// </summary>
         /// <param name="pos">Current position</param>
         /// <param name="vel">Current velocity</param>
@@ -186,42 +187,115 @@ namespace OpenRange.Physics
             vel.y = 0;  // Ensure on ground
             float speed = vel.magnitude;
 
-            // Check if stopped
-            if (speed < PhysicsConstants.StoppedThreshold)
+            // Improved stopped detection: both speed AND spin must be below thresholds
+            if (speed < PhysicsConstants.RollStoppedSpeedThreshold &&
+                backspin < PhysicsConstants.RollStoppedSpinThreshold)
             {
                 return (pos, Vector3.zero, 0f, Phase.Stopped);
             }
 
-            // Rolling deceleration from friction
-            float decel = surface.RollingResistance * PhysicsConstants.GravityMs2;
+            // Calculate base rolling deceleration
+            float baseDecel = surface.RollingResistance * PhysicsConstants.GravityMs2;
 
-            // Ensure minimum deceleration (so ball eventually stops)
-            decel = Mathf.Max(decel, 0.5f);
+            // Add spin-dependent deceleration if spin is above threshold
+            float spinDecel = 0f;
+            if (backspin >= PhysicsConstants.MinSpinForRollEffect)
+            {
+                // Spin braking: higher spin = more braking
+                float spinFactor = backspin / PhysicsConstants.SpinRollBrakingBase;
+                spinDecel = spinFactor * PhysicsConstants.GravityMs2 * surface.SpinBrakingMultiplier;
+
+                // Cap spin braking to prevent unrealistic behavior
+                spinDecel = Mathf.Min(spinDecel, PhysicsConstants.MaxSpinRollBraking);
+            }
+
+            // Total deceleration
+            float totalDecel = baseDecel + spinDecel;
+
+            // Ensure minimum deceleration so ball eventually stops
+            totalDecel = Mathf.Max(totalDecel, 0.5f);
 
             // Calculate new speed
-            float newSpeed = speed - decel * dt;
+            float newSpeed = speed - totalDecel * dt;
 
-            if (newSpeed <= 0)
+            // Get direction for velocity calculations
+            Vector3 direction = speed > 0.001f ? vel.normalized : Vector3.forward;
+
+            // Check for spin-back conditions (high spin at very low speed)
+            bool spinBack = false;
+            if (backspin >= PhysicsConstants.SpinBackHighThreshold &&
+                speed < PhysicsConstants.SpinBackHighVelocityThreshold &&
+                speed > 0.01f)  // Must be moving to reverse
             {
-                return (pos, Vector3.zero, 0f, Phase.Stopped);
+                // Spin-back: reverse direction
+                spinBack = true;
+                newSpeed = speed * PhysicsConstants.BackwardRollVelocityFactor;
+                direction = -direction;  // Reverse direction
+            }
+            else if (backspin >= PhysicsConstants.SpinBackThreshold &&
+                     speed < PhysicsConstants.SpinBackVelocityThreshold)
+            {
+                // Enhanced braking - ball is checking hard
+                newSpeed = Mathf.Max(0f, newSpeed * 0.5f);
             }
 
-            // Update velocity (same direction, new magnitude)
-            Vector3 direction = vel.normalized;
+            // Check if stopped after deceleration
+            if (newSpeed <= 0 && !spinBack)
+            {
+                // Final stop check with spin consideration
+                if (backspin < PhysicsConstants.RollStoppedSpinThreshold)
+                {
+                    return (pos, Vector3.zero, 0f, Phase.Stopped);
+                }
+                else
+                {
+                    // High spin but no velocity - ball may still move due to spin
+                    // This is a special case where ball is "checking" hard
+                    newSpeed = 0f;
+                }
+            }
+
+            // Calculate new velocity
             Vector3 newVel = direction * newSpeed;
 
             // Update position
             Vector3 newPos = pos + newVel * dt;
             newPos.y = 0;  // Stay on ground
 
-            // Spin decay during roll
-            float spinDecay = 1f - 0.15f * dt;
-            float newSpin = backspin * spinDecay;
+            // Coupled spin decay: faster decay at slower speeds
+            float speedFactor = 1f;
+            if (speed > 0.1f)
+            {
+                speedFactor = 1f + PhysicsConstants.SpinDecaySpeedFactor / speed;
+            }
+            else
+            {
+                speedFactor = 1f + PhysicsConstants.SpinDecaySpeedFactor * 10f;  // Very fast decay when nearly stopped
+            }
 
-            // Small spin threshold
-            if (Mathf.Abs(newSpin) < 10f)
+            // Apply spin decay with surface retention
+            float baseDecay = PhysicsConstants.SpinDecayBaseRate * speedFactor * dt;
+            float surfaceDecay = 1f - (1f - surface.SpinRetentionDuringRoll) * dt * 10f;  // Scale for time step
+            float spinRetention = Mathf.Max(0f, 1f - baseDecay) * surfaceDecay;
+            float newSpin = backspin * spinRetention;
+
+            // If spin-back occurred, reduce spin significantly
+            if (spinBack)
+            {
+                newSpin *= 0.3f;
+            }
+
+            // Spin below threshold becomes zero
+            if (newSpin < PhysicsConstants.RollStoppedSpinThreshold)
             {
                 newSpin = 0f;
+            }
+
+            // Final check: if both are zero, we're stopped
+            if (newSpeed < PhysicsConstants.RollStoppedSpeedThreshold &&
+                newSpin < PhysicsConstants.RollStoppedSpinThreshold)
+            {
+                return (pos, Vector3.zero, 0f, Phase.Stopped);
             }
 
             return (newPos, newVel, newSpin, Phase.Rolling);
@@ -247,6 +321,87 @@ namespace OpenRange.Physics
             if (decel < 0.1f) decel = 0.1f;
 
             return (afterBounce * afterBounce) / (2f * decel);
+        }
+
+        /// <summary>
+        /// Estimate roll distance with spin effects.
+        /// Accounts for spin-dependent braking, spin-back potential, and surface properties.
+        /// </summary>
+        /// <param name="landingSpeedMs">Landing speed in m/s</param>
+        /// <param name="landingAngleDeg">Landing angle in degrees (0 = horizontal, 90 = vertical)</param>
+        /// <param name="backspin">Backspin in rpm</param>
+        /// <param name="surface">Ground surface properties</param>
+        /// <returns>Estimated roll distance in meters (can be negative for spin-back)</returns>
+        public static float EstimateRollWithSpin(
+            float landingSpeedMs, float landingAngleDeg, float backspin, GroundSurface surface)
+        {
+            // Calculate horizontal component of landing speed
+            float horizontalSpeed = landingSpeedMs * Mathf.Cos(landingAngleDeg * Mathf.Deg2Rad);
+
+            // Calculate post-bounce horizontal speed using similar logic to Bounce()
+            float landingAngleRad = landingAngleDeg * Mathf.Deg2Rad;
+            float angleFactor = 1f - Mathf.Sin(landingAngleRad) * 0.3f;
+
+            // Spin braking factor during bounce
+            float spinBrakeFactor = 1f - Mathf.Min(
+                PhysicsConstants.MaxSpinBraking,
+                backspin / PhysicsConstants.SpinBrakingDenominator
+            );
+
+            // Base friction reduction
+            float baseFrictionReduction = 1f - surface.TangentialFriction * 0.3f;
+            float frictionFactor = baseFrictionReduction * angleFactor;
+
+            // Post-bounce speed
+            float afterBounceSpeed = horizontalSpeed * frictionFactor * spinBrakeFactor;
+
+            // Estimate post-bounce spin (approximate)
+            float postBounceSpin = backspin * (0.3f + 0.4f * 0.5f) * (1f - surface.SpinAbsorption * 0.5f);
+
+            // Calculate deceleration for roll
+            // Base rolling resistance
+            float baseDecel = surface.RollingResistance * PhysicsConstants.GravityMs2;
+
+            // Spin-dependent deceleration (average over roll)
+            float avgSpin = postBounceSpin * 0.6f;  // Spin decays during roll
+            float spinDecel = 0f;
+            if (avgSpin >= PhysicsConstants.MinSpinForRollEffect)
+            {
+                float spinFactor = avgSpin / PhysicsConstants.SpinRollBrakingBase;
+                spinDecel = spinFactor * PhysicsConstants.GravityMs2 * surface.SpinBrakingMultiplier;
+                spinDecel = Mathf.Min(spinDecel, PhysicsConstants.MaxSpinRollBraking);
+            }
+
+            float totalDecel = baseDecel + spinDecel;
+            totalDecel = Mathf.Max(totalDecel, 0.5f);
+
+            // Check for spin-back conditions
+            if (postBounceSpin >= PhysicsConstants.SpinBackHighThreshold &&
+                afterBounceSpeed < PhysicsConstants.SpinBackVelocityThreshold * 2f)
+            {
+                // Spin-back likely - estimate minimal or negative roll
+                if (postBounceSpin >= 9000f && landingAngleDeg >= 50f)
+                {
+                    // Extreme check - may spin back
+                    return -1f;  // Indicates spin-back
+                }
+                // Hard check - minimal roll
+                return 0.5f;
+            }
+
+            // Check for hard check conditions (high spin, low speed after bounce)
+            if (postBounceSpin >= PhysicsConstants.SpinBackThreshold &&
+                afterBounceSpeed < PhysicsConstants.SpinBackVelocityThreshold)
+            {
+                // Ball checks hard - very short roll
+                return 1f;
+            }
+
+            // Standard physics estimate: d = v² / (2a)
+            float rollDistance = (afterBounceSpeed * afterBounceSpeed) / (2f * totalDecel);
+
+            // Clamp to reasonable range
+            return Mathf.Max(0f, rollDistance);
         }
     }
 }
