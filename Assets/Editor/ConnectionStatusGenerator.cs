@@ -530,6 +530,7 @@ namespace OpenRange.Editor
             buttonText.color = UITheme.TextPrimary;
             buttonText.fontSize = UITheme.FontSizeRegular.Normal;
             buttonText.fontStyle = FontStyles.Bold;
+            buttonText.raycastTarget = false; // Let clicks pass through to button
 
             return button;
         }

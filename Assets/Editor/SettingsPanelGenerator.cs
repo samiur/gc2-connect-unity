@@ -338,7 +338,10 @@ namespace OpenRange.Editor
             templateCanvas.sortingOrder = DropdownSortingOrder;
             templateGo.AddComponent<GraphicRaycaster>();
 
-            templateGo.AddComponent<ScrollRect>();
+            var scrollRect = templateGo.AddComponent<ScrollRect>();
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
 
             // Viewport
             var viewportGo = new GameObject("Viewport");
@@ -354,21 +357,28 @@ namespace OpenRange.Editor
             var viewportImage = viewportGo.AddComponent<Image>();
             viewportImage.color = Color.white; // Required for mask but hidden
 
-            // Content
+            // Content - needs proper layout for items
             var contentGo = new GameObject("Content");
             contentGo.transform.SetParent(viewportGo.transform);
             var contentRect = contentGo.AddComponent<RectTransform>();
             contentRect.anchorMin = new Vector2(0, 1);
             contentRect.anchorMax = new Vector2(1, 1);
             contentRect.pivot = new Vector2(0.5f, 1);
+            contentRect.anchoredPosition = Vector2.zero;
             contentRect.sizeDelta = new Vector2(0, DropdownItemHeight);
 
-            // Item
+            // Wire up ScrollRect
+            scrollRect.viewport = viewportRect;
+            scrollRect.content = contentRect;
+
+            // Item - anchor to stretch full width
             var itemGo = new GameObject("Item");
             itemGo.transform.SetParent(contentGo.transform);
             var itemRect = itemGo.AddComponent<RectTransform>();
             itemRect.anchorMin = new Vector2(0, 0.5f);
             itemRect.anchorMax = new Vector2(1, 0.5f);
+            itemRect.pivot = new Vector2(0.5f, 0.5f);
+            itemRect.anchoredPosition = Vector2.zero;
             itemRect.sizeDelta = new Vector2(0, DropdownItemHeight);
 
             var itemToggle = itemGo.AddComponent<Toggle>();
@@ -395,11 +405,9 @@ namespace OpenRange.Editor
             itemCheckRect.sizeDelta = new Vector2(20, 20);
             itemCheckRect.anchoredPosition = new Vector2(5, 0);
 
-            var itemCheckText = itemCheckGo.AddComponent<TextMeshProUGUI>();
-            itemCheckText.text = "✓";
-            itemCheckText.fontSize = 14;
-            itemCheckText.color = UITheme.AccentGreen;
-            itemCheckText.alignment = TextAlignmentOptions.Center;
+            // Use Image instead of text for checkmark (Unicode chars not in default TMP font)
+            var itemCheckImage = itemCheckGo.AddComponent<Image>();
+            itemCheckImage.color = UITheme.AccentGreen;
 
             // Item label
             var itemLabelGo = new GameObject("Item Label");
@@ -417,7 +425,7 @@ namespace OpenRange.Editor
             itemLabelText.alignment = TextAlignmentOptions.MidlineLeft;
 
             itemToggle.targetGraphic = itemBgImage;
-            itemToggle.graphic = itemCheckText;
+            itemToggle.graphic = itemCheckImage;
             itemToggle.isOn = true;
 
             // Deactivate template

@@ -510,14 +510,13 @@ namespace OpenRange.Editor
             backRect.anchoredPosition = new Vector2(20, -20);
             backRect.sizeDelta = new Vector2(100, 40);
 
-            // Settings Button (top-right, left of connection status)
-            // ConnectionStatus is 180px wide at -16px from right edge, so settings needs to be at least -220px
+            // Settings Button (top-left, next to Back button)
             var settingsBtn = CreateButton(canvasGo.transform, "SettingsButton", "Settings");
             var settingsRect = settingsBtn.GetComponent<RectTransform>();
-            settingsRect.anchorMin = new Vector2(1, 1);
-            settingsRect.anchorMax = new Vector2(1, 1);
-            settingsRect.pivot = new Vector2(1, 1);
-            settingsRect.anchoredPosition = new Vector2(-220, -20);
+            settingsRect.anchorMin = new Vector2(0, 1);
+            settingsRect.anchorMax = new Vector2(0, 1);
+            settingsRect.pivot = new Vector2(0, 1);
+            settingsRect.anchoredPosition = new Vector2(130, -20); // 20 + 100 (back width) + 10 (gap)
             settingsRect.sizeDelta = new Vector2(100, 40);
 
             // Shot Data Bar (bottom panel)
@@ -994,6 +993,7 @@ namespace OpenRange.Editor
             textRect.offsetMax = Vector2.zero;
             var tmpText = textGo.GetComponent<TextMeshProUGUI>();
             tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.raycastTarget = false; // Let clicks pass through to button
 
             return buttonGo;
         }
