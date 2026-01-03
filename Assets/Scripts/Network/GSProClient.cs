@@ -205,6 +205,20 @@ namespace OpenRange.Network
 
             Debug.Log($"GSProClient: wasConnected={wasConnected}");
 
+            // Set linger to 0 BEFORE closing anything - sends RST instead of FIN
+            try
+            {
+                if (_client?.Client != null && _client.Client.Connected)
+                {
+                    Debug.Log("GSProClient: Setting linger=0 for immediate RST...");
+                    _client.Client.LingerState = new System.Net.Sockets.LingerOption(true, 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"GSProClient: Error setting linger: {ex.Message}");
+            }
+
             // Flush stream to ensure any pending data is sent
             try
             {
@@ -219,21 +233,7 @@ namespace OpenRange.Network
                 Debug.LogWarning($"GSProClient: Error flushing stream: {ex.Message}");
             }
 
-            // Close stream explicitly before closing client
-            try
-            {
-                if (_stream != null)
-                {
-                    Debug.Log("GSProClient: Closing stream...");
-                    _stream.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"GSProClient: Error closing stream: {ex.Message}");
-            }
-
-            // Close TcpClient
+            // Close TcpClient (this also closes the stream and socket)
             if (_client != null)
             {
                 try

@@ -3,6 +3,7 @@
 
 using OpenRange.Core;
 using OpenRange.GC2;
+using OpenRange.Network;
 using OpenRange.Physics;
 using OpenRange.Visualization;
 using UnityEngine;
@@ -47,6 +48,7 @@ namespace OpenRange.UI
             SetupButtonListeners();
             SetupConnectionUI();
             SetupSessionInfoUI();
+            SetupGSProUI();
             InitializeScene();
             SubscribeToShotProcessor();
         }
@@ -95,6 +97,18 @@ namespace OpenRange.UI
             if (_shotDetailModal != null)
             {
                 _shotDetailModal.OnReplayRequested -= OnReplayRequested;
+            }
+
+            if (_gsProModeUI != null)
+            {
+                _gsProModeUI.OnConnectClicked -= OnGSProConnectClicked;
+                _gsProModeUI.OnDisconnectClicked -= OnGSProDisconnectClicked;
+                _gsProModeUI.OnModeChanged -= OnGSProModeChanged;
+            }
+
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.OnDeviceStatusChanged -= OnDeviceStatusChanged;
             }
 
             UnsubscribeFromShotProcessor();
@@ -294,6 +308,87 @@ namespace OpenRange.UI
             }
 
             Debug.Log($"MarinaSceneController: Replaying shot #{shot.ShotNumber}");
+        }
+
+        private void SetupGSProUI()
+        {
+            if (_gsProModeUI == null) return;
+
+            // Subscribe to UI events
+            _gsProModeUI.OnConnectClicked += OnGSProConnectClicked;
+            _gsProModeUI.OnDisconnectClicked += OnGSProDisconnectClicked;
+            _gsProModeUI.OnModeChanged += OnGSProModeChanged;
+
+            // Wire up the GSProClient from GameManager for status updates
+            if (GameManager.Instance != null)
+            {
+                _gsProModeUI.SetClient(GameManager.Instance.GSProClient);
+
+                // Initialize mode from current app mode
+                _gsProModeUI.SetMode(GameManager.Instance.CurrentMode == AppMode.GSPro);
+
+                // Initialize device ready state
+                var status = GameManager.Instance.CurrentDeviceStatus;
+                if (status.HasValue)
+                {
+                    _gsProModeUI.SetReadyState(status.Value.IsReady, status.Value.BallDetected);
+                }
+
+                // Subscribe to device status changes
+                GameManager.Instance.OnDeviceStatusChanged += OnDeviceStatusChanged;
+            }
+
+            // Set default host/port from settings if available
+            var settings = SettingsManager.Instance;
+            if (settings != null)
+            {
+                _gsProModeUI.SetHostPort(settings.GSProHost, settings.GSProPort);
+            }
+        }
+
+        private void OnGSProConnectClicked()
+        {
+            if (GameManager.Instance == null || _gsProModeUI == null) return;
+
+            string host = _gsProModeUI.Host;
+            int port = _gsProModeUI.Port;
+
+            Debug.Log($"MarinaSceneController: GSPro connect requested to {host}:{port}");
+
+            // Update connection state to show "Connecting..."
+            _gsProModeUI.SetConnectionState(GSProConnectionState.Connecting);
+
+            // Initiate connection through GameManager
+            GameManager.Instance.ConnectToGSPro(host, port);
+
+            // Wire up client for status updates after connection attempt
+            _gsProModeUI.SetClient(GameManager.Instance.GSProClient);
+        }
+
+        private void OnGSProDisconnectClicked()
+        {
+            if (GameManager.Instance == null) return;
+
+            Debug.Log("MarinaSceneController: GSPro disconnect requested");
+            GameManager.Instance.DisconnectFromGSPro();
+        }
+
+        private void OnGSProModeChanged(bool isGSProMode)
+        {
+            if (GameManager.Instance == null) return;
+
+            var newMode = isGSProMode ? AppMode.GSPro : AppMode.OpenRange;
+            GameManager.Instance.SetMode(newMode);
+
+            Debug.Log($"MarinaSceneController: Mode changed to {newMode}");
+        }
+
+        private void OnDeviceStatusChanged(GC2DeviceStatus status)
+        {
+            if (_gsProModeUI != null)
+            {
+                _gsProModeUI.SetReadyState(status.IsReady, status.BallDetected);
+            }
         }
     }
 }

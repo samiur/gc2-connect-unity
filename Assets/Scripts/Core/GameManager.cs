@@ -4,6 +4,7 @@
 using System;
 using UnityEngine;
 using OpenRange.GC2;
+using OpenRange.Network;
 
 namespace OpenRange.Core
 {
@@ -26,12 +27,14 @@ namespace OpenRange.Core
 
         private IGC2Connection _gc2Connection;
         private GC2DeviceStatus? _currentDeviceStatus;
+        private GSProClient _gsProClient;
 
         public AppMode CurrentMode => _currentMode;
         public ConnectionState ConnectionState => _connectionState;
         public IGC2Connection GC2Connection => _gc2Connection;
         public ShotProcessor ShotProcessor => _shotProcessor;
         public SessionManager SessionManager => _sessionManager;
+        public GSProClient GSProClient => _gsProClient;
 
         /// <summary>
         /// Current device status from 0M messages.
@@ -82,6 +85,8 @@ namespace OpenRange.Core
             {
                 Instance = null;
                 CleanupGC2Connection();
+                _gsProClient?.Dispose();
+                _gsProClient = null;
             }
         }
 
@@ -153,6 +158,9 @@ namespace OpenRange.Core
         {
             Debug.Log($"GameManager: Shot received - {shot}");
             _shotProcessor?.ProcessShot(shot);
+
+            // Relay to GSPro if in relay mode
+            RelayToGSPro(shot);
         }
 
         private void HandleConnectionChanged(bool connected)
@@ -174,6 +182,9 @@ namespace OpenRange.Core
                 _currentDeviceStatus = status;
                 Debug.Log($"GameManager: Device status changed - {status}");
                 OnDeviceStatusChanged?.Invoke(status);
+
+                // Update GSPro with ready state
+                UpdateGSProReadyState();
             }
         }
 
@@ -218,6 +229,74 @@ namespace OpenRange.Core
         public void EndSession()
         {
             _sessionManager?.EndSession();
+        }
+
+        #endregion
+
+        #region GSPro Connection
+
+        /// <summary>
+        /// Connect to GSPro at the specified host and port.
+        /// </summary>
+        /// <param name="host">GSPro host address.</param>
+        /// <param name="port">GSPro port (default 921).</param>
+        public async void ConnectToGSPro(string host, int port = GSProClient.DefaultPort)
+        {
+            // Create client if needed
+            if (_gsProClient == null)
+            {
+                _gsProClient = new GSProClient();
+            }
+
+            Debug.Log($"GameManager: Connecting to GSPro at {host}:{port}...");
+            bool success = await _gsProClient.ConnectAsync(host, port);
+
+            if (success)
+            {
+                Debug.Log("GameManager: Connected to GSPro");
+                // Switch to GSPro mode if not already
+                if (_currentMode != AppMode.GSPro)
+                {
+                    SetMode(AppMode.GSPro);
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"GameManager: Failed to connect to GSPro at {host}:{port}");
+            }
+        }
+
+        /// <summary>
+        /// Disconnect from GSPro.
+        /// </summary>
+        public void DisconnectFromGSPro()
+        {
+            _gsProClient?.Disconnect();
+            Debug.Log("GameManager: Disconnected from GSPro");
+        }
+
+        /// <summary>
+        /// Relay shot data to GSPro if connected and in GSPro mode.
+        /// </summary>
+        private void RelayToGSPro(GC2ShotData shot)
+        {
+            if (_currentMode != AppMode.GSPro || _gsProClient == null || !_gsProClient.IsConnected)
+                return;
+
+            _gsProClient.SendShot(shot);
+        }
+
+        /// <summary>
+        /// Update GSPro with device ready state from GC2 0M messages.
+        /// </summary>
+        private void UpdateGSProReadyState()
+        {
+            if (_gsProClient == null || !_gsProClient.IsConnected)
+                return;
+
+            bool isReady = _currentDeviceStatus?.IsReady ?? false;
+            bool ballDetected = _currentDeviceStatus?.BallDetected ?? false;
+            _gsProClient.UpdateReadyState(isReady, ballDetected);
         }
 
         #endregion
