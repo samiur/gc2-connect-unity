@@ -4,6 +4,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using AOT;
 using OpenRange.Utilities;
 using UnityEngine;
 
@@ -12,10 +13,20 @@ namespace OpenRange.GC2.Platforms.MacOS
 #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
     /// <summary>
     /// macOS implementation of IGC2Connection using libusb native plugin.
-    /// Communicates with GC2MacPlugin.bundle via DllImport/UnitySendMessage.
+    /// Communicates with GC2MacPlugin.bundle via DllImport and function pointer callbacks.
     /// </summary>
     public class GC2MacConnection : MonoBehaviour, IGC2Connection
     {
+        #region Native Callback Delegates
+
+        // Delegate types matching native callback signatures
+        private delegate void NativeShotCallback(string jsonData);
+        private delegate void NativeConnectionCallback(string connected);
+        private delegate void NativeErrorCallback(string error);
+        private delegate void NativeDeviceStatusCallback(string jsonData);
+
+        #endregion
+
         #region Native Plugin Imports
 
         private const string PluginName = "GC2MacPlugin";
@@ -43,6 +54,26 @@ namespace OpenRange.GC2.Platforms.MacOS
 
         [DllImport(PluginName)]
         private static extern IntPtr GC2Mac_GetFirmwareVersion();
+
+        // Callback registration functions
+        [DllImport(PluginName)]
+        private static extern void GC2Mac_SetShotCallback(NativeShotCallback callback);
+
+        [DllImport(PluginName)]
+        private static extern void GC2Mac_SetConnectionCallback(NativeConnectionCallback callback);
+
+        [DllImport(PluginName)]
+        private static extern void GC2Mac_SetErrorCallback(NativeErrorCallback callback);
+
+        [DllImport(PluginName)]
+        private static extern void GC2Mac_SetDeviceStatusCallback(NativeDeviceStatusCallback callback);
+
+        #endregion
+
+        #region Static Instance for Callbacks
+
+        // Static instance for routing native callbacks to the active connection
+        private static GC2MacConnection s_instance;
 
         #endregion
 
@@ -122,10 +153,20 @@ namespace OpenRange.GC2.Platforms.MacOS
 
             try
             {
-                // Initialize native plugin with this GameObject's name for UnitySendMessage
+                // Set static instance for callback routing
+                s_instance = this;
+
+                // Initialize native plugin
                 GC2Mac_Initialize(gameObject.name);
+
+                // Register function pointer callbacks (required for IL2CPP builds)
+                GC2Mac_SetShotCallback(OnNativeShotCallbackStatic);
+                GC2Mac_SetConnectionCallback(OnNativeConnectionCallbackStatic);
+                GC2Mac_SetErrorCallback(OnNativeErrorCallbackStatic);
+                GC2Mac_SetDeviceStatusCallback(OnNativeDeviceStatusCallbackStatic);
+
                 _isInitialized = true;
-                Debug.Log($"GC2MacConnection: Initialized with callback target '{gameObject.name}'");
+                Debug.Log($"GC2MacConnection: Initialized with function pointer callbacks");
             }
             catch (DllNotFoundException ex)
             {
@@ -140,6 +181,47 @@ namespace OpenRange.GC2.Platforms.MacOS
             }
         }
 
+        #endregion
+
+        #region Static Native Callbacks (IL2CPP compatible)
+
+        // These static methods are called from native code and route to the instance
+        [MonoPInvokeCallback(typeof(NativeShotCallback))]
+        private static void OnNativeShotCallbackStatic(string jsonData)
+        {
+            if (s_instance != null && !s_instance._isDisposed)
+            {
+                s_instance.OnNativeShotReceived(jsonData);
+            }
+        }
+
+        [MonoPInvokeCallback(typeof(NativeConnectionCallback))]
+        private static void OnNativeConnectionCallbackStatic(string connected)
+        {
+            if (s_instance != null && !s_instance._isDisposed)
+            {
+                s_instance.OnNativeConnectionChanged(connected);
+            }
+        }
+
+        [MonoPInvokeCallback(typeof(NativeErrorCallback))]
+        private static void OnNativeErrorCallbackStatic(string error)
+        {
+            if (s_instance != null && !s_instance._isDisposed)
+            {
+                s_instance.OnNativeError(error);
+            }
+        }
+
+        [MonoPInvokeCallback(typeof(NativeDeviceStatusCallback))]
+        private static void OnNativeDeviceStatusCallbackStatic(string jsonData)
+        {
+            if (s_instance != null && !s_instance._isDisposed)
+            {
+                s_instance.OnNativeDeviceStatus(jsonData);
+            }
+        }
+
         private void Cleanup()
         {
             if (_isDisposed)
@@ -149,6 +231,15 @@ namespace OpenRange.GC2.Platforms.MacOS
 
             try
             {
+                // Clear native callbacks before shutdown
+                if (_isInitialized)
+                {
+                    GC2Mac_SetShotCallback(null);
+                    GC2Mac_SetConnectionCallback(null);
+                    GC2Mac_SetErrorCallback(null);
+                    GC2Mac_SetDeviceStatusCallback(null);
+                }
+
                 if (_isConnected)
                 {
                     GC2Mac_Disconnect();
@@ -168,6 +259,12 @@ namespace OpenRange.GC2.Platforms.MacOS
             _isInitialized = false;
             _lastDeviceStatus = null;
             _deviceInfo = null;
+
+            // Clear static instance
+            if (s_instance == this)
+            {
+                s_instance = null;
+            }
 
             // Clear event handlers
             OnShotReceived = null;

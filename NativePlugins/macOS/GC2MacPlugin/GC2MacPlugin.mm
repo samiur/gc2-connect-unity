@@ -277,30 +277,44 @@ static void ParseLine(NSString *line) {
 }
 
 /// Build shot JSON from accumulated data
+/// Field names must match GC2ShotData C# properties exactly for JsonUtility parsing
 static NSDictionary* BuildShotJSON(void) {
     NSMutableDictionary *shot = [NSMutableDictionary dictionary];
 
-    // Map GC2 field names to GC2ShotData property names
+    // Map GC2 field names to GC2ShotData property names (must match C# exactly)
     if (g_shotAccumulator[@"SHOT_ID"]) {
-        shot[@"ShotNumber"] = g_shotAccumulator[@"SHOT_ID"];
+        shot[@"ShotId"] = g_shotAccumulator[@"SHOT_ID"];
     }
+    // Add timestamp
+    shot[@"Timestamp"] = @((long long)([[NSDate date] timeIntervalSince1970] * 1000));
+
     if (g_shotAccumulator[@"SPEED_MPH"]) {
-        shot[@"BallSpeedMph"] = g_shotAccumulator[@"SPEED_MPH"];
+        shot[@"BallSpeed"] = g_shotAccumulator[@"SPEED_MPH"];
     }
     if (g_shotAccumulator[@"ELEVATION_DEG"]) {
-        shot[@"LaunchAngleDeg"] = g_shotAccumulator[@"ELEVATION_DEG"];
+        shot[@"LaunchAngle"] = g_shotAccumulator[@"ELEVATION_DEG"];
     }
     if (g_shotAccumulator[@"AZIMUTH_DEG"]) {
-        shot[@"DirectionDeg"] = g_shotAccumulator[@"AZIMUTH_DEG"];
+        shot[@"Direction"] = g_shotAccumulator[@"AZIMUTH_DEG"];
     }
     if (g_shotAccumulator[@"BACK_RPM"]) {
-        shot[@"BackSpinRpm"] = g_shotAccumulator[@"BACK_RPM"];
+        shot[@"BackSpin"] = g_shotAccumulator[@"BACK_RPM"];
     }
     if (g_shotAccumulator[@"SIDE_RPM"]) {
-        shot[@"SideSpinRpm"] = g_shotAccumulator[@"SIDE_RPM"];
+        shot[@"SideSpin"] = g_shotAccumulator[@"SIDE_RPM"];
     }
     if (g_shotAccumulator[@"SPIN_RPM"]) {
-        shot[@"SpinRpm"] = g_shotAccumulator[@"SPIN_RPM"];
+        shot[@"TotalSpin"] = g_shotAccumulator[@"SPIN_RPM"];
+    }
+
+    // Calculate spin axis from back/side spin if not provided
+    if (g_shotAccumulator[@"BACK_RPM"] && g_shotAccumulator[@"SIDE_RPM"]) {
+        float backSpin = [g_shotAccumulator[@"BACK_RPM"] floatValue];
+        float sideSpin = [g_shotAccumulator[@"SIDE_RPM"] floatValue];
+        if (backSpin != 0 || sideSpin != 0) {
+            float spinAxis = atan2f(sideSpin, backSpin) * 180.0f / M_PI;
+            shot[@"SpinAxis"] = @(spinAxis);
+        }
     }
 
     // HMT data (club data)
@@ -309,31 +323,22 @@ static NSDictionary* BuildShotJSON(void) {
 
     if (hasClubData) {
         if (g_shotAccumulator[@"CLUBSPEED_MPH"]) {
-            shot[@"ClubSpeedMph"] = g_shotAccumulator[@"CLUBSPEED_MPH"];
+            shot[@"ClubSpeed"] = g_shotAccumulator[@"CLUBSPEED_MPH"];
         }
         if (g_shotAccumulator[@"HPATH_DEG"]) {
-            shot[@"PathDeg"] = g_shotAccumulator[@"HPATH_DEG"];
+            shot[@"Path"] = g_shotAccumulator[@"HPATH_DEG"];
         }
         if (g_shotAccumulator[@"VPATH_DEG"]) {
-            shot[@"AttackAngleDeg"] = g_shotAccumulator[@"VPATH_DEG"];
+            shot[@"AttackAngle"] = g_shotAccumulator[@"VPATH_DEG"];
         }
         if (g_shotAccumulator[@"FACE_T_DEG"]) {
-            shot[@"FaceToTargetDeg"] = g_shotAccumulator[@"FACE_T_DEG"];
+            shot[@"FaceToTarget"] = g_shotAccumulator[@"FACE_T_DEG"];
         }
         if (g_shotAccumulator[@"LOFT_DEG"]) {
-            shot[@"LoftDeg"] = g_shotAccumulator[@"LOFT_DEG"];
+            shot[@"DynamicLoft"] = g_shotAccumulator[@"LOFT_DEG"];
         }
         if (g_shotAccumulator[@"LIE_DEG"]) {
-            shot[@"LieDeg"] = g_shotAccumulator[@"LIE_DEG"];
-        }
-        if (g_shotAccumulator[@"HIMPACT_MM"]) {
-            shot[@"HorizontalImpactMm"] = g_shotAccumulator[@"HIMPACT_MM"];
-        }
-        if (g_shotAccumulator[@"VIMPACT_MM"]) {
-            shot[@"VerticalImpactMm"] = g_shotAccumulator[@"VIMPACT_MM"];
-        }
-        if (g_shotAccumulator[@"CLOSING_RATE_DEGSEC"]) {
-            shot[@"ClosureRateDegPerSec"] = g_shotAccumulator[@"CLOSING_RATE_DEGSEC"];
+            shot[@"Lie"] = g_shotAccumulator[@"LIE_DEG"];
         }
     }
 
