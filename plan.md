@@ -1127,7 +1127,60 @@ Write tests for:
 
 ---
 
-### Prompt 18: TCP Connection for Testing
+### Prompt 18: Update IGC2Connection Interface for Device Status
+
+```text
+Update the IGC2Connection interface and related models to support device status from 0M messages.
+
+Context: The GC2 sends 0M messages with device readiness (FLAGS) and ball detection (BALLS) status. GSPro needs this for LaunchMonitorIsReady and LaunchMonitorBallDetected heartbeat fields.
+
+Update Assets/Scripts/GC2/IGC2Connection.cs:
+
+Add new event:
+- event Action<GC2DeviceStatus> OnDeviceStatusChanged;
+
+Create Assets/Scripts/GC2/GC2DeviceStatus.cs:
+```csharp
+public struct GC2DeviceStatus
+{
+    /// <summary>
+    /// Whether the device is ready (green light). From FLAGS == 7.
+    /// </summary>
+    public bool IsReady { get; set; }
+
+    /// <summary>
+    /// Whether a ball is detected in the tee area. From BALLS > 0.
+    /// </summary>
+    public bool BallDetected { get; set; }
+
+    /// <summary>
+    /// Ball position if detected (from BALL1 field). Null if no ball.
+    /// </summary>
+    public Vector3? BallPosition { get; set; }
+}
+```
+
+Update GC2Protocol.cs:
+- Add ParseDeviceStatus(string rawData) method:
+  - Parses 0M message format
+  - Returns GC2DeviceStatus struct
+  - Returns null if not a valid 0M message
+
+Update GameManager.cs:
+- Track current device status
+- Property: CurrentDeviceStatus (GC2DeviceStatus?)
+- Forward status changes to GSProClient (for relay mode)
+
+Write unit tests for:
+- GC2Protocol.ParseDeviceStatus parses valid 0M messages
+- GC2Protocol.ParseDeviceStatus returns null for 0H messages
+- GameManager updates status correctly
+- Status changes are forwarded to listeners
+```
+
+---
+
+### Prompt 18b: TCP Connection for Testing
 
 ```text
 Create the TCP connection implementation for editor testing and GSPro relay.
@@ -1196,11 +1249,13 @@ Based on GSPRO_API.md specification:
 - Heartbeat support (every 2 seconds)
 - Shot sending
 - Connection lifecycle
+- Device readiness status (from 0M messages)
 
 Implementation:
 - ConnectAsync(string host, int port)
 - Disconnect()
 - SendShot(GC2ShotData shot)
+- UpdateReadyState(bool isReady, bool ballDetected) - from 0M message parsing
 - IsConnected property
 - Auto-reconnect on disconnect
 - Events: OnConnected, OnDisconnected, OnError
@@ -1210,24 +1265,30 @@ Message classes (from GSPRO_API.md):
 - GSProBallData
 - GSProClubData
 - GSProShotOptions
+- GSProPlayerInfo (includes LaunchMonitorIsReady, LaunchMonitorBallDetected)
 
 Create Assets/Scripts/Network/GSProMessage.cs:
 - All message class definitions
 - JSON serialization
+- PlayerInfo with readiness flags
 
-Heartbeat:
+Heartbeat with readiness:
 - Runs on background task
 - Every 2 seconds when idle
 - Skips around shots
+- Includes LaunchMonitorIsReady (FLAGS == 7 from 0M)
+- Includes LaunchMonitorBallDetected (BALLS > 0 from 0M)
 
 Integration:
 - ShotProcessor checks mode
 - If GSPro mode, calls GSProClient.SendShot
+- Native plugins forward 0M status → GSProClient.UpdateReadyState()
 - Shows connection status in UI
 
 Create Assets/Scripts/UI/GSProModeUI.cs:
 - Mode toggle (OpenRange / GSPro)
 - GSPro connection status
+- Ball readiness indicator (green light / ball detected)
 - Host/port configuration
 
 Write tests for:
@@ -1235,6 +1296,7 @@ Write tests for:
 - Heartbeat timing
 - Shot sending works
 - Reconnection logic
+- Readiness state updates correctly
 ```
 
 ---
@@ -1332,25 +1394,36 @@ Based on USB_PLUGINS.md implementation:
    - Call Unity callback with JSON when shot complete
 
 5. Protocol parsing (per GC2_PROTOCOL.md):
-   - Filter by message prefix: only process "0H" lines, skip "0M"
-   - Parse key=value format, accumulate across packets
-   - Wait for BACK_RPM/SIDE_RPM before finalizing shot
-   - Detect new shots via SHOT_ID change (clear accumulator)
-   - Handle timeouts (~500ms) if spin never arrives
-   - Build NSDictionary, convert to JSON
+   - Filter by message prefix: "0H" for shots, "0M" for device status
+   - For 0H messages:
+     - Parse key=value format, accumulate across packets
+     - Wait for BACK_RPM/SIDE_RPM before finalizing shot
+     - Detect new shots via SHOT_ID change (clear accumulator)
+     - Handle timeouts (~500ms) if spin never arrives
+     - Build NSDictionary, convert to JSON
+   - For 0M messages:
+     - Parse FLAGS and BALLS fields
+     - FLAGS == 7 means ready (green light)
+     - BALLS > 0 means ball detected
+     - Forward status to Unity via separate callback
 
-6. Misread detection:
+6. Device status callback:
+   - OnDeviceStatusChanged(bool isReady, bool ballDetected)
+   - Called when 0M message received with changed status
+   - Used by GSPro mode for LaunchMonitorIsReady/BallDetected
+
+7. Misread detection:
    - Reject SPIN_RPM == 0
    - Reject BACK_RPM == 2222 (known error pattern)
    - Reject SPEED_MPH < 10 or > 250
    - Track SHOT_ID for duplicate detection
 
-7. Disconnection:
+8. Disconnection:
    - Stop read thread
    - libusb_release_interface()
    - libusb_close()
 
-8. Unity communication:
+9. Unity communication:
    - UnitySendMessage for callbacks
    - Main thread dispatch for safety
 
@@ -1396,6 +1469,7 @@ Based on USB_PLUGINS.md C# bridge:
      - OnNativeShotReceived(string json)
      - OnNativeConnectionChanged(string connected)
      - OnNativeError(string error)
+     - OnNativeDeviceStatus(string json) - {"isReady": bool, "ballDetected": bool}
 
 4. Implement IGC2Connection:
    - IsConnected → GC2Mac_IsConnected()
@@ -1527,29 +1601,40 @@ Complete NativePlugins/Android/GC2AndroidPlugin/:
    - Data accumulation until BACK_RPM/SIDE_RPM received
 
 6. Protocol parsing (GC2Protocol.kt per GC2_PROTOCOL.md):
-   - Filter lines by prefix: "0H" = shot data, "0M" = skip
-   - Parse key=value format, accumulate across packets
-   - Wait for spin components before finalizing shot
-   - Detect new shots via SHOT_ID change
-   - Handle timeouts (~500ms) if spin never arrives
-   - Convert to JSONObject
+   - Filter lines by prefix: "0H" = shot data, "0M" = device status
+   - For 0H messages:
+     - Parse key=value format, accumulate across packets
+     - Wait for spin components before finalizing shot
+     - Detect new shots via SHOT_ID change
+     - Handle timeouts (~500ms) if spin never arrives
+     - Convert to JSONObject
+   - For 0M messages:
+     - Parse FLAGS and BALLS fields
+     - FLAGS == 7 means ready (green light)
+     - BALLS > 0 means ball detected
+     - Forward status to Unity via onDeviceStatus callback
 
-7. Misread detection:
+7. Device status callback:
+   - onDeviceStatus(isReady: Boolean, ballDetected: Boolean)
+   - Called when 0M message received with changed status
+   - UnitySendMessage with JSON {"isReady": bool, "ballDetected": bool}
+
+8. Misread detection:
    - Reject SPIN_RPM == 0
    - Reject BACK_RPM == 2222 (known error pattern)
    - Reject SPEED_MPH < 10 or > 250
    - Track SHOT_ID for duplicate filtering
 
-8. Unity callbacks:
+9. Unity callbacks:
    - UnityPlayer.UnitySendMessage()
    - Main thread if needed
 
-9. Device attach/detach:
+10. Device attach/detach:
    - BroadcastReceiver for USB_DEVICE_ATTACHED
    - BroadcastReceiver for USB_DEVICE_DETACHED
    - Auto-reconnect on reattach
 
-10. GC2Device.kt:
+11. GC2Device.kt:
    - Wrapper for USB device/connection
    - Clean interface for plugin
 
@@ -1591,6 +1676,7 @@ Create Assets/Scripts/GC2/Platforms/Android/GC2AndroidConnection.cs:
    - OnNativeShotReceived(string json)
    - OnNativeConnectionChanged(string connected)
    - OnNativeError(string error)
+   - OnNativeDeviceStatus(string json) - {"isReady": bool, "ballDetected": bool}
    - Called by native via UnitySendMessage
 
 5. JSON parsing:
@@ -2419,21 +2505,40 @@ Critical implementation details for native plugins:
 | Prefix | Name | Action |
 |--------|------|--------|
 | `0H` | Shot Header | Parse - contains shot metrics |
-| `0M` | Ball Movement | Skip - real-time tracking data |
+| `0M` | Ball Movement | Parse for device status (FLAGS/BALLS) |
+
+**0M Message Structure (Device Status):**
+```
+0M
+FLAGS=<bitmask>
+BALLS=<count>
+BALL1=<x>,<y>,<z>
+```
+- FLAGS == 7: Device ready (green light), FLAGS == 1: Not ready (red light)
+- BALLS > 0: Ball detected in tee area
+- Used to update GSPro's `LaunchMonitorIsReady` and `LaunchMonitorBallDetected` fields
 
 **Data Accumulation Strategy:**
-1. Filter: Only process lines starting with `0H`
-2. Accumulate: Parse `KEY=VALUE` pairs into dictionary across packets
-3. Complete: Shot is ready when `BACK_RPM` or `SIDE_RPM` is received
-4. New shot: When `SHOT_ID` changes, clear accumulator
-5. Timeout: If spin never arrives (~500ms), process available data
+1. Classify: Check message prefix (0H for shots, 0M for status)
+2. For 0H messages:
+   - Accumulate: Parse `KEY=VALUE` pairs into dictionary across packets
+   - Complete: Shot is ready when `BACK_RPM` or `SIDE_RPM` is received
+   - New shot: When `SHOT_ID` changes, clear accumulator
+   - Timeout: If spin never arrives (~500ms), process available data
+3. For 0M messages:
+   - Parse FLAGS and BALLS immediately
+   - Forward status to Unity if changed
+
+**Message Terminator:**
+- `\n\t` (newline followed by tab) indicates end of a complete message
+- Wait for terminator before processing accumulated fields
 
 **Multi-Packet Example:**
 ```
 Packet 1: 0H\nSHOT_ID=1\nSPEED_MPH=145.
 Packet 2: 20\nELEVATION_DEG=11.8\n
-Packet 3: 0H\nSHOT_ID=1\nBACK_RPM=2480\nSIDE_RPM=-320\n
-→ Shot complete, process now
+Packet 3: 0H\nSHOT_ID=1\nBACK_RPM=2480\nSIDE_RPM=-320\n\t
+→ Shot complete (got terminator and spin), process now
 ```
 
 **Misread Detection:**

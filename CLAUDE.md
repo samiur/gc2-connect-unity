@@ -129,11 +129,22 @@ The physics engine must match the Nathan model within tolerance:
 ```
 Vendor ID:  0x2C79 (11385)
 Product ID: 0x0110 (272)
-Endpoint:   0x81 (Bulk IN)
+Endpoint:   0x82 (INTERRUPT IN) - NOT bulk!
 
-Message format: KEY=VALUE pairs, newline-separated, double-newline terminated
+Message types:
+- 0H: Shot data (process) - SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, BACK_RPM, SIDE_RPM, etc.
+- 0M: Device status (parse for FLAGS/BALLS) - used for GSPro readiness
+
+Message format: KEY=VALUE pairs, newline-separated
+Terminator: \n\t (newline + tab) indicates message complete
+Wait for: BACK_RPM and SIDE_RPM before processing shot (early readings may be incomplete)
+
 Key fields: SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, SPIN_RPM, BACK_RPM, SIDE_RPM
 HMT fields: CLUBSPEED_MPH, HPATH_DEG, VPATH_DEG, FACE_T_DEG, LOFT_DEG
+
+Misread detection: Zero spin, BACK_RPM == 2222, SPEED_MPH < 10 or > 250
+
+Device status (0M): FLAGS == 7 = ready, BALLS > 0 = ball detected
 ```
 
 ## GSPro Integration
@@ -142,6 +153,7 @@ HMT fields: CLUBSPEED_MPH, HPATH_DEG, VPATH_DEG, FACE_T_DEG, LOFT_DEG
 Protocol: TCP JSON (GSPro Open Connect API v1)
 Port: 921
 Heartbeat: Every 2 seconds when idle
+Readiness: LaunchMonitorIsReady (from FLAGS), LaunchMonitorBallDetected (from BALLS)
 ```
 
 ## Key Documentation

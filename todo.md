@@ -3,8 +3,9 @@
 ## Current Status
 **Phase**: 5.5 - Ground Physics Improvement (2 of 3 complete)
 **Last Updated**: 2026-01-02
-**Next Prompt**: 34 (Physics Validation and Integration)
-**Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35)
+**Next Prompt**: 34 (Physics Validation and Integration) or skip to 18 (Device Status Interface)
+**Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ⏳ Validation (Prompt 34)
+**Protocol**: ✅ 0H shot parsing | ⏳ 0M device status (Prompt 18)
 
 ---
 
@@ -228,7 +229,14 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 6: TCP/Network Layer
 
-- [ ] **Prompt 18**: TCP Connection for Testing
+- [ ] **Prompt 18**: Update IGC2Connection Interface for Device Status
+  - [ ] Add OnDeviceStatusChanged event to IGC2Connection.cs
+  - [ ] Create GC2DeviceStatus.cs (IsReady, BallDetected, BallPosition)
+  - [ ] Add ParseDeviceStatus() to GC2Protocol.cs (parses 0M messages)
+  - [ ] Update GameManager.cs to track device status
+  - [ ] Tests
+
+- [ ] **Prompt 18b**: TCP Connection for Testing
   - [ ] Create GC2TCPConnection.cs
   - [ ] Create GC2TCPListener.cs
   - [ ] Create GC2TestWindow.cs (Editor)
@@ -236,9 +244,10 @@ These components exist and don't need to be rebuilt:
 
 - [ ] **Prompt 19**: GSPro Client
   - [ ] Create GSProClient.cs
-  - [ ] Create GSProMessage.cs
-  - [ ] Heartbeat system
-  - [ ] Create GSProModeUI.cs
+  - [ ] Create GSProMessage.cs with PlayerInfo (LaunchMonitorIsReady, LaunchMonitorBallDetected)
+  - [ ] Heartbeat system with device readiness
+  - [ ] UpdateReadyState() method for 0M status
+  - [ ] Create GSProModeUI.cs with ball readiness indicator
   - [ ] Tests
 
 ---
@@ -255,16 +264,20 @@ These components exist and don't need to be rebuilt:
 
 - [ ] **Prompt 21**: macOS Plugin Implementation
   - [ ] Complete GC2MacPlugin.mm
-  - [ ] libusb integration
-  - [ ] Device detection
-  - [ ] Read loop
-  - [ ] Protocol parsing
+  - [ ] libusb integration with INTERRUPT IN endpoint (0x82)
+  - [ ] Device detection (VID 0x2C79, PID 0x0110)
+  - [ ] Read loop with 64-byte packet handling
+  - [ ] Message type filtering (0H for shots, 0M for status)
+  - [ ] Data accumulation until BACK_RPM/SIDE_RPM received
+  - [ ] Wait for message terminator (\n\t)
+  - [ ] Device status callback from 0M (FLAGS=7 ready, BALLS>0 detected)
+  - [ ] Misread detection (zero spin, 2222 error, speed range)
   - [ ] Tests (hardware required)
 
 - [ ] **Prompt 22**: macOS C# Bridge
   - [ ] Create GC2MacConnection.cs
   - [ ] DllImport declarations
-  - [ ] Callback handling
+  - [ ] Callback handling (OnNativeShotReceived, OnNativeDeviceStatus)
   - [ ] Update factory
   - [ ] Tests
 
@@ -274,24 +287,28 @@ These components exist and don't need to be rebuilt:
 
 - [ ] **Prompt 23**: Android Plugin Project
   - [ ] Create Gradle project
-  - [ ] Configure manifest
-  - [ ] USB device filter
+  - [ ] Configure manifest with USB host permission
+  - [ ] USB device filter (VID 11385, PID 272)
   - [ ] Kotlin stubs
   - [ ] Build script
   - [ ] Verification tests
 
 - [ ] **Prompt 24**: Android Plugin Implementation
   - [ ] Complete GC2Plugin.kt
-  - [ ] USB permission handling
-  - [ ] Device enumeration
-  - [ ] Read thread
-  - [ ] Protocol parsing
+  - [ ] USB permission handling (BroadcastReceiver)
+  - [ ] Device enumeration with INTERRUPT IN endpoint
+  - [ ] Read thread with 64-byte interrupt transfers
+  - [ ] Message type filtering (0H for shots, 0M for status)
+  - [ ] Data accumulation until BACK_RPM/SIDE_RPM received
+  - [ ] Wait for message terminator (\n\t)
+  - [ ] Device status callback from 0M (FLAGS=7 ready, BALLS>0 detected)
+  - [ ] Misread detection (zero spin, 2222 error, speed range)
   - [ ] Tests (device required)
 
 - [ ] **Prompt 25**: Android C# Bridge
   - [ ] Create GC2AndroidConnection.cs
   - [ ] AndroidJavaObject calls
-  - [ ] Message handlers
+  - [ ] Message handlers (OnNativeShotReceived, OnNativeDeviceStatus)
   - [ ] Update factory
   - [ ] Create prefab
   - [ ] Tests
@@ -476,9 +493,20 @@ Additional physics tests also passing:
   - Prompt 33: Improved Roll Model (spin deceleration, backward roll, surface behavior)
   - Prompt 34: Validation and Integration (landing angle tracking, validation tests)
 
+**2026-01-02 (GC2 Protocol Update - Phase 2)**: Enhanced plan with 0M message handling for GSPro integration:
+- **0M message parsing**: Now process 0M messages for device status (was "skip")
+  - FLAGS == 7: Device ready (green light)
+  - BALLS > 0: Ball detected in tee area
+  - Used for GSPro LaunchMonitorIsReady and LaunchMonitorBallDetected
+- **New Prompt 18**: Added prompt to update IGC2Connection interface with OnDeviceStatusChanged event
+- **Updated Prompt 19**: GSPro client now includes UpdateReadyState() and PlayerInfo with readiness flags
+- **Updated Prompts 21, 24**: Native plugins now forward 0M status to Unity via OnNativeDeviceStatus callback
+- **Message terminator**: Documented `\n\t` as message end indicator
+- **todo.md updates**: Added detailed subtasks for 0M handling in macOS and Android prompts
+
 **2026-01-02 (GC2 Protocol Update)**: Updated GC2_PROTOCOL.md with detailed USB protocol information:
 - **Endpoint correction**: Shot data uses INTERRUPT IN endpoint (0x82), not BULK
-- **Message types**: 0H = shot data (process), 0M = ball movement (skip)
+- **Message types**: 0H = shot data (process), 0M = ball movement (skip → now process for status)
 - **Data accumulation**: Multi-packet assembly with waiting for BACK_RPM/SIDE_RPM
 - **Misread patterns**: Added 2222 error pattern to GC2Protocol.IsValidShot()
 - Updated plan.md prompts 21, 24 with correct endpoint and parsing strategy
