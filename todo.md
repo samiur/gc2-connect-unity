@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7 - macOS Native Plugin (1 of 3 complete)
+**Phase**: 7 - macOS Native Plugin (2 of 3 complete)
 **Last Updated**: 2026-01-03
-**Next Prompt**: 21 (macOS Plugin Implementation)
+**Next Prompt**: 22 (macOS C# Bridge)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 
@@ -264,17 +264,17 @@ These components exist and don't need to be rebuilt:
   - [x] Stub implementation (GC2MacPlugin.mm) - libusb init, device detection, callbacks
   - [x] Verification tests - 1459 EditMode tests pass with plugin loaded
 
-- [ ] **Prompt 21**: macOS Plugin Implementation
-  - [ ] Complete GC2MacPlugin.mm
-  - [ ] libusb integration with INTERRUPT IN endpoint (0x82)
-  - [ ] Device detection (VID 0x2C79, PID 0x0110)
-  - [ ] Read loop with 64-byte packet handling
-  - [ ] Message type filtering (0H for shots, 0M for status)
-  - [ ] Data accumulation until BACK_RPM/SIDE_RPM received
-  - [ ] Wait for message terminator (\n\t)
-  - [ ] Device status callback from 0M (FLAGS=7 ready, BALLS>0 detected)
-  - [ ] Misread detection (zero spin, 2222 error, speed range)
-  - [ ] Tests (hardware required)
+- [x] **Prompt 21**: macOS Plugin Implementation (PR #47)
+  - [x] Complete GC2MacPlugin.mm
+  - [x] libusb integration with INTERRUPT IN endpoint (0x82)
+  - [x] Device detection (VID 0x2C79, PID 0x0110)
+  - [x] Read loop with 64-byte packet handling
+  - [x] Message type filtering (0H for shots, 0M for status)
+  - [x] Data accumulation until BACK_RPM/SIDE_RPM received
+  - [x] Wait for message terminator (\n\t)
+  - [x] Device status callback from 0M (FLAGS=7 ready, BALLS>0 detected)
+  - [x] Misread detection (zero spin, 2222 error, speed range)
+  - [x] Hardware testing required (no physical device for automated testing)
 
 - [ ] **Prompt 22**: macOS C# Bridge
   - [ ] Create GC2MacConnection.cs
@@ -418,6 +418,28 @@ Additional physics tests also passing:
 - Update "Next Prompt" when moving forward
 
 ### Issue Log
+
+**2026-01-03 (macOS USB Read Loop)**: Prompt 21 complete. Implemented full USB read loop (PR #47):
+- `GC2MacPlugin.mm` - Full implementation (~730 lines of Objective-C++):
+  - USB read loop using `libusb_interrupt_transfer()` on INTERRUPT IN endpoint (0x82)
+  - 0H message parsing for shot data with field accumulation across 64-byte packets
+  - 0M message parsing for device status (FLAGS, BALLS) with deduplication
+  - Line buffer handling for split lines across packet boundaries
+  - Message terminator detection (`\n\t` pattern indicates message complete)
+  - Misread detection (zero spin, BACK_RPM == 2222, speed outside 1.1-250 mph)
+  - Duplicate detection via SHOT_ID tracking
+  - JSON output format matching GC2ShotData properties for Unity parsing
+  - Unity callbacks via weak-linked `UnitySendMessage` (main thread dispatch)
+  - Protocol constants: `kMinBallSpeedMph (1.1)`, `kMaxBallSpeedMph (250)`, `kFlagsReady (7)`
+- Key implementation details:
+  - `ParseLine()` - Parses KEY=VALUE lines, converts to appropriate types (int/float/bool)
+  - `BuildShotJSON()` - Maps GC2 field names to GC2ShotData property names
+  - `ProcessShotMessage()` - Validates shot data, checks for duplicates, notifies listeners
+  - `ProcessDeviceStatusMessage()` - Parses FLAGS/BALLS, sends status updates
+  - `ProcessBuffer()` - Main parsing loop with terminator detection
+  - `ReadLoop()` - Background dispatch queue for continuous USB reading
+- **Build verification**: Plugin compiles and loads in Unity (1459 tests pass)
+- **Hardware testing**: Not performed (no physical GC2 device available)
 
 **2026-01-03 (macOS Plugin Structure)**: Prompt 20 complete. Created native USB plugin structure (PR #45):
 - `GC2MacPlugin.h` - C interface header with complete API:
