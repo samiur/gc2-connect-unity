@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 5.6 - Ball Ready Indicator
-**Last Updated**: 2026-01-02
-**Next Prompt**: 35 (Ball Ready Indicator UI)
+**Phase**: 8 - macOS Build & Release
+**Last Updated**: 2026-01-03
+**Next Prompt**: 36 (macOS Build Script)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
@@ -293,18 +293,18 @@ These components exist and don't need to be rebuilt:
 
 ## Phase 5.6: Ball Ready Indicator
 
-- [ ] **Prompt 35**: Ball Ready Indicator UI
-  - [ ] Create BallReadyIndicator.cs (UI component)
-  - [ ] Visual states: Disconnected, Warming Up, Place Ball, READY
-  - [ ] Subscribe to GameManager.OnConnectionStateChanged
-  - [ ] Subscribe to GameManager.OnDeviceStatusChanged
-  - [ ] Pulse animation when ready to hit
-  - [ ] IsReadyToHit property
-  - [ ] OnReadyStateChanged event
-  - [ ] Create BallReadyIndicatorGenerator.cs (editor tool for prefab)
-  - [ ] Update MarinaSceneController with serialized field
-  - [ ] Update SceneGenerator to instantiate and wire prefab
-  - [ ] Tests (visual states, events, property values, null handling)
+- [x] **Prompt 35**: Ball Ready Indicator UI (PR #51)
+  - [x] Create BallReadyIndicator.cs (UI component)
+  - [x] Visual states: Disconnected, Warming Up, Place Ball, READY
+  - [x] Subscribe to GameManager.OnConnectionStateChanged
+  - [x] Subscribe to GameManager.OnDeviceStatusChanged
+  - [x] Pulse animation when ready to hit
+  - [x] IsReadyToHit property
+  - [x] OnReadyStateChanged, OnVisualStateChanged events
+  - [x] Create BallReadyIndicatorGenerator.cs (editor tool for prefab)
+  - [x] Update MarinaSceneController with serialized field
+  - [x] Update SceneGenerator to instantiate and wire prefab
+  - [x] Tests (49 tests: visual states, events, property values, null handling)
 
 ---
 
