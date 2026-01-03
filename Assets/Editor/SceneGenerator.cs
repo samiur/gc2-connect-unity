@@ -680,6 +680,25 @@ namespace OpenRange.Editor
                 historyRect.sizeDelta = new Vector2(350, 0);
 
                 shotHistoryPanel = shotHistoryPanelGo.GetComponent<ShotHistoryPanel>();
+
+                // Wire up the ShotHistoryItem prefab
+                var shotHistoryItemPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ShotHistoryItem.prefab");
+                if (shotHistoryItemPrefab != null)
+                {
+                    var historyPanelSo = new SerializedObject(shotHistoryPanel);
+                    var itemPrefabProp = historyPanelSo.FindProperty("_itemPrefab");
+                    if (itemPrefabProp != null)
+                    {
+                        itemPrefabProp.objectReferenceValue = shotHistoryItemPrefab.GetComponent<ShotHistoryItem>();
+                        historyPanelSo.ApplyModifiedPropertiesWithoutUndo();
+                        Debug.Log("SceneGenerator: Wired ShotHistoryItem prefab to ShotHistoryPanel");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("SceneGenerator: ShotHistoryItem.prefab not found for ShotHistoryPanel");
+                }
+
                 Debug.Log("SceneGenerator: Added ShotHistoryPanel to Marina scene");
             }
             else
@@ -734,6 +753,37 @@ namespace OpenRange.Editor
             else
             {
                 Debug.LogWarning("SceneGenerator: SettingsPanel.prefab not found. Run 'OpenRange > Create All Settings Panel Prefabs' first.");
+            }
+
+            // UIManager (singleton for toast notifications)
+            var uiManagerGo = new GameObject("UIManager");
+            var uiManager = uiManagerGo.AddComponent<UIManager>();
+
+            // Create toast container
+            var toastContainerGo = new GameObject("ToastContainer");
+            toastContainerGo.transform.SetParent(canvasGo.transform, false);
+            var toastContainerRect = toastContainerGo.AddComponent<RectTransform>();
+            toastContainerRect.anchorMin = new Vector2(0.5f, 1);
+            toastContainerRect.anchorMax = new Vector2(0.5f, 1);
+            toastContainerRect.pivot = new Vector2(0.5f, 1);
+            toastContainerRect.anchoredPosition = new Vector2(0, -20);
+            toastContainerRect.sizeDelta = new Vector2(400, 200);
+
+            // Wire up UIManager
+            var toastPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/Toast.prefab");
+            var uiManagerSo = new SerializedObject(uiManager);
+            uiManagerSo.FindProperty("_toastPrefab").objectReferenceValue = toastPrefab;
+            uiManagerSo.FindProperty("_toastContainer").objectReferenceValue = toastContainerGo.transform;
+            uiManagerSo.FindProperty("_panelContainer").objectReferenceValue = canvasGo.transform;
+            uiManagerSo.ApplyModifiedPropertiesWithoutUndo();
+
+            if (toastPrefab != null)
+            {
+                Debug.Log("SceneGenerator: Added UIManager with Toast prefab to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: Toast.prefab not found. Toasts won't work.");
             }
 
             // Add MarinaSceneController
