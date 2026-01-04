@@ -58,6 +58,18 @@ class GC2BridgeService : Service() {
         /** Action when app returns to foreground */
         const val ACTION_APP_RESUMED = "com.openrange.gc2.action.APP_RESUMED"
 
+        /** Action to send a shot to GSPro */
+        const val ACTION_SEND_SHOT = "com.openrange.gc2.action.SEND_SHOT"
+
+        // Shot data extras
+        const val EXTRA_BALL_SPEED = "ball_speed"
+        const val EXTRA_LAUNCH_ANGLE = "launch_angle"
+        const val EXTRA_DIRECTION = "direction"
+        const val EXTRA_TOTAL_SPIN = "total_spin"
+        const val EXTRA_BACK_SPIN = "back_spin"
+        const val EXTRA_SIDE_SPIN = "side_spin"
+        const val EXTRA_SPIN_AXIS = "spin_axis"
+
         /** Extra key for shots relayed count */
         const val EXTRA_SHOTS_RELAYED = "shots_relayed"
 
@@ -185,6 +197,7 @@ class GC2BridgeService : Service() {
             ACTION_UPDATE_NOTIFICATION -> updateNotificationFromIntent(intent)
             ACTION_APP_BACKGROUNDED -> onAppBackgrounded()
             ACTION_APP_RESUMED -> onAppResumed()
+            ACTION_SEND_SHOT -> sendShotFromIntent(intent)
         }
 
         // Restart if killed
@@ -578,6 +591,44 @@ class GC2BridgeService : Service() {
             backSpin = backSpin,
             sideSpin = 0f,
             spinAxis = 0f
+        )
+
+        // Increment shot count and update notification
+        shotsRelayed++
+        updateNotification()
+        sendToUnity("OnBridgeShotRelayed", shotsRelayed.toString())
+    }
+
+    /**
+     * Sends a shot to GSPro from Unity intent data.
+     * Called when Unity wants to send a shot through the native client.
+     */
+    private fun sendShotFromIntent(intent: Intent) {
+        val client = gsProClient
+        if (client == null || !client.isConnected()) {
+            Log.w(TAG, "Cannot send shot from Unity - GSPro not connected")
+            sendToUnity("OnBridgeError", "GSPro not connected")
+            return
+        }
+
+        val ballSpeed = intent.getFloatExtra(EXTRA_BALL_SPEED, 0f)
+        val launchAngle = intent.getFloatExtra(EXTRA_LAUNCH_ANGLE, 0f)
+        val direction = intent.getFloatExtra(EXTRA_DIRECTION, 0f)
+        val totalSpin = intent.getFloatExtra(EXTRA_TOTAL_SPIN, 0f)
+        val backSpin = intent.getFloatExtra(EXTRA_BACK_SPIN, 0f)
+        val sideSpin = intent.getFloatExtra(EXTRA_SIDE_SPIN, 0f)
+        val spinAxis = intent.getFloatExtra(EXTRA_SPIN_AXIS, 0f)
+
+        Log.i(TAG, "Sending shot from Unity: $ballSpeed mph, $launchAngle° launch, $totalSpin rpm spin")
+
+        client.sendShot(
+            ballSpeed = ballSpeed,
+            launchAngle = launchAngle,
+            direction = direction,
+            totalSpin = totalSpin,
+            backSpin = backSpin,
+            sideSpin = sideSpin,
+            spinAxis = spinAxis
         )
 
         // Increment shot count and update notification

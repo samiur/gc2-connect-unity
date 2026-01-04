@@ -325,6 +325,31 @@ namespace OpenRange.Core
                 return;
             }
 
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // On Android, use native service to send shots (it handles all GSPro communication)
+            var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+            if (androidService != null)
+            {
+                if (androidService.SendShot(shot))
+                {
+                    // Statistics updated via OnBridgeShotRelayed callback from native
+                    return;
+                }
+                else
+                {
+                    _statistics.ShotsRejected++;
+                    OnShotRelayFailed?.Invoke(shot, "Failed to send via native service");
+                    return;
+                }
+            }
+            else
+            {
+                _statistics.ShotsRejected++;
+                OnShotRelayFailed?.Invoke(shot, "Android bridge service not available");
+                return;
+            }
+#else
+            // On other platforms, use Unity's GSProRelay
             if (_gsProRelay == null || !_gsProRelay.IsConnected)
             {
                 _statistics.ShotsRejected++;
@@ -333,6 +358,7 @@ namespace OpenRange.Core
             }
 
             _gsProRelay.RelayShot(shot);
+#endif
         }
 
         /// <summary>

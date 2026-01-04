@@ -83,6 +83,20 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         private const string ExtraTestShotMode = "test_shot_mode";
 
+        /// <summary>
+        /// Action to send a shot to GSPro.
+        /// </summary>
+        private const string ActionSendShot = "com.openrange.gc2.action.SEND_SHOT";
+
+        // Shot data extras
+        private const string ExtraBallSpeed = "ball_speed";
+        private const string ExtraLaunchAngle = "launch_angle";
+        private const string ExtraDirection = "direction";
+        private const string ExtraTotalSpin = "total_spin";
+        private const string ExtraBackSpin = "back_spin";
+        private const string ExtraSideSpin = "side_spin";
+        private const string ExtraSpinAxis = "spin_axis";
+
         #endregion
 
         #region Private Fields
@@ -422,6 +436,43 @@ namespace OpenRange.GC2.Platforms.Android
             catch (Exception ex)
             {
                 Debug.LogWarning($"AndroidBridgeService: NotifyAppResumed failed - {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Sends a shot to GSPro through the native client.
+        /// On Android, the native service handles all GSPro communication.
+        /// </summary>
+        /// <param name="shot">The shot data to send.</param>
+        /// <returns>True if the shot was sent (doesn't guarantee delivery).</returns>
+        public bool SendShot(GC2ShotData shot)
+        {
+            if (_isDisposed || _applicationContext == null)
+            {
+                Debug.LogWarning("AndroidBridgeService: Cannot send shot - disposed or no context");
+                return false;
+            }
+
+            try
+            {
+                using (var intent = CreateServiceIntent(ActionSendShot))
+                {
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraBallSpeed, shot.BallSpeed);
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraLaunchAngle, shot.LaunchAngle);
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraDirection, shot.Direction);
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraTotalSpin, shot.TotalSpin);
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraBackSpin, shot.BackSpin);
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraSideSpin, shot.SideSpin);
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraSpinAxis, shot.SpinAxis);
+                    _applicationContext.Call<AndroidJavaObject>("startService", intent);
+                }
+                Debug.Log($"AndroidBridgeService: Sent shot to native GSPro client - {shot.BallSpeed} mph");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"AndroidBridgeService: SendShot failed - {ex.Message}");
+                return false;
             }
         }
 
