@@ -339,9 +339,31 @@ build_android() {
     local build_result=$?
 
     if [ $build_result -ne 0 ]; then
+        # Check for specific errors
+        if grep -q "Android Build Support is not installed" "$build_log"; then
+            echo ""
+            echo_error "Android Build Support is not installed in Unity!"
+            echo ""
+            echo "To install Android Build Support:"
+            echo "  1. Open Unity Hub"
+            echo "  2. Go to Installs tab"
+            echo "  3. Click the gear icon on Unity $UNITY_VERSION"
+            echo "  4. Select 'Add Modules'"
+            echo "  5. Check 'Android Build Support' (includes SDK & NDK)"
+            echo "  6. Click 'Install'"
+            echo ""
+            echo "After installation, run the build again."
+            exit 1
+        fi
+
         echo_error "Android build failed. Check $build_log for details."
         if [ "$VERBOSE" = true ]; then
             tail -100 "$build_log"
+        else
+            # Show relevant error lines
+            echo ""
+            echo "Recent errors from log:"
+            grep -E "(Error|error|ERROR|Exception|FAILED)" "$build_log" | tail -10
         fi
         exit 1
     fi

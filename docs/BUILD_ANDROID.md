@@ -266,6 +266,19 @@ FAILURE: Build failed with an exception.
 2. Install Android SDK Build-Tools 34.x
 3. Accept all SDK license agreements
 
+#### "Android Build Support is not installed" or "build target was unsupported"
+```
+Error building player because build target was unsupported
+```
+**Solution**: Install Android Build Support module in Unity Hub:
+1. Open Unity Hub
+2. Go to **Installs** tab
+3. Click the gear icon on Unity 6000.3.2f1
+4. Select **Add Modules**
+5. Check **Android Build Support** (this includes Android SDK & NDK Tools)
+6. Click **Install**
+7. After installation completes, run the build again
+
 ### Build Logs
 
 All build logs are saved to `Builds/logs/`:

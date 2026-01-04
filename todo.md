@@ -506,11 +506,12 @@ All validated ✅ (PR #3):
 
 **2026-01-04 (Android Build Configuration)**: Prompt 39 complete (PR #69). Created comprehensive Android build infrastructure:
 - AndroidBuildSettings.cs: Unity editor script with menu items under OpenRange/Android/ for configuring settings (package name, API levels 26-34, IL2CPP, ARM64), validation, and keystore template creation. CI/CD helpers for automated builds.
-- AndroidBuilder.cs: Command-line build entry point called via -executeMethod. Supports APK/AAB output, development builds, version from git tags.
-- Scripts/build_android.sh: Main build orchestration script with validation, plugin build, tests, settings config, Unity build. Options for --skip-tests, --skip-plugin, --development, --aab, --version.
+- AndroidBuilder.cs: Command-line build entry point called via -executeMethod. Supports APK/AAB output, development builds, version from git tags. Added BuildPipeline.IsBuildTargetSupported() check with clear error message if Android Build Support not installed.
+- Scripts/build_android.sh: Main build orchestration script with validation, plugin build, tests, settings config, Unity build. Options for --skip-tests, --skip-plugin, --development, --aab, --version. Detects "Android Build Support is not installed" error and provides installation instructions.
 - Makefile targets: build-android, build-android-dev, build-android-aab, build-android-plugin, android-config, android-validate.
 - configs/android/keystore.properties.template with .gitignore protection.
-- docs/BUILD_ANDROID.md comprehensive documentation.
+- docs/BUILD_ANDROID.md comprehensive documentation with troubleshooting for missing Android Build Support.
+- **Note**: Requires Unity Android Build Support module (install via Unity Hub → Installs → Add Modules).
 
 **2026-01-03 (Android C# Bridge)**: Prompt 25 complete (PR #67). Created GC2AndroidConnection.cs implementing IGC2Connection via AndroidJavaObject. Uses UnitySendMessage callbacks for native-to-C# communication. JSON parsing for shot data (maps LaunchDirection→Direction, ClubPath→Path) and device status. Thread-safe event dispatching via MainThreadDispatcher. 52 unit tests covering JSON parsing, lifecycle, event handlers. GC2ConnectionFactory already routed UNITY_ANDROID - no changes needed.
 

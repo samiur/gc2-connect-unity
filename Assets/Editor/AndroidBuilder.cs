@@ -27,6 +27,24 @@ namespace OpenRange.Editor
 
             try
             {
+                // Check if Android Build Support is installed
+                if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
+                {
+                    Debug.LogError("AndroidBuilder: Android Build Support is not installed!");
+                    Debug.LogError("");
+                    Debug.LogError("To install Android Build Support:");
+                    Debug.LogError("  1. Open Unity Hub");
+                    Debug.LogError("  2. Go to Installs tab");
+                    Debug.LogError("  3. Click the gear icon on Unity 6000.3.2f1");
+                    Debug.LogError("  4. Select 'Add Modules'");
+                    Debug.LogError("  5. Check 'Android Build Support' (includes SDK & NDK)");
+                    Debug.LogError("  6. Click 'Install'");
+                    Debug.LogError("");
+                    Debug.LogError("After installation, run the build again.");
+                    EditorApplication.Exit(1);
+                    return;
+                }
+
                 // Parse command line arguments
                 var args = Environment.GetCommandLineArgs();
                 var outputPath = GetArgValue(args, "-outputPath") ?? DefaultOutputPath;
@@ -179,6 +197,23 @@ namespace OpenRange.Editor
         {
             Debug.Log("AndroidBuilder: Quick APK build...");
 
+            // Check if Android Build Support is installed
+            if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
+            {
+                EditorUtility.DisplayDialog(
+                    "Android Build Support Not Installed",
+                    "Android Build Support is not installed.\n\n" +
+                    "To install:\n" +
+                    "1. Open Unity Hub\n" +
+                    "2. Go to Installs tab\n" +
+                    "3. Click the gear icon on Unity 6000.3.2f1\n" +
+                    "4. Select 'Add Modules'\n" +
+                    "5. Check 'Android Build Support'\n" +
+                    "6. Click 'Install'",
+                    "OK");
+                return;
+            }
+
             // Configure for development
             AndroidBuildSettings.ConfigureForDevelopment();
 
@@ -222,6 +257,23 @@ namespace OpenRange.Editor
         public static void BuildAAB()
         {
             Debug.Log("AndroidBuilder: AAB build for Play Store...");
+
+            // Check if Android Build Support is installed
+            if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
+            {
+                EditorUtility.DisplayDialog(
+                    "Android Build Support Not Installed",
+                    "Android Build Support is not installed.\n\n" +
+                    "To install:\n" +
+                    "1. Open Unity Hub\n" +
+                    "2. Go to Installs tab\n" +
+                    "3. Click the gear icon on Unity 6000.3.2f1\n" +
+                    "4. Select 'Add Modules'\n" +
+                    "5. Check 'Android Build Support'\n" +
+                    "6. Click 'Install'",
+                    "OK");
+                return;
+            }
 
             // Configure for release
             AndroidBuildSettings.ConfigureForAAB();
