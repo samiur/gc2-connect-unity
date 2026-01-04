@@ -39,6 +39,16 @@ namespace OpenRange.GC2.Platforms.Android
         private const string ActionUpdate = "com.openrange.gc2.action.UPDATE_NOTIFICATION";
 
         /// <summary>
+        /// Action when app goes to background.
+        /// </summary>
+        private const string ActionAppBackgrounded = "com.openrange.gc2.action.APP_BACKGROUNDED";
+
+        /// <summary>
+        /// Action when app returns to foreground.
+        /// </summary>
+        private const string ActionAppResumed = "com.openrange.gc2.action.APP_RESUMED";
+
+        /// <summary>
         /// Extra key for shots relayed count.
         /// </summary>
         private const string ExtraShotsRelayed = "shots_relayed";
@@ -58,6 +68,21 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         private const string ExtraUseConnectedDevice = "use_connected_device";
 
+        /// <summary>
+        /// Extra key for GSPro host address.
+        /// </summary>
+        private const string ExtraGSProHost = "gspro_host";
+
+        /// <summary>
+        /// Extra key for GSPro port.
+        /// </summary>
+        private const string ExtraGSProPort = "gspro_port";
+
+        /// <summary>
+        /// Extra key for test shot mode (sends periodic test shots when GC2 not connected).
+        /// </summary>
+        private const string ExtraTestShotMode = "test_shot_mode";
+
         #endregion
 
         #region Private Fields
@@ -69,6 +94,9 @@ namespace OpenRange.GC2.Platforms.Android
         private int _shotsRelayed;
         private bool _isGC2Connected;
         private bool _isGSProConnected;
+        private string _gsProHost = "localhost";
+        private int _gsProPort = 921;
+        private bool _testShotModeEnabled;
 
         #endregion
 
@@ -309,6 +337,67 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         public int GetShotsRelayed() => _shotsRelayed;
 
+        /// <summary>
+        /// Configures GSPro connection settings for native background relay.
+        /// Must be called before StartAsync().
+        /// </summary>
+        /// <param name="host">GSPro host address</param>
+        /// <param name="port">GSPro port (default 921)</param>
+        /// <param name="testShotMode">Enable test shot mode when GC2 not connected</param>
+        public void ConfigureGSPro(string host, int port, bool testShotMode)
+        {
+            _gsProHost = host;
+            _gsProPort = port;
+            _testShotModeEnabled = testShotMode;
+            Debug.Log($"AndroidBridgeService: Configured GSPro - host={host}, port={port}, testShotMode={testShotMode}");
+        }
+
+        /// <summary>
+        /// Notifies the native service that the app has gone to background.
+        /// This triggers test shot mode if conditions are met.
+        /// </summary>
+        public void NotifyAppBackgrounded()
+        {
+            if (!_isRunning || _isDisposed || _unityActivity == null)
+                return;
+
+            try
+            {
+                using (var intent = CreateServiceIntent(ActionAppBackgrounded))
+                {
+                    _unityActivity.Call("startService", intent);
+                }
+                Debug.Log("AndroidBridgeService: Notified native service - app backgrounded");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"AndroidBridgeService: NotifyAppBackgrounded failed - {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Notifies the native service that the app has returned to foreground.
+        /// This stops test shot mode so Unity can handle GSPro.
+        /// </summary>
+        public void NotifyAppResumed()
+        {
+            if (!_isRunning || _isDisposed || _unityActivity == null)
+                return;
+
+            try
+            {
+                using (var intent = CreateServiceIntent(ActionAppResumed))
+                {
+                    _unityActivity.Call("startService", intent);
+                }
+                Debug.Log("AndroidBridgeService: Notified native service - app resumed");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"AndroidBridgeService: NotifyAppResumed failed - {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Native Callbacks (Called via UnitySendMessage)
@@ -403,7 +492,13 @@ namespace OpenRange.GC2.Platforms.Android
                 intent.Call<AndroidJavaObject>("putExtra", ExtraGSProConnected, _isGSProConnected);
                 intent.Call<AndroidJavaObject>("putExtra", ExtraUseConnectedDevice, useConnectedDevice);
 
-                Debug.Log($"AndroidBridgeService: Starting service with useConnectedDevice={useConnectedDevice}");
+                // GSPro connection parameters for native background relay
+                intent.Call<AndroidJavaObject>("putExtra", ExtraGSProHost, _gsProHost);
+                intent.Call<AndroidJavaObject>("putExtra", ExtraGSProPort, _gsProPort);
+                intent.Call<AndroidJavaObject>("putExtra", ExtraTestShotMode, _testShotModeEnabled);
+
+                Debug.Log($"AndroidBridgeService: Starting service with useConnectedDevice={useConnectedDevice}, " +
+                    $"gsProHost={_gsProHost}, gsProPort={_gsProPort}, testShotMode={_testShotModeEnabled}");
 
                 // Use startForegroundService for Android 8.0+
                 if (GetAndroidApiLevel() >= 26)

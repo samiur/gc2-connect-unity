@@ -1,5 +1,5 @@
 // ABOUTME: Android foreground service for Bridge Mode background operation.
-// ABOUTME: Maintains USB connection and notification when app is backgrounded.
+// ABOUTME: Maintains USB connection, GSPro relay, and test shots when app is backgrounded.
 
 package com.openrange.gc2
 
@@ -13,7 +13,9 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -50,6 +52,12 @@ class GC2BridgeService : Service() {
         /** Action to update notification */
         const val ACTION_UPDATE_NOTIFICATION = "com.openrange.gc2.action.UPDATE_NOTIFICATION"
 
+        /** Action when app goes to background */
+        const val ACTION_APP_BACKGROUNDED = "com.openrange.gc2.action.APP_BACKGROUNDED"
+
+        /** Action when app returns to foreground */
+        const val ACTION_APP_RESUMED = "com.openrange.gc2.action.APP_RESUMED"
+
         /** Extra key for shots relayed count */
         const val EXTRA_SHOTS_RELAYED = "shots_relayed"
 
@@ -62,8 +70,20 @@ class GC2BridgeService : Service() {
         /** Extra key for whether to use connectedDevice service type (requires GC2 USB permission) */
         const val EXTRA_USE_CONNECTED_DEVICE = "use_connected_device"
 
+        /** Extra key for GSPro host address */
+        const val EXTRA_GSPRO_HOST = "gspro_host"
+
+        /** Extra key for GSPro port */
+        const val EXTRA_GSPRO_PORT = "gspro_port"
+
+        /** Extra key for test shot mode */
+        const val EXTRA_TEST_SHOT_MODE = "test_shot_mode"
+
         /** Wake lock tag */
         private const val WAKE_LOCK_TAG = "OpenRange::GC2BridgeWakeLock"
+
+        /** Test shot interval in milliseconds */
+        private const val TEST_SHOT_INTERVAL_MS = 15000L
 
         @Volatile
         private var instance: GC2BridgeService? = null
@@ -102,6 +122,33 @@ class GC2BridgeService : Service() {
     /** Callback object name for Unity */
     private var unityCallbackObject: String? = null
 
+    /** Native GSPro client for background operation */
+    private var gsProClient: GSProClient? = null
+
+    /** Handler for test shot timer */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** Test shot mode enabled */
+    private var testShotModeEnabled: Boolean = false
+
+    /** Whether app is currently in the background */
+    private var isAppBackgrounded: Boolean = false
+
+    /** Test shot runnable */
+    private var testShotRunnable: Runnable? = null
+
+    /** Current test shot index (cycles through presets) */
+    private var testShotIndex: Int = 0
+
+    /** Test shot presets: [ballSpeed, launchAngle, backSpin] */
+    private val testShotPresets = arrayOf(
+        floatArrayOf(167f, 10.9f, 2686f),  // Driver
+        floatArrayOf(120f, 16.3f, 7097f),  // 7-Iron
+        floatArrayOf(102f, 24.2f, 9304f)   // PW
+    )
+
+    private val testShotNames = arrayOf("Driver", "7-Iron", "PW")
+
     /**
      * Binder class for local binding.
      */
@@ -136,6 +183,8 @@ class GC2BridgeService : Service() {
             ACTION_START -> startBridgeMode(intent)
             ACTION_STOP -> stopBridgeMode()
             ACTION_UPDATE_NOTIFICATION -> updateNotificationFromIntent(intent)
+            ACTION_APP_BACKGROUNDED -> onAppBackgrounded()
+            ACTION_APP_RESUMED -> onAppResumed()
         }
 
         // Restart if killed
@@ -219,7 +268,13 @@ class GC2BridgeService : Service() {
         isGSProConnected = intent.getBooleanExtra(EXTRA_GSPRO_CONNECTED, false)
         val useConnectedDevice = intent.getBooleanExtra(EXTRA_USE_CONNECTED_DEVICE, false)
 
+        // Get GSPro connection info
+        val gsproHost = intent.getStringExtra(EXTRA_GSPRO_HOST) ?: "localhost"
+        val gsproPort = intent.getIntExtra(EXTRA_GSPRO_PORT, GSProClient.DEFAULT_PORT)
+        testShotModeEnabled = intent.getBooleanExtra(EXTRA_TEST_SHOT_MODE, false)
+
         Log.d(TAG, "Bridge Mode: isGC2Connected=$isGC2Connected, useConnectedDevice=$useConnectedDevice")
+        Log.d(TAG, "GSPro: host=$gsproHost, port=$gsproPort, testShotMode=$testShotModeEnabled")
 
         // Acquire wake lock
         acquireWakeLock()
@@ -243,6 +298,9 @@ class GC2BridgeService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
+        // Connect to GSPro using native client
+        connectToGSPro(gsproHost, gsproPort)
+
         Log.i(TAG, "Bridge Mode started")
         callback?.onServiceStarted()
         sendToUnity("OnBridgeServiceStarted", "")
@@ -250,6 +308,10 @@ class GC2BridgeService : Service() {
 
     private fun stopBridgeMode() {
         Log.i(TAG, "Stopping Bridge Mode")
+
+        // Stop test shots and disconnect GSPro
+        stopTestShots()
+        disconnectFromGSPro()
 
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -369,6 +431,136 @@ class GC2BridgeService : Service() {
             }
         }
         wakeLock = null
+    }
+
+    // -------------------------------------------------------------------------
+    // GSPro connection methods
+    // -------------------------------------------------------------------------
+
+    private fun connectToGSPro(host: String, port: Int) {
+        Log.d(TAG, "Connecting to GSPro at $host:$port")
+
+        gsProClient = GSProClient()
+        gsProClient?.connect(host, port) { success ->
+            if (success) {
+                Log.i(TAG, "Native GSPro client connected")
+                isGSProConnected = true
+                updateNotification()
+
+                // Note: Test shots are only started when app goes to background
+                // via onAppBackgrounded(), not when GSPro first connects.
+                // This ensures shots are only sent when the app is actually backgrounded.
+            } else {
+                Log.e(TAG, "Native GSPro client failed to connect")
+                isGSProConnected = false
+                updateNotification()
+            }
+        }
+    }
+
+    /**
+     * Called when Unity app goes to background.
+     * Starts test shots if conditions are met.
+     */
+    private fun onAppBackgrounded() {
+        Log.i(TAG, "App backgrounded")
+        isAppBackgrounded = true
+
+        // Start test shots if all conditions are met:
+        // - Test shot mode enabled (GC2 was not connected when bridge mode started)
+        // - GSPro is connected
+        // - GC2 is still not connected
+        if (testShotModeEnabled && isGSProConnected && !isGC2Connected) {
+            Log.i(TAG, "Starting test shots (app backgrounded, conditions met)")
+            startTestShots()
+        }
+    }
+
+    /**
+     * Called when Unity app returns to foreground.
+     * Stops test shots - Unity handles everything when in foreground.
+     */
+    private fun onAppResumed() {
+        Log.i(TAG, "App resumed")
+        isAppBackgrounded = false
+
+        // Stop test shots - Unity handles GSPro when in foreground
+        stopTestShots()
+    }
+
+    private fun disconnectFromGSPro() {
+        stopTestShots()
+        gsProClient?.disconnect()
+        gsProClient = null
+        isGSProConnected = false
+        Log.d(TAG, "Native GSPro client disconnected")
+    }
+
+    // -------------------------------------------------------------------------
+    // Test shot methods
+    // -------------------------------------------------------------------------
+
+    private fun startTestShots() {
+        if (testShotRunnable != null) {
+            Log.d(TAG, "Test shots already running")
+            return
+        }
+
+        Log.i(TAG, "Starting test shot mode (interval: ${TEST_SHOT_INTERVAL_MS}ms)")
+        testShotIndex = 0
+
+        // Send first shot immediately
+        sendTestShot()
+
+        // Schedule periodic shots
+        testShotRunnable = object : Runnable {
+            override fun run() {
+                sendTestShot()
+                mainHandler.postDelayed(this, TEST_SHOT_INTERVAL_MS)
+            }
+        }
+        mainHandler.postDelayed(testShotRunnable!!, TEST_SHOT_INTERVAL_MS)
+    }
+
+    private fun stopTestShots() {
+        testShotRunnable?.let {
+            mainHandler.removeCallbacks(it)
+            testShotRunnable = null
+            Log.i(TAG, "Test shot mode stopped")
+        }
+    }
+
+    private fun sendTestShot() {
+        val client = gsProClient
+        if (client == null || !client.isConnected()) {
+            Log.w(TAG, "Cannot send test shot - GSPro not connected")
+            return
+        }
+
+        val preset = testShotPresets[testShotIndex]
+        val name = testShotNames[testShotIndex]
+        testShotIndex = (testShotIndex + 1) % testShotPresets.size
+
+        val ballSpeed = preset[0]
+        val launchAngle = preset[1]
+        val backSpin = preset[2]
+
+        Log.i(TAG, "Sending test shot: $name ($ballSpeed mph)")
+
+        client.sendShot(
+            ballSpeed = ballSpeed,
+            launchAngle = launchAngle,
+            direction = 0f,
+            totalSpin = backSpin,
+            backSpin = backSpin,
+            sideSpin = 0f,
+            spinAxis = 0f
+        )
+
+        // Increment shot count and update notification
+        shotsRelayed++
+        updateNotification()
+        sendToUnity("OnBridgeShotRelayed", shotsRelayed.toString())
     }
 
     /**

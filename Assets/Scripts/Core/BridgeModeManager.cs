@@ -169,6 +169,8 @@ namespace OpenRange.Core
             // Start platform service if available
             if (_bridgeService != null)
             {
+                // Configure GSPro parameters for native background relay
+                ConfigureBridgeServiceGSPro(isGC2Connected);
                 await _bridgeService.StartAsync();
             }
 
@@ -176,12 +178,10 @@ namespace OpenRange.Core
             _statistics.StartTime = DateTime.UtcNow;
             SetState(BridgeModeState.Active);
 
-            // Start test shot mode if GC2 is not connected (for GSPro testing)
-            if (!isGC2Connected)
-            {
-                Debug.Log("BridgeModeManager: GC2 not connected, starting test shot mode");
-                StartTestShotMode();
-            }
+            // Note: Test shots are now handled by the native Android service when backgrounded.
+            // They should ONLY be sent when the app is in the background, GC2 is not connected,
+            // and GSPro IS connected. Unity coroutines don't run when backgrounded, so the
+            // native service handles this instead.
 
             Debug.Log("BridgeModeManager: Bridge mode enabled");
             return true;
@@ -237,6 +237,10 @@ namespace OpenRange.Core
             }
 
             Debug.Log("BridgeModeManager: Transitioning to backgrounded");
+
+            // Notify Android service that app is backgrounded (triggers test shots if conditions met)
+            NotifyBridgeServiceAppBackgrounded();
+
             SetState(BridgeModeState.Backgrounded);
         }
 
@@ -252,6 +256,10 @@ namespace OpenRange.Core
             }
 
             Debug.Log("BridgeModeManager: Transitioning to active");
+
+            // Notify Android service that app is resumed (stops test shots)
+            NotifyBridgeServiceAppResumed();
+
             SetState(BridgeModeState.Active);
         }
 
@@ -334,6 +342,48 @@ namespace OpenRange.Core
         {
             _statistics.ShotsRejected++;
             OnError?.Invoke(error);
+        }
+
+        /// <summary>
+        /// Configures the platform bridge service with GSPro connection parameters.
+        /// On Android, enables test shot mode when GC2 is not connected.
+        /// </summary>
+        private void ConfigureBridgeServiceGSPro(bool isGC2Connected)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // On Android, configure the native service to handle GSPro connection and test shots
+            var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+            if (androidService != null)
+            {
+                // Enable test shot mode when GC2 is not connected
+                // Test shots will be sent by the native service when the app is backgrounded
+                bool testShotMode = !isGC2Connected;
+                androidService.ConfigureGSPro(_gsProHost, _gsProPort, testShotMode);
+                Debug.Log($"BridgeModeManager: Configured Android service - testShotMode={testShotMode}");
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Notifies the Android bridge service that the app has gone to background.
+        /// </summary>
+        private void NotifyBridgeServiceAppBackgrounded()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+            androidService?.NotifyAppBackgrounded();
+#endif
+        }
+
+        /// <summary>
+        /// Notifies the Android bridge service that the app has returned to foreground.
+        /// </summary>
+        private void NotifyBridgeServiceAppResumed()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+            androidService?.NotifyAppResumed();
+#endif
         }
 
         #region Test Shot Mode (When GC2 Not Connected)
