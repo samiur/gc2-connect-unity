@@ -826,6 +826,54 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: TestShotPanel.prefab not found. Run 'OpenRange > Create Test Shot Panel Prefab' first.");
             }
 
+            // Bridge Mode Overlay (floating status, bottom-right, draggable)
+            BridgeModeOverlay bridgeModeOverlay = null;
+            var bridgeModeOverlayPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/BridgeModeOverlay.prefab");
+            if (bridgeModeOverlayPrefab != null)
+            {
+                var bridgeModeOverlayGo = (GameObject)PrefabUtility.InstantiatePrefab(bridgeModeOverlayPrefab);
+                bridgeModeOverlayGo.name = "BridgeModeOverlay";
+                bridgeModeOverlayGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position at bottom-right (floating overlay, user can drag)
+                var overlayRect = bridgeModeOverlayGo.GetComponent<RectTransform>();
+                overlayRect.anchorMin = new Vector2(1, 0);
+                overlayRect.anchorMax = new Vector2(1, 0);
+                overlayRect.pivot = new Vector2(1, 0);
+                overlayRect.anchoredPosition = new Vector2(-20, 20);
+
+                bridgeModeOverlay = bridgeModeOverlayGo.GetComponent<BridgeModeOverlay>();
+                Debug.Log("SceneGenerator: Added BridgeModeOverlay to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: BridgeModeOverlay.prefab not found. Run 'OpenRange > Create All Bridge Mode UI Prefabs' first.");
+            }
+
+            // Bridge Mode Toggle (in settings area, enables bridge mode)
+            BridgeModeToggle bridgeModeToggle = null;
+            var bridgeModeTogglePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/BridgeModeToggle.prefab");
+            if (bridgeModeTogglePrefab != null)
+            {
+                var bridgeModeToggleGo = (GameObject)PrefabUtility.InstantiatePrefab(bridgeModeTogglePrefab);
+                bridgeModeToggleGo.name = "BridgeModeToggle";
+                bridgeModeToggleGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position below GSPro Mode UI on right side
+                var toggleRect = bridgeModeToggleGo.GetComponent<RectTransform>();
+                toggleRect.anchorMin = new Vector2(1, 0.5f);
+                toggleRect.anchorMax = new Vector2(1, 0.5f);
+                toggleRect.pivot = new Vector2(1, 0.5f);
+                toggleRect.anchoredPosition = new Vector2(-10, -150);
+
+                bridgeModeToggle = bridgeModeToggleGo.GetComponent<BridgeModeToggle>();
+                Debug.Log("SceneGenerator: Added BridgeModeToggle to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: BridgeModeToggle.prefab not found. Run 'OpenRange > Create All Bridge Mode UI Prefabs' first.");
+            }
+
             // UIManager (singleton for toast notifications)
             var uiManagerGo = new GameObject("UIManager");
             var uiManager = uiManagerGo.AddComponent<UIManager>();
@@ -873,6 +921,8 @@ namespace OpenRange.Editor
             controllerSo.FindProperty("_gsProModeUI").objectReferenceValue = gsProModeUI;
             controllerSo.FindProperty("_settingsPanel").objectReferenceValue = settingsPanel;
             controllerSo.FindProperty("_testShotPanel").objectReferenceValue = testShotPanel;
+            controllerSo.FindProperty("_bridgeModeOverlay").objectReferenceValue = bridgeModeOverlay;
+            controllerSo.FindProperty("_bridgeModeToggle").objectReferenceValue = bridgeModeToggle;
             controllerSo.FindProperty("_sessionInfoPanel").objectReferenceValue = sessionInfoPanel;
             controllerSo.FindProperty("_shotHistoryPanel").objectReferenceValue = shotHistoryPanel;
             controllerSo.FindProperty("_shotDetailModal").objectReferenceValue = shotDetailModal;

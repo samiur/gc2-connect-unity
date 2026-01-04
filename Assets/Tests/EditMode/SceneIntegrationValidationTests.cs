@@ -48,6 +48,11 @@ namespace OpenRange.Tests.EditMode
             "Assets/Prefabs/UI/ShotDataBar.prefab",
             "Assets/Prefabs/UI/ShotDetailModal.prefab",
             "Assets/Prefabs/UI/ShotHistoryPanel.prefab",
+            "Assets/Prefabs/UI/TestShotPanel.prefab",
+
+            // Bridge Mode UI
+            "Assets/Prefabs/UI/BridgeModeOverlay.prefab",
+            "Assets/Prefabs/UI/BridgeModeToggle.prefab",
 
             // UI - Sub-components that need to exist for wiring
             "Assets/Prefabs/UI/ShotHistoryItem.prefab",
@@ -297,6 +302,9 @@ namespace OpenRange.Tests.EditMode
                 "_ballReadyIndicator",
                 "_gsProModeUI",
                 "_settingsPanel",
+                "_testShotPanel",
+                "_bridgeModeOverlay",
+                "_bridgeModeToggle",
                 "_ballController",
                 "_trajectoryRenderer"
             };
@@ -352,6 +360,144 @@ namespace OpenRange.Tests.EditMode
 
             Assert.IsTrue(content.Contains("_testShotButton"),
                 "SceneGenerator should wire _testShotButton to MarinaSceneController");
+        }
+
+        [Test]
+        public void AllPrefabsInUIFolder_AreAccountedFor()
+        {
+            // Find ALL prefabs in Assets/Prefabs/UI/
+            var uiPrefabFolder = "Assets/Prefabs/UI";
+            if (!Directory.Exists(uiPrefabFolder))
+            {
+                Assert.Inconclusive("UI prefab folder does not exist yet");
+                return;
+            }
+
+            var allPrefabFiles = Directory.GetFiles(uiPrefabFolder, "*.prefab")
+                .Select(p => p.Replace("\\", "/")) // Normalize path separators
+                .ToList();
+
+            // Combine required and sub-component prefabs for checking
+            var accountedPrefabs = RequiredPrefabs
+                .Concat(SubComponentPrefabs)
+                .ToHashSet();
+
+            var unaccountedPrefabs = allPrefabFiles
+                .Where(p => !accountedPrefabs.Contains(p))
+                .ToList();
+
+            Assert.IsEmpty(unaccountedPrefabs,
+                $"Prefabs exist in Assets/Prefabs/UI/ but are not in RequiredPrefabs or SubComponentPrefabs:\n" +
+                $"  - {string.Join("\n  - ", unaccountedPrefabs)}\n\n" +
+                $"Either add them to RequiredPrefabs (if they should be in scenes) or SubComponentPrefabs (if embedded in other prefabs).");
+        }
+
+        [Test]
+        public void AllPrefabsInBallFolder_AreAccountedFor()
+        {
+            var ballPrefabFolder = "Assets/Prefabs/Ball";
+            if (!Directory.Exists(ballPrefabFolder))
+            {
+                Assert.Inconclusive("Ball prefab folder does not exist yet");
+                return;
+            }
+
+            var allPrefabFiles = Directory.GetFiles(ballPrefabFolder, "*.prefab")
+                .Select(p => p.Replace("\\", "/"))
+                .ToList();
+
+            var accountedPrefabs = RequiredPrefabs
+                .Concat(SubComponentPrefabs)
+                .ToHashSet();
+
+            var unaccountedPrefabs = allPrefabFiles
+                .Where(p => !accountedPrefabs.Contains(p))
+                .ToList();
+
+            Assert.IsEmpty(unaccountedPrefabs,
+                $"Prefabs exist in Assets/Prefabs/Ball/ but are not accounted for:\n" +
+                $"  - {string.Join("\n  - ", unaccountedPrefabs)}");
+        }
+
+        [Test]
+        public void AllPrefabsInEffectsFolder_AreAccountedFor()
+        {
+            var effectsPrefabFolder = "Assets/Prefabs/Effects";
+            if (!Directory.Exists(effectsPrefabFolder))
+            {
+                Assert.Inconclusive("Effects prefab folder does not exist yet");
+                return;
+            }
+
+            var allPrefabFiles = Directory.GetFiles(effectsPrefabFolder, "*.prefab")
+                .Select(p => p.Replace("\\", "/"))
+                .ToList();
+
+            var accountedPrefabs = RequiredPrefabs
+                .Concat(SubComponentPrefabs)
+                .ToHashSet();
+
+            var unaccountedPrefabs = allPrefabFiles
+                .Where(p => !accountedPrefabs.Contains(p))
+                .ToList();
+
+            Assert.IsEmpty(unaccountedPrefabs,
+                $"Prefabs exist in Assets/Prefabs/Effects/ but are not accounted for:\n" +
+                $"  - {string.Join("\n  - ", unaccountedPrefabs)}");
+        }
+
+        [Test]
+        public void AllPrefabsInEnvironmentFolder_AreAccountedFor()
+        {
+            var envPrefabFolder = "Assets/Prefabs/Environment";
+            if (!Directory.Exists(envPrefabFolder))
+            {
+                Assert.Inconclusive("Environment prefab folder does not exist yet");
+                return;
+            }
+
+            var allPrefabFiles = Directory.GetFiles(envPrefabFolder, "*.prefab")
+                .Select(p => p.Replace("\\", "/"))
+                .ToList();
+
+            var accountedPrefabs = RequiredPrefabs
+                .Concat(SubComponentPrefabs)
+                .ToHashSet();
+
+            var unaccountedPrefabs = allPrefabFiles
+                .Where(p => !accountedPrefabs.Contains(p))
+                .ToList();
+
+            Assert.IsEmpty(unaccountedPrefabs,
+                $"Prefabs exist in Assets/Prefabs/Environment/ but are not accounted for:\n" +
+                $"  - {string.Join("\n  - ", unaccountedPrefabs)}");
+        }
+
+        [Test]
+        public void AllPrefabsInCameraFolder_AreAccountedFor()
+        {
+            var cameraPrefabFolder = "Assets/Prefabs/Camera";
+            if (!Directory.Exists(cameraPrefabFolder))
+            {
+                Assert.Inconclusive("Camera prefab folder does not exist yet");
+                return;
+            }
+
+            var allPrefabFiles = Directory.GetFiles(cameraPrefabFolder, "*.prefab")
+                .Select(p => p.Replace("\\", "/"))
+                .ToList();
+
+            var accountedPrefabs = RequiredPrefabs
+                .Concat(SubComponentPrefabs)
+                .ToHashSet();
+
+            var unaccountedPrefabs = allPrefabFiles
+                .Where(p => !accountedPrefabs.Contains(p))
+                .ToList();
+
+            Assert.IsEmpty(unaccountedPrefabs,
+                $"Prefabs exist in Assets/Prefabs/Camera/ but are not accounted for:\n" +
+                $"  - {string.Join("\n  - ", unaccountedPrefabs)}");
         }
     }
 }

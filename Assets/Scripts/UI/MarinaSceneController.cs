@@ -41,6 +41,10 @@ namespace OpenRange.UI
         [Header("Test Shot UI")]
         [SerializeField] private TestShotPanel _testShotPanel;
 
+        [Header("Bridge Mode UI")]
+        [SerializeField] private BridgeModeOverlay _bridgeModeOverlay;
+        [SerializeField] private BridgeModeToggle _bridgeModeToggle;
+
         [Header("Visualization References")]
         [SerializeField] private BallController _ballController;
         [SerializeField] private TrajectoryRenderer _trajectoryRenderer;
