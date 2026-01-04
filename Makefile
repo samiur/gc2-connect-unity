@@ -9,6 +9,8 @@ PROJECT_PATH := $(shell pwd)
 # Build output
 BUILD_DIR := Builds
 MACOS_BUILD := $(BUILD_DIR)/macOS/OpenRange.app
+ANDROID_BUILD := $(BUILD_DIR)/Android/OpenRange.apk
+ANDROID_AAB := $(BUILD_DIR)/Android/OpenRange.aab
 
 # Test configuration
 TEST_RESULTS_DIR := TestResults
@@ -17,7 +19,9 @@ PLAYMODE_RESULTS := $(TEST_RESULTS_DIR)/playmode-results.xml
 
 .PHONY: all test test-edit test-play build clean help check-unity run run-marina generate \
        build-plugin build-app build-release build-app-dev package clean-builds \
-       sign notarize dmg release-macos setup-signing cleanup-signing
+       sign notarize dmg release-macos setup-signing cleanup-signing \
+       build-android build-android-plugin build-android-dev build-android-aab \
+       android-config android-validate
 
 # Default target
 all: test
@@ -54,6 +58,14 @@ help:
 	@echo "  release-macos - Full pipeline: build, sign, notarize, DMG"
 	@echo "  setup-signing - Setup keychain for CI (import certificates)"
 	@echo "  cleanup-signing - Remove CI keychain after build"
+	@echo ""
+	@echo "Android targets:"
+	@echo "  build-android        - Full Android APK build (plugin + tests + Unity)"
+	@echo "  build-android-dev    - Development APK build (faster, debugging)"
+	@echo "  build-android-aab    - Build AAB for Play Store"
+	@echo "  build-android-plugin - Build native Android plugin only"
+	@echo "  android-config       - Configure Android Player Settings"
+	@echo "  android-validate     - Validate Android setup"
 	@echo ""
 	@echo "Utility targets:"
 	@echo "  clean         - Remove build artifacts and test results"
@@ -281,6 +293,7 @@ package: $(MACOS_BUILD)
 clean-builds:
 	@echo "Cleaning build outputs..."
 	rm -rf $(BUILD_DIR)/macOS
+	rm -rf $(BUILD_DIR)/Android
 	rm -rf $(BUILD_DIR)/dist
 	rm -rf $(BUILD_DIR)/logs
 	@echo "Build outputs cleaned"
@@ -329,3 +342,66 @@ cleanup-signing:
 	@echo "Cleaning up signing keychain..."
 	@chmod +x Scripts/setup_signing.sh
 	@Scripts/setup_signing.sh --cleanup
+
+# ============================================
+# Android Build Targets
+# ============================================
+
+# Native Android plugin directory
+ANDROID_PLUGIN_DIR := NativePlugins/Android
+ANDROID_PLUGIN_SCRIPT := $(ANDROID_PLUGIN_DIR)/build_android_plugin.sh
+
+# Build native Android plugin only
+build-android-plugin:
+	@echo "Building native Android plugin..."
+	@if [ ! -f "$(ANDROID_PLUGIN_SCRIPT)" ]; then \
+		echo "Error: Plugin build script not found at $(ANDROID_PLUGIN_SCRIPT)"; \
+		exit 1; \
+	fi
+	@chmod +x "$(ANDROID_PLUGIN_SCRIPT)"
+	@cd "$(ANDROID_PLUGIN_DIR)" && ./build_android_plugin.sh
+	@echo "Android plugin built successfully"
+
+# Full Android APK build using comprehensive build script
+build-android: check-unity
+	@echo "Building complete Android application..."
+	@chmod +x Scripts/build_android.sh
+	@Scripts/build_android.sh
+
+# Development APK build (faster, with debugging)
+build-android-dev: check-unity
+	@echo "Building Android development APK..."
+	@chmod +x Scripts/build_android.sh
+	@Scripts/build_android.sh --development --skip-tests
+
+# Build AAB for Play Store
+build-android-aab: check-unity
+	@echo "Building Android App Bundle for Play Store..."
+	@chmod +x Scripts/build_android.sh
+	@Scripts/build_android.sh --aab
+
+# Configure Android Player Settings
+android-config: check-unity
+	@echo "Configuring Android Player Settings..."
+	@$(UNITY_PATH) \
+		-batchmode \
+		-nographics \
+		-silent-crashes \
+		-quit \
+		-projectPath "$(PROJECT_PATH)" \
+		-executeMethod OpenRange.Editor.AndroidBuildSettings.ConfigureAndroidSettings \
+		-logFile $(BUILD_DIR)/android-config.log 2>&1
+	@echo "Android settings configured"
+
+# Validate Android setup
+android-validate: check-unity
+	@echo "Validating Android setup..."
+	@$(UNITY_PATH) \
+		-batchmode \
+		-nographics \
+		-silent-crashes \
+		-quit \
+		-projectPath "$(PROJECT_PATH)" \
+		-executeMethod OpenRange.Editor.AndroidBuildSettings.ValidateAndroidSetup \
+		-logFile - 2>&1 | grep -E "(^\[|OK|WARN|ERROR)" || true
+	@echo "Validation complete"
