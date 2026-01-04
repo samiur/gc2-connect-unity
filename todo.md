@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 8 - macOS Build & Release
+**Phase**: 9 - Android Native Plugin
 **Last Updated**: 2026-01-03
-**Next Prompt**: 23 (Android Plugin Project) or 29 (Integration Testing)
+**Next Prompt**: 24 (Android Plugin Implementation) or 25 (Android C# Bridge)
 **Prompts 43-46**: ✅ UI Refinement complete (Phase 7.5 done)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
@@ -188,13 +188,14 @@
 
 ### Phase 9: Android Native Plugin
 
-- [ ] **Prompt 23**: Android Plugin Project
-  - [ ] Create Gradle project
-  - [ ] Configure manifest with USB host permission
-  - [ ] USB device filter (VID 11385, PID 272)
-  - [ ] Kotlin stubs
-  - [ ] Build script
-  - [ ] Verification tests
+- [x] **Prompt 23**: Android Plugin Project ✅ (PR #65)
+  - [x] Create Gradle project (Kotlin 1.9.21, AGP 8.3.0, minSdk 26, targetSdk 34)
+  - [x] Configure AndroidManifest.xml with USB host permission
+  - [x] USB device filter (VID 11385/0x2C79, PID 272/0x0110)
+  - [x] Kotlin stubs (GC2Plugin.kt, GC2Device.kt, GC2Protocol.kt)
+  - [x] Build script (build_android_plugin.sh) with Android Studio integration
+  - [x] AAR built and copied to Assets/Plugins/Android/
+  - [x] README.md with API documentation
 
 - [ ] **Prompt 24**: Android Plugin Implementation
   - [ ] Complete GC2Plugin.kt
@@ -442,6 +443,8 @@ All validated ✅ (PR #3):
 ---
 
 ## Recent Issue Log (Last 5 Entries)
+
+**2026-01-03 (Android Plugin Project)**: Prompt 23 complete (PR #65). Created Gradle project with Kotlin 1.9.21, AGP 8.3.0, minSdk 26. GC2Plugin.kt (singleton entry point), GC2Device.kt (USB wrapper with INTERRUPT IN endpoint), GC2Protocol.kt (0H/0M parsing, misread detection). Build script auto-detects Android Studio Java/SDK. AAR built and copied to Assets/Plugins/Android/.
 
 **2026-01-03 (macOS Build Script)**: Prompt 36 complete (PR #61). Created Scripts/build_macos.sh with comprehensive build orchestration (validation, plugin, tests, Unity build, verification). Updated Makefile with build-plugin, build-app, build-app-dev, build-release, package, clean-builds targets. Created docs/BUILD_MACOS.md with full documentation. Updated CLAUDE.md with build instructions.
 
