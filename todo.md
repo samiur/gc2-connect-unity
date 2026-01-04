@@ -1,15 +1,23 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 10 - iPad Native Plugin
-**Last Updated**: 2026-01-03
-**Next Prompt**: 26 (iPad Plugin Structure)
+**Phase**: 9.5 - Android Build & Testing
+**Last Updated**: 2026-01-04
+**Next Prompt**: 39 Testing (Emulator + Real Device)
 **Prompts 43-46**: ✅ UI Refinement complete (Phase 7.5 done)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
 **UI**: ✅ Prompts 43-46 complete (PR #55-59)
-**Build**: ✅ Prompt 36 complete (PR #61) | 🔄 Prompts 37-41 pending for signing/notarization and CI/CD
+**macOS Build**: ✅ Prompts 36-37 complete (PR #61, #63)
+**Android Plugin**: ✅ Prompts 23-25 complete (PR #65-67)
+**Android Build**: ✅ Prompt 39 build config complete (PR #69)
+
+## Priority Order (Updated 2026-01-03)
+1. **Android Build & Testing** - Prompt 39 (simulator + APK for real device)
+2. **Visual Enhancements** - Phase 14 (Prompts 47-54)
+3. **Quality & Polish** - Phase 11 (Prompts 29-31)
+4. **iPad Native Plugin** - Phase 10 (Prompts 26-28) - deferred
 
 ---
 
@@ -77,6 +85,43 @@
 ---
 
 ## Incomplete Phases (Full Detail)
+
+### Phase 9.5: Android Build & Testing
+
+- [x] **Prompt 39**: Android Build Configuration ✅ (PR #69)
+  - [x] Configure Unity Android Player Settings (minSdk 26, targetSdk 34, IL2CPP, ARM64)
+    - [x] AndroidBuildSettings.cs editor script with menu items
+    - [x] ConfigureAndroidSettings(), ValidateAndroidSetup(), CreateKeystoreTemplate()
+    - [x] CI/CD helpers: ConfigureForBuild(), ConfigureForAAB(), ConfigureForDevelopment()
+  - [x] Create keystore template
+    - [x] configs/android/keystore.properties.template
+    - [x] .gitignore updated to exclude keystore credentials
+  - [x] Create Scripts/build_android.sh
+    - [x] Pre-build validation (Android SDK, Gradle, keystore)
+    - [x] Native plugin build (calls build_android_plugin.sh)
+    - [x] Unity Android build (APK and AAB)
+    - [x] Options: --skip-tests, --skip-plugin, --development, --aab, --version=X.Y.Z
+  - [x] Create AndroidBuilder.cs (command-line build entry point)
+  - [x] Add Makefile targets
+    - [x] `make build-android-plugin` - Build native AAR
+    - [x] `make build-android` - Full Android build
+    - [x] `make build-android-dev` - Development APK
+    - [x] `make build-android-aab` - Play Store AAB
+    - [x] `make android-config` - Configure settings
+    - [x] `make android-validate` - Validate setup
+  - [x] Create docs/BUILD_ANDROID.md documentation
+  - [ ] **Testing Phase 1: Android Emulator (Mac)**
+    - [ ] Test app launch and UI on emulator
+    - [ ] Test GSPro TCP connection (emulator → Mac GSPro)
+    - [ ] Test TestShotPanel firing simulated shots
+    - [ ] Verify ball animation, trajectory, UI updates
+  - [ ] **Testing Phase 2: Real Android Device**
+    - [ ] Install APK via adb or side-loading
+    - [ ] Test USB-C OTG connection with GC2
+    - [ ] Verify shot data flows through full pipeline
+    - [ ] Test GSPro relay mode with real shots
+
+---
 
 ### Phase 7.5: UI Refinement & Polish ✅ Complete
 
@@ -232,7 +277,9 @@
 
 ---
 
-### Phase 10: iPad Native Plugin (DriverKit)
+### Phase 10: iPad Native Plugin (DriverKit) - DEFERRED
+
+> **Note**: iPad plugin deferred until after Visual Enhancements (Phase 14) and Quality & Polish (Phase 11).
 
 - [ ] **Prompt 26**: iPad Plugin Structure
   - [ ] Create GC2iOSPlugin project
@@ -258,7 +305,7 @@
 
 ---
 
-### Phase 14: Visual Enhancements
+### Phase 14: Visual Enhancements - PRIORITY 2 (after Android Build)
 
 Visual inspiration from reference projects:
 - **ProceduralGolf** (SolomonBaarda): Toon shaders, water with foam, stylized skybox, outline rendering
@@ -335,7 +382,7 @@ Visual inspiration from reference projects:
 
 ---
 
-### Phase 11: Quality & Polish
+### Phase 11: Quality & Polish - PRIORITY 3 (after Visual Enhancements)
 
 - [ ] **Prompt 29**: Integration Testing
   - [ ] Create Edit Mode tests
@@ -363,24 +410,24 @@ Visual inspiration from reference projects:
 
 ---
 
-### Phase 12: iOS & Android Builds [Future]
+### Phase 12: iOS & Android Builds
 
-- [ ] **Prompt 38**: iOS Build Configuration [Future]
+- [ ] **Prompt 38**: iOS Build Configuration [Future - requires iPad plugin]
   - [ ] Prerequisites: iPad native plugin complete (Prompts 26-28)
   - [ ] Configure Unity iOS Player Settings
   - [ ] Create Xcode export options plist
   - [ ] Create iOS build script
   - [ ] Document TestFlight submission process
 
-- [ ] **Prompt 39**: Android Build Configuration [Future]
-  - [ ] Prerequisites: Android native plugin complete (Prompts 23-25)
-  - [ ] Configure Unity Android Player Settings
-  - [ ] Create keystore for signing
-  - [ ] Create Android build script
-  - [ ] Document Play Store submission process
+- [x] **Prompt 39**: Android Build Configuration ✅ (PR #69)
+  - [x] Prerequisites: Android native plugin complete (Prompts 23-25) ✅
+  - [x] Configure Unity Android Player Settings (AndroidBuildSettings.cs)
+  - [x] Create keystore template (configs/android/keystore.properties.template)
+  - [x] Create Android build script (Scripts/build_android.sh, AndroidBuilder.cs)
+  - [x] Document Play Store submission process (docs/BUILD_ANDROID.md)
 
-- [ ] **Prompt 40**: Mobile Build Environment Setup [Future]
-  - [ ] Document Xcode requirements
+- [ ] **Prompt 40**: Mobile Build Environment Setup
+  - [ ] Document Xcode requirements [Future - after iOS build]
   - [ ] Document Android SDK requirements
   - [ ] Create combined mobile build script
   - [ ] Add mobile build targets to Makefile
@@ -456,6 +503,15 @@ All validated ✅ (PR #3):
 ---
 
 ## Recent Issue Log (Last 5 Entries)
+
+**2026-01-04 (Android Build Configuration)**: Prompt 39 complete (PR #69). Created comprehensive Android build infrastructure:
+- AndroidBuildSettings.cs: Unity editor script with menu items under OpenRange/Android/ for configuring settings (package name, API levels 26-34, IL2CPP, ARM64), validation, and keystore template creation. CI/CD helpers for automated builds.
+- AndroidBuilder.cs: Command-line build entry point called via -executeMethod. Supports APK/AAB output, development builds, version from git tags. Added BuildPipeline.IsBuildTargetSupported() check with clear error message if Android Build Support not installed.
+- Scripts/build_android.sh: Main build orchestration script with validation, plugin build, tests, settings config, Unity build. Options for --skip-tests, --skip-plugin, --development, --aab, --version. Detects "Android Build Support is not installed" error and provides installation instructions.
+- Makefile targets: build-android, build-android-dev, build-android-aab, build-android-plugin, android-config, android-validate.
+- configs/android/keystore.properties.template with .gitignore protection.
+- docs/BUILD_ANDROID.md comprehensive documentation with troubleshooting for missing Android Build Support.
+- **Note**: Requires Unity Android Build Support module (install via Unity Hub → Installs → Add Modules).
 
 **2026-01-03 (Android C# Bridge)**: Prompt 25 complete (PR #67). Created GC2AndroidConnection.cs implementing IGC2Connection via AndroidJavaObject. Uses UnitySendMessage callbacks for native-to-C# communication. JSON parsing for shot data (maps LaunchDirection→Direction, ClubPath→Path) and device status. Thread-safe event dispatching via MainThreadDispatcher. 52 unit tests covering JSON parsing, lifecycle, event handlers. GC2ConnectionFactory already routed UNITY_ANDROID - no changes needed.
 
