@@ -2,6 +2,7 @@
 // ABOUTME: Coordinates GC2 connection, GSPro relay, and platform-specific services.
 
 using System;
+using System.Collections;
 using System.Threading.Tasks;
 using UnityEngine;
 using OpenRange.GC2;
@@ -28,6 +29,16 @@ namespace OpenRange.Core
         private GSProRelay _gsProRelay;
         private IBridgeService _bridgeService;
         private BridgeModeStatistics _statistics;
+
+        // Test shot support when GC2 not connected
+        private Coroutine _testShotCoroutine;
+        private int _testShotIndex;
+
+        /// <summary>Interval between test shots when GC2 not connected (seconds).</summary>
+        public const float TestShotIntervalSeconds = 15f;
+
+        /// <summary>Whether test shots are currently being sent.</summary>
+        public bool IsTestShotModeActive => _testShotCoroutine != null;
 
         /// <summary>Current bridge mode state.</summary>
         public BridgeModeState State => _state;
@@ -165,6 +176,13 @@ namespace OpenRange.Core
             _statistics.StartTime = DateTime.UtcNow;
             SetState(BridgeModeState.Active);
 
+            // Start test shot mode if GC2 is not connected (for GSPro testing)
+            if (!isGC2Connected)
+            {
+                Debug.Log("BridgeModeManager: GC2 not connected, starting test shot mode");
+                StartTestShotMode();
+            }
+
             Debug.Log("BridgeModeManager: Bridge mode enabled");
             return true;
         }
@@ -180,6 +198,9 @@ namespace OpenRange.Core
             }
 
             Debug.Log("BridgeModeManager: Disabling bridge mode");
+
+            // Stop test shot mode if active
+            StopTestShotMode();
 
             // Unsubscribe from GC2 shots
             if (GameManager.Instance?.GC2Connection != null)
@@ -314,6 +335,159 @@ namespace OpenRange.Core
             _statistics.ShotsRejected++;
             OnError?.Invoke(error);
         }
+
+        #region Test Shot Mode (When GC2 Not Connected)
+
+        /// <summary>
+        /// Test shot presets for GSPro testing without GC2.
+        /// Cycles through Driver, 7-Iron, and Wedge shots.
+        /// </summary>
+        private static readonly GC2ShotData[] TestShotPresets = new[]
+        {
+            // Driver - 167 mph, 10.9° launch, 2686 rpm backspin
+            new GC2ShotData
+            {
+                ShotId = 0,
+                BallSpeed = 167f,
+                LaunchAngle = 10.9f,
+                Direction = 0f,
+                TotalSpin = 2686f,
+                BackSpin = 2686f,
+                SideSpin = 0f,
+                SpinAxis = 0f,
+                Timestamp = 0
+            },
+            // 7-Iron - 120 mph, 16.3° launch, 7097 rpm backspin
+            new GC2ShotData
+            {
+                ShotId = 0,
+                BallSpeed = 120f,
+                LaunchAngle = 16.3f,
+                Direction = 0f,
+                TotalSpin = 7097f,
+                BackSpin = 7097f,
+                SideSpin = 0f,
+                SpinAxis = 0f,
+                Timestamp = 0
+            },
+            // Pitching Wedge - 102 mph, 24.2° launch, 9304 rpm backspin
+            new GC2ShotData
+            {
+                ShotId = 0,
+                BallSpeed = 102f,
+                LaunchAngle = 24.2f,
+                Direction = 0f,
+                TotalSpin = 9304f,
+                BackSpin = 9304f,
+                SideSpin = 0f,
+                SpinAxis = 0f,
+                Timestamp = 0
+            }
+        };
+
+        /// <summary>
+        /// Start sending periodic test shots to GSPro.
+        /// Called automatically when bridge mode is enabled and GC2 is not connected.
+        /// </summary>
+        public void StartTestShotMode()
+        {
+            if (_testShotCoroutine != null)
+            {
+                Debug.Log("BridgeModeManager: Test shot mode already active");
+                return;
+            }
+
+            if (_state == BridgeModeState.Disabled)
+            {
+                Debug.LogWarning("BridgeModeManager: Cannot start test shot mode - bridge mode not enabled");
+                return;
+            }
+
+            Debug.Log($"BridgeModeManager: Starting test shot mode (interval: {TestShotIntervalSeconds}s)");
+            _testShotIndex = 0;
+            _testShotCoroutine = StartCoroutine(TestShotCoroutine());
+        }
+
+        /// <summary>
+        /// Stop sending periodic test shots.
+        /// Called automatically when GC2 connects or bridge mode is disabled.
+        /// </summary>
+        public void StopTestShotMode()
+        {
+            if (_testShotCoroutine == null)
+            {
+                return;
+            }
+
+            Debug.Log("BridgeModeManager: Stopping test shot mode");
+            StopCoroutine(_testShotCoroutine);
+            _testShotCoroutine = null;
+        }
+
+        private IEnumerator TestShotCoroutine()
+        {
+            // Send first shot immediately
+            SendTestShot();
+
+            while (true)
+            {
+                yield return new WaitForSeconds(TestShotIntervalSeconds);
+
+                // Check if we should stop (GC2 connected or bridge mode disabled)
+                var gc2Connection = GameManager.Instance?.GC2Connection;
+                if (gc2Connection?.IsConnected == true)
+                {
+                    Debug.Log("BridgeModeManager: GC2 connected, stopping test shot mode");
+                    _testShotCoroutine = null;
+                    yield break;
+                }
+
+                if (_state == BridgeModeState.Disabled)
+                {
+                    Debug.Log("BridgeModeManager: Bridge mode disabled, stopping test shot mode");
+                    _testShotCoroutine = null;
+                    yield break;
+                }
+
+                SendTestShot();
+            }
+        }
+
+        private void SendTestShot()
+        {
+            if (_gsProRelay == null || !_gsProRelay.IsConnected)
+            {
+                Debug.LogWarning("BridgeModeManager: Cannot send test shot - GSPro not connected");
+                return;
+            }
+
+            // Get the next preset and cycle
+            var preset = TestShotPresets[_testShotIndex];
+            _testShotIndex = (_testShotIndex + 1) % TestShotPresets.Length;
+
+            // Create a copy with updated shot ID and timestamp
+            var testShot = new GC2ShotData
+            {
+                ShotId = _statistics.ShotsRelayed + 1,
+                BallSpeed = preset.BallSpeed,
+                LaunchAngle = preset.LaunchAngle,
+                Direction = preset.Direction,
+                TotalSpin = preset.TotalSpin,
+                BackSpin = preset.BackSpin,
+                SideSpin = preset.SideSpin,
+                SpinAxis = preset.SpinAxis,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+
+            string[] clubNames = { "Driver", "7-Iron", "PW" };
+            string clubName = clubNames[(_testShotIndex + TestShotPresets.Length - 1) % TestShotPresets.Length];
+
+            Debug.Log($"BridgeModeManager: Sending test shot #{testShot.ShotId} ({clubName}) - {testShot.BallSpeed} mph");
+
+            _gsProRelay.RelayShot(testShot);
+        }
+
+        #endregion
 
         #region Testing Support
 
