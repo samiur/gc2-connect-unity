@@ -43,7 +43,6 @@ namespace OpenRange.UI
 
         [Header("Bridge Mode UI")]
         [SerializeField] private BridgeModeOverlay _bridgeModeOverlay;
-        [SerializeField] private BridgeModeToggle _bridgeModeToggle;
 
         [Header("Visualization References")]
         [SerializeField] private BallController _ballController;

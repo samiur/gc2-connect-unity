@@ -50,9 +50,8 @@ namespace OpenRange.Tests.EditMode
             "Assets/Prefabs/UI/ShotHistoryPanel.prefab",
             "Assets/Prefabs/UI/TestShotPanel.prefab",
 
-            // Bridge Mode UI
+            // Bridge Mode UI (Toggle now integrated into GSProModeUI)
             "Assets/Prefabs/UI/BridgeModeOverlay.prefab",
-            "Assets/Prefabs/UI/BridgeModeToggle.prefab",
 
             // UI - Sub-components that need to exist for wiring
             "Assets/Prefabs/UI/ShotHistoryItem.prefab",
@@ -304,7 +303,6 @@ namespace OpenRange.Tests.EditMode
                 "_settingsPanel",
                 "_testShotPanel",
                 "_bridgeModeOverlay",
-                "_bridgeModeToggle",
                 "_ballController",
                 "_trajectoryRenderer"
             };

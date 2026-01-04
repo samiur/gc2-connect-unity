@@ -90,12 +90,13 @@ namespace OpenRange.Editor
             // Create child elements
             var header = CreateHeader(root.transform);
             var modeRow = CreateModeToggleRow(root.transform);
+            var bridgeModeRow = CreateBridgeModeRow(root.transform);
             var connectionRow = CreateConnectionRow(root.transform);
             var readinessRow = CreateReadinessRow(root.transform);
             var configPanel = CreateConfigPanel(root.transform);
 
             // Wire up references
-            WireReferences(component, modeRow, connectionRow, readinessRow, configPanel);
+            WireReferences(component, modeRow, bridgeModeRow, connectionRow, readinessRow, configPanel);
 
             return root;
         }
@@ -156,6 +157,94 @@ namespace OpenRange.Editor
             labelLayout.preferredHeight = RowHeight;
 
             return new ModeToggleRow { Toggle = toggleObj.Toggle, Label = label };
+        }
+
+        private static BridgeModeRow CreateBridgeModeRow(Transform parent)
+        {
+            var row = new GameObject("BridgeModeRow");
+            row.transform.SetParent(parent, false);
+
+            var rowRect = row.AddComponent<RectTransform>();
+            rowRect.sizeDelta = new Vector2(0, RowHeight);
+
+            var horizontal = row.AddComponent<HorizontalLayoutGroup>();
+            horizontal.spacing = ItemSpacing;
+            horizontal.childAlignment = TextAnchor.MiddleLeft;
+            horizontal.childControlWidth = true;
+            horizontal.childControlHeight = true;
+            horizontal.childForceExpandWidth = false;
+            horizontal.childForceExpandHeight = false;
+
+            var layout = row.AddComponent<LayoutElement>();
+            layout.minHeight = RowHeight;
+            layout.preferredHeight = RowHeight;
+
+            // Checkbox-style toggle (smaller than mode toggle)
+            var toggleObj = CreateCheckboxToggle(row.transform);
+
+            // Bridge mode label
+            var labelObj = new GameObject("BridgeModeLabel");
+            labelObj.transform.SetParent(row.transform, false);
+
+            var label = labelObj.AddComponent<TextMeshProUGUI>();
+            label.text = "Bridge Mode Off";
+            label.fontSize = SmallFontSize;
+            label.color = new Color(0.85f, 0.85f, 0.9f);
+            label.alignment = TextAlignmentOptions.Left;
+
+            var labelLayout = labelObj.AddComponent<LayoutElement>();
+            labelLayout.flexibleWidth = 1f;
+            labelLayout.preferredHeight = RowHeight;
+
+            return new BridgeModeRow { Toggle = toggleObj.Toggle, Label = label };
+        }
+
+        private static (Toggle Toggle, GameObject Object) CreateCheckboxToggle(Transform parent)
+        {
+            var toggleObj = new GameObject("BridgeModeToggle");
+            toggleObj.transform.SetParent(parent, false);
+
+            var toggleRect = toggleObj.AddComponent<RectTransform>();
+            toggleRect.sizeDelta = new Vector2(20f, 20f);
+
+            // Background (checkbox border)
+            var toggleBg = new GameObject("Background");
+            toggleBg.transform.SetParent(toggleObj.transform, false);
+            var bgImage = toggleBg.AddComponent<Image>();
+            bgImage.color = new Color(0.25f, 0.25f, 0.3f);
+            var bgRect = toggleBg.GetComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
+
+            // Checkmark (shown when on)
+            var checkmark = new GameObject("Checkmark");
+            checkmark.transform.SetParent(toggleBg.transform, false);
+            var checkImage = checkmark.AddComponent<Image>();
+            checkImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd");
+            checkImage.color = new Color(0.3f, 0.8f, 0.4f);
+            checkImage.preserveAspect = true;
+            var checkRect = checkmark.GetComponent<RectTransform>();
+            checkRect.anchorMin = new Vector2(0.15f, 0.15f);
+            checkRect.anchorMax = new Vector2(0.85f, 0.85f);
+            checkRect.offsetMin = Vector2.zero;
+            checkRect.offsetMax = Vector2.zero;
+
+            var toggle = toggleObj.AddComponent<Toggle>();
+            toggle.targetGraphic = bgImage;
+            toggle.graphic = checkImage;
+            toggle.isOn = false;
+
+            var toggleLayout = toggleObj.AddComponent<LayoutElement>();
+            toggleLayout.minWidth = 20f;
+            toggleLayout.minHeight = 20f;
+            toggleLayout.preferredWidth = 20f;
+            toggleLayout.preferredHeight = 20f;
+            toggleLayout.flexibleWidth = 0f;
+            toggleLayout.flexibleHeight = 0f;
+
+            return (toggle, toggleObj);
         }
 
         private static (Toggle Toggle, GameObject Object) CreateToggle(Transform parent)
@@ -515,6 +604,7 @@ namespace OpenRange.Editor
         private static void WireReferences(
             GSProModeUI component,
             ModeToggleRow modeRow,
+            BridgeModeRow bridgeModeRow,
             ConnectionRow connectionRow,
             ReadinessRow readinessRow,
             ConfigPanel configPanel)
@@ -523,6 +613,8 @@ namespace OpenRange.Editor
 
             so.FindProperty("_modeToggle").objectReferenceValue = modeRow.Toggle;
             so.FindProperty("_modeLabel").objectReferenceValue = modeRow.Label;
+            so.FindProperty("_bridgeModeToggle").objectReferenceValue = bridgeModeRow.Toggle;
+            so.FindProperty("_bridgeModeLabel").objectReferenceValue = bridgeModeRow.Label;
             so.FindProperty("_connectionIndicator").objectReferenceValue = connectionRow.Indicator;
             so.FindProperty("_connectionText").objectReferenceValue = connectionRow.Text;
             so.FindProperty("_connectButton").objectReferenceValue = connectionRow.Button;
@@ -557,6 +649,12 @@ namespace OpenRange.Editor
         }
 
         private struct ModeToggleRow
+        {
+            public Toggle Toggle;
+            public TextMeshProUGUI Label;
+        }
+
+        private struct BridgeModeRow
         {
             public Toggle Toggle;
             public TextMeshProUGUI Label;
