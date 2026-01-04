@@ -579,12 +579,12 @@ namespace OpenRange.UI
         {
             var shotData = CreateShotData();
 
-            // Get ShotProcessor and fire
-            if (GameManager.Instance != null && GameManager.Instance.ShotProcessor != null)
+            // Route through GameManager to handle both local visualization and GSPro relay
+            if (GameManager.Instance != null)
             {
                 // Use environmental conditions from SettingsManager
                 var settings = SettingsManager.Instance;
-                if (settings != null)
+                if (settings != null && GameManager.Instance.ShotProcessor != null)
                 {
                     GameManager.Instance.ShotProcessor.SetEnvironmentalConditions(
                         settings.TemperatureF,
@@ -595,14 +595,17 @@ namespace OpenRange.UI
                     );
                 }
 
-                GameManager.Instance.ShotProcessor.ProcessShot(shotData);
-                UpdateStatus($"Shot fired: {_ballSpeed:F0} mph");
-                Debug.Log($"TestShotPanel: Fired test shot - {_ballSpeed:F1} mph, {_launchAngle:F1}° launch, {_backSpin:F0} rpm backspin");
+                // ProcessShot handles both local visualization AND GSPro relay
+                GameManager.Instance.ProcessShot(shotData);
+
+                var modeText = GameManager.Instance.CurrentMode == AppMode.GSPro ? " (GSPro)" : "";
+                UpdateStatus($"Shot fired: {_ballSpeed:F0} mph{modeText}");
+                Debug.Log($"TestShotPanel: Fired test shot - {_ballSpeed:F1} mph, {_launchAngle:F1}° launch, {_backSpin:F0} rpm backspin, Mode: {GameManager.Instance.CurrentMode}");
             }
             else
             {
-                UpdateStatus("ShotProcessor not available");
-                Debug.LogWarning("TestShotPanel: ShotProcessor not found");
+                UpdateStatus("GameManager not available");
+                Debug.LogWarning("TestShotPanel: GameManager not found");
             }
 
             OnTestShotFired?.Invoke(shotData);

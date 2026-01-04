@@ -19,34 +19,34 @@ namespace OpenRange.Editor
         #region Layout Constants
 
         /// <summary>Panel width.</summary>
-        public const float PanelWidth = 300f;
+        public const float PanelWidth = 280f;
 
         /// <summary>Panel padding.</summary>
         public const float PanelPadding = 12f;
 
         /// <summary>Section spacing.</summary>
-        public const float SectionSpacing = 12f;
+        public const float SectionSpacing = 8f;
 
         /// <summary>Item spacing.</summary>
-        public const float ItemSpacing = 6f;
+        public const float ItemSpacing = 4f;
 
         /// <summary>Preset button height.</summary>
-        public const float PresetButtonHeight = 36f;
+        public const float PresetButtonHeight = 32f;
 
         /// <summary>Fire button height.</summary>
-        public const float FireButtonHeight = 48f;
+        public const float FireButtonHeight = 44f;
 
         /// <summary>Slider height.</summary>
-        public const float SliderHeight = 50f;
+        public const float SliderHeight = 44f;
 
         /// <summary>Toggle height.</summary>
-        public const float ToggleHeight = 36f;
+        public const float ToggleHeight = 32f;
 
         /// <summary>Section header height.</summary>
-        public const float HeaderHeight = 24f;
+        public const float HeaderHeight = 20f;
 
         /// <summary>Close button size.</summary>
-        public const float CloseButtonSize = 32f;
+        public const float CloseButtonSize = 28f;
 
         /// <summary>Button minimum width.</summary>
         public const float ButtonMinWidth = 60f;
@@ -91,12 +91,12 @@ namespace OpenRange.Editor
             var scrollViewGo = CreateScrollView(panelGo.transform);
             var contentGo = scrollViewGo.transform.Find("Viewport/Content").gameObject;
 
-            // Add VerticalLayoutGroup to content
+            // Add VerticalLayoutGroup to content - CRITICAL: childControlHeight = true
             var contentLayout = contentGo.GetComponent<VerticalLayoutGroup>();
             contentLayout.padding = new RectOffset((int)PanelPadding, (int)PanelPadding, (int)PanelPadding, (int)PanelPadding);
             contentLayout.spacing = SectionSpacing;
             contentLayout.childControlWidth = true;
-            contentLayout.childControlHeight = false;
+            contentLayout.childControlHeight = true;  // MUST be true to prevent overlapping
             contentLayout.childForceExpandWidth = true;
             contentLayout.childForceExpandHeight = false;
 
@@ -194,7 +194,7 @@ namespace OpenRange.Editor
             viewportRect.anchorMin = Vector2.zero;
             viewportRect.anchorMax = Vector2.one;
             viewportRect.offsetMin = Vector2.zero;
-            viewportRect.offsetMax = new Vector2(-10, 0); // Leave room for scrollbar
+            viewportRect.offsetMax = new Vector2(-8, 0); // Leave room for scrollbar
 
             var viewportMask = viewportGo.AddComponent<Mask>();
             viewportMask.showMaskGraphic = false;
@@ -226,11 +226,11 @@ namespace OpenRange.Editor
             scrollbarRect.anchorMin = new Vector2(1, 0);
             scrollbarRect.anchorMax = new Vector2(1, 1);
             scrollbarRect.pivot = new Vector2(1, 0.5f);
-            scrollbarRect.sizeDelta = new Vector2(10, 0);
+            scrollbarRect.sizeDelta = new Vector2(6, 0);
             scrollbarRect.anchoredPosition = Vector2.zero;
 
             var scrollbarImage = scrollbarGo.AddComponent<Image>();
-            scrollbarImage.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+            scrollbarImage.color = new Color(0.3f, 0.3f, 0.3f, 0.3f);
 
             var scrollbar = scrollbarGo.AddComponent<Scrollbar>();
             scrollbar.direction = Scrollbar.Direction.BottomToTop;
@@ -245,7 +245,7 @@ namespace OpenRange.Editor
             handleRect.offsetMax = Vector2.zero;
 
             var handleImage = handleGo.AddComponent<Image>();
-            handleImage.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
+            handleImage.color = new Color(0.5f, 0.5f, 0.5f, 0.6f);
 
             scrollbar.targetGraphic = handleImage;
             scrollbar.handleRect = handleRect;
@@ -263,11 +263,13 @@ namespace OpenRange.Editor
             headerRect.sizeDelta = new Vector2(0, HeaderHeight);
 
             var headerLayout = headerGo.AddComponent<LayoutElement>();
+            headerLayout.minHeight = HeaderHeight;
             headerLayout.preferredHeight = HeaderHeight;
+            headerLayout.flexibleHeight = 0f;
 
             var headerText = headerGo.AddComponent<TextMeshProUGUI>();
             headerText.text = "Test Shot";
-            headerText.fontSize = UITheme.FontSizeRegular.Header;
+            headerText.fontSize = 18f;
             headerText.fontStyle = FontStyles.Bold;
             headerText.color = UITheme.TextPrimary;
             headerText.alignment = TextAlignmentOptions.MidlineLeft;
@@ -287,25 +289,15 @@ namespace OpenRange.Editor
             var sectionLayout = sectionGo.AddComponent<VerticalLayoutGroup>();
             sectionLayout.spacing = ItemSpacing;
             sectionLayout.childControlWidth = true;
-            sectionLayout.childControlHeight = false;
+            sectionLayout.childControlHeight = true;
             sectionLayout.childForceExpandWidth = true;
             sectionLayout.childForceExpandHeight = false;
 
+            var sectionLayoutElem = sectionGo.AddComponent<LayoutElement>();
+            sectionLayoutElem.flexibleHeight = 0f;
+
             // Section header
-            var headerGo = new GameObject("Header");
-            headerGo.transform.SetParent(sectionGo.transform);
-            var headerRect = headerGo.AddComponent<RectTransform>();
-
-            var headerLayoutElem = headerGo.AddComponent<LayoutElement>();
-            headerLayoutElem.preferredHeight = 20f;
-
-            var headerText = headerGo.AddComponent<TextMeshProUGUI>();
-            headerText.text = "Quick Presets";
-            headerText.fontSize = UITheme.FontSizeRegular.Normal;
-            headerText.fontStyle = FontStyles.Bold;
-            headerText.color = UITheme.TextSecondary;
-            headerText.alignment = TextAlignmentOptions.MidlineLeft;
-            headerText.raycastTarget = false;
+            CreateSectionHeader(sectionGo.transform, "Quick Presets");
 
             // Row 1: Driver, 7-Iron, Wedge
             var row1Go = new GameObject("Row1");
@@ -320,7 +312,9 @@ namespace OpenRange.Editor
             row1Layout.childForceExpandHeight = false;
 
             var row1LayoutElem = row1Go.AddComponent<LayoutElement>();
+            row1LayoutElem.minHeight = PresetButtonHeight;
             row1LayoutElem.preferredHeight = PresetButtonHeight;
+            row1LayoutElem.flexibleHeight = 0f;
 
             var driverButton = CreatePresetButton(row1Go.transform, "Driver");
             var sevenIronButton = CreatePresetButton(row1Go.transform, "7-Iron");
@@ -339,7 +333,9 @@ namespace OpenRange.Editor
             row2Layout.childForceExpandHeight = false;
 
             var row2LayoutElem = row2Go.AddComponent<LayoutElement>();
+            row2LayoutElem.minHeight = PresetButtonHeight;
             row2LayoutElem.preferredHeight = PresetButtonHeight;
+            row2LayoutElem.flexibleHeight = 0f;
 
             var hookButton = CreatePresetButton(row2Go.transform, "Hook");
             var sliceButton = CreatePresetButton(row2Go.transform, "Slice");
@@ -358,7 +354,7 @@ namespace OpenRange.Editor
         {
             var buttonGo = new GameObject(text + "Button");
             buttonGo.transform.SetParent(parent);
-            buttonGo.AddComponent<RectTransform>();
+            var buttonRect = buttonGo.AddComponent<RectTransform>();
 
             var buttonLayout = buttonGo.AddComponent<LayoutElement>();
             buttonLayout.minWidth = ButtonMinWidth;
@@ -386,7 +382,7 @@ namespace OpenRange.Editor
 
             var textComp = textGo.AddComponent<TextMeshProUGUI>();
             textComp.text = text;
-            textComp.fontSize = UITheme.FontSizeRegular.Normal;
+            textComp.fontSize = 13f;
             textComp.color = UITheme.TextPrimary;
             textComp.alignment = TextAlignmentOptions.Center;
             textComp.raycastTarget = false;
@@ -405,17 +401,20 @@ namespace OpenRange.Editor
             var sectionLayout = sectionGo.AddComponent<VerticalLayoutGroup>();
             sectionLayout.spacing = ItemSpacing;
             sectionLayout.childControlWidth = true;
-            sectionLayout.childControlHeight = false;
+            sectionLayout.childControlHeight = true;
             sectionLayout.childForceExpandWidth = true;
             sectionLayout.childForceExpandHeight = false;
+
+            var sectionLayoutElem = sectionGo.AddComponent<LayoutElement>();
+            sectionLayoutElem.flexibleHeight = 0f;
 
             // Section header
             CreateSectionHeader(sectionGo.transform, "Ball Data");
 
             // Sliders
-            var ballSpeedSlider = CreateSettingSlider(sectionGo.transform, "Ball Speed", " mph", 50, 200, 150);
-            var launchAngleSlider = CreateSettingSlider(sectionGo.transform, "Launch Angle", "°", 0, 45, 12);
-            var directionSlider = CreateSettingSlider(sectionGo.transform, "Direction", "°", -20, 20, 0);
+            var ballSpeedSlider = CreateSettingSlider(sectionGo.transform, "Ball Speed", " mph", 50, 200, 150, true);
+            var launchAngleSlider = CreateSettingSlider(sectionGo.transform, "Launch Angle", "°", 0, 45, 12, false);
+            var directionSlider = CreateSettingSlider(sectionGo.transform, "Direction", "°", -20, 20, 0, false);
 
             return (ballSpeedSlider, launchAngleSlider, directionSlider);
         }
@@ -431,16 +430,19 @@ namespace OpenRange.Editor
             var sectionLayout = sectionGo.AddComponent<VerticalLayoutGroup>();
             sectionLayout.spacing = ItemSpacing;
             sectionLayout.childControlWidth = true;
-            sectionLayout.childControlHeight = false;
+            sectionLayout.childControlHeight = true;
             sectionLayout.childForceExpandWidth = true;
             sectionLayout.childForceExpandHeight = false;
+
+            var sectionLayoutElem = sectionGo.AddComponent<LayoutElement>();
+            sectionLayoutElem.flexibleHeight = 0f;
 
             // Section header
             CreateSectionHeader(sectionGo.transform, "Spin Data");
 
             // Sliders
-            var backSpinSlider = CreateSettingSlider(sectionGo.transform, "Back Spin", " rpm", 0, 12000, 3000);
-            var sideSpinSlider = CreateSettingSlider(sectionGo.transform, "Side Spin", " rpm", -3000, 3000, 0);
+            var backSpinSlider = CreateSettingSlider(sectionGo.transform, "Back Spin", " rpm", 0, 12000, 3000, true);
+            var sideSpinSlider = CreateSettingSlider(sectionGo.transform, "Side Spin", " rpm", -3000, 3000, 0, true);
 
             return (backSpinSlider, sideSpinSlider);
         }
@@ -450,19 +452,46 @@ namespace OpenRange.Editor
             var toggleGo = new GameObject("ClubDataToggle");
             toggleGo.transform.SetParent(parent);
             var toggleRect = toggleGo.AddComponent<RectTransform>();
+            toggleRect.sizeDelta = new Vector2(0, ToggleHeight);
 
             var toggleLayoutElem = toggleGo.AddComponent<LayoutElement>();
+            toggleLayoutElem.minHeight = ToggleHeight;
             toggleLayoutElem.preferredHeight = ToggleHeight;
+            toggleLayoutElem.flexibleHeight = 0f;
 
-            // Background
+            // Horizontal layout for label + toggle
+            var hLayout = toggleGo.AddComponent<HorizontalLayoutGroup>();
+            hLayout.childControlWidth = true;
+            hLayout.childControlHeight = true;
+            hLayout.childForceExpandWidth = false;
+            hLayout.childForceExpandHeight = false;
+
+            // Label
+            var labelGo = new GameObject("Label");
+            labelGo.transform.SetParent(toggleGo.transform);
+            var labelRect = labelGo.AddComponent<RectTransform>();
+
+            var labelLayoutElem = labelGo.AddComponent<LayoutElement>();
+            labelLayoutElem.flexibleWidth = 1f;
+
+            var labelText = labelGo.AddComponent<TextMeshProUGUI>();
+            labelText.text = "Include Club Data";
+            labelText.fontSize = 13f;
+            labelText.color = UITheme.TextPrimary;
+            labelText.alignment = TextAlignmentOptions.MidlineLeft;
+            labelText.raycastTarget = false;
+
+            // Toggle background
             var bgGo = new GameObject("Background");
             bgGo.transform.SetParent(toggleGo.transform);
             var bgRect = bgGo.AddComponent<RectTransform>();
-            bgRect.anchorMin = new Vector2(1, 0.5f);
-            bgRect.anchorMax = new Vector2(1, 0.5f);
-            bgRect.pivot = new Vector2(1, 0.5f);
-            bgRect.anchoredPosition = Vector2.zero;
-            bgRect.sizeDelta = new Vector2(50, 26);
+            bgRect.sizeDelta = new Vector2(44, 24);
+
+            var bgLayoutElem = bgGo.AddComponent<LayoutElement>();
+            bgLayoutElem.minWidth = 44;
+            bgLayoutElem.minHeight = 24;
+            bgLayoutElem.preferredWidth = 44;
+            bgLayoutElem.preferredHeight = 24;
 
             var bgImage = bgGo.AddComponent<Image>();
             bgImage.color = new Color(0.3f, 0.3f, 0.3f, 0.8f);
@@ -479,27 +508,11 @@ namespace OpenRange.Editor
             var checkImage = checkGo.AddComponent<Image>();
             checkImage.color = UITheme.AccentGreen;
 
-            // Toggle component
+            // Toggle component on root
             var toggle = toggleGo.AddComponent<Toggle>();
             toggle.targetGraphic = bgImage;
             toggle.graphic = checkImage;
             toggle.isOn = false;
-
-            // Label
-            var labelGo = new GameObject("Label");
-            labelGo.transform.SetParent(toggleGo.transform);
-            var labelRect = labelGo.AddComponent<RectTransform>();
-            labelRect.anchorMin = new Vector2(0, 0);
-            labelRect.anchorMax = new Vector2(1, 1);
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = new Vector2(-60, 0);
-
-            var labelText = labelGo.AddComponent<TextMeshProUGUI>();
-            labelText.text = "Include Club Data";
-            labelText.fontSize = UITheme.FontSizeRegular.Normal;
-            labelText.color = UITheme.TextPrimary;
-            labelText.alignment = TextAlignmentOptions.MidlineLeft;
-            labelText.raycastTarget = false;
 
             // SettingToggle component
             var settingToggle = toggleGo.AddComponent<SettingToggle>();
@@ -526,19 +539,22 @@ namespace OpenRange.Editor
             var sectionLayout = sectionGo.AddComponent<VerticalLayoutGroup>();
             sectionLayout.spacing = ItemSpacing;
             sectionLayout.childControlWidth = true;
-            sectionLayout.childControlHeight = false;
+            sectionLayout.childControlHeight = true;
             sectionLayout.childForceExpandWidth = true;
             sectionLayout.childForceExpandHeight = false;
+
+            var sectionLayoutElem = sectionGo.AddComponent<LayoutElement>();
+            sectionLayoutElem.flexibleHeight = 0f;
 
             // Section header
             CreateSectionHeader(sectionGo.transform, "Club Data (HMT)");
 
             // Sliders
-            var clubSpeedSlider = CreateSettingSlider(sectionGo.transform, "Club Speed", " mph", 60, 130, 95);
-            var attackAngleSlider = CreateSettingSlider(sectionGo.transform, "Attack Angle", "°", -10, 10, 0);
-            var faceToTargetSlider = CreateSettingSlider(sectionGo.transform, "Face to Target", "°", -10, 10, 0);
-            var pathSlider = CreateSettingSlider(sectionGo.transform, "Path", "°", -15, 15, 0);
-            var dynamicLoftSlider = CreateSettingSlider(sectionGo.transform, "Dynamic Loft", "°", 5, 50, 15);
+            var clubSpeedSlider = CreateSettingSlider(sectionGo.transform, "Club Speed", " mph", 60, 130, 95, true);
+            var attackAngleSlider = CreateSettingSlider(sectionGo.transform, "Attack Angle", "°", -10, 10, 0, false);
+            var faceToTargetSlider = CreateSettingSlider(sectionGo.transform, "Face to Target", "°", -10, 10, 0, false);
+            var pathSlider = CreateSettingSlider(sectionGo.transform, "Path", "°", -15, 15, 0, false);
+            var dynamicLoftSlider = CreateSettingSlider(sectionGo.transform, "Dynamic Loft", "°", 5, 50, 15, false);
 
             return (sectionGo, clubSpeedSlider, attackAngleSlider, faceToTargetSlider, pathSlider, dynamicLoftSlider);
         }
@@ -553,28 +569,34 @@ namespace OpenRange.Editor
             var sectionLayout = sectionGo.AddComponent<VerticalLayoutGroup>();
             sectionLayout.spacing = ItemSpacing;
             sectionLayout.childControlWidth = true;
-            sectionLayout.childControlHeight = false;
+            sectionLayout.childControlHeight = true;
             sectionLayout.childForceExpandWidth = true;
             sectionLayout.childForceExpandHeight = false;
+
+            var sectionLayoutElem = sectionGo.AddComponent<LayoutElement>();
+            sectionLayoutElem.flexibleHeight = 0f;
 
             // Fire Shot button (large, green)
             var fireShotGo = new GameObject("FireShotButton");
             fireShotGo.transform.SetParent(sectionGo.transform);
-            fireShotGo.AddComponent<RectTransform>();
+            var fireShotRect = fireShotGo.AddComponent<RectTransform>();
+            fireShotRect.sizeDelta = new Vector2(0, FireButtonHeight);
 
             var fireLayout = fireShotGo.AddComponent<LayoutElement>();
+            fireLayout.minHeight = FireButtonHeight;
             fireLayout.preferredHeight = FireButtonHeight;
+            fireLayout.flexibleHeight = 0f;
 
             var fireImage = fireShotGo.AddComponent<Image>();
-            fireImage.color = new Color(0.2f, 0.6f, 0.2f, 1f); // Green
+            fireImage.color = new Color(0.2f, 0.5f, 0.2f, 1f); // Green
 
             var fireButton = fireShotGo.AddComponent<Button>();
             fireButton.targetGraphic = fireImage;
 
             var fireColors = fireButton.colors;
-            fireColors.normalColor = new Color(0.2f, 0.6f, 0.2f, 1f);
-            fireColors.highlightedColor = new Color(0.3f, 0.7f, 0.3f, 1f);
-            fireColors.pressedColor = new Color(0.15f, 0.5f, 0.15f, 1f);
+            fireColors.normalColor = new Color(0.2f, 0.5f, 0.2f, 1f);
+            fireColors.highlightedColor = new Color(0.3f, 0.6f, 0.3f, 1f);
+            fireColors.pressedColor = new Color(0.15f, 0.4f, 0.15f, 1f);
             fireButton.colors = fireColors;
 
             var fireTextGo = new GameObject("Text");
@@ -587,7 +609,7 @@ namespace OpenRange.Editor
 
             var fireText = fireTextGo.AddComponent<TextMeshProUGUI>();
             fireText.text = "FIRE SHOT";
-            fireText.fontSize = UITheme.FontSizeRegular.Large;
+            fireText.fontSize = 16f;
             fireText.fontStyle = FontStyles.Bold;
             fireText.color = Color.white;
             fireText.alignment = TextAlignmentOptions.Center;
@@ -596,10 +618,13 @@ namespace OpenRange.Editor
             // Reset Ball button
             var resetGo = new GameObject("ResetBallButton");
             resetGo.transform.SetParent(sectionGo.transform);
-            resetGo.AddComponent<RectTransform>();
+            var resetRect = resetGo.AddComponent<RectTransform>();
+            resetRect.sizeDelta = new Vector2(0, PresetButtonHeight);
 
             var resetLayout = resetGo.AddComponent<LayoutElement>();
+            resetLayout.minHeight = PresetButtonHeight;
             resetLayout.preferredHeight = PresetButtonHeight;
+            resetLayout.flexibleHeight = 0f;
 
             var resetImage = resetGo.AddComponent<Image>();
             resetImage.color = new Color(0.3f, 0.3f, 0.3f, 0.9f);
@@ -617,7 +642,7 @@ namespace OpenRange.Editor
 
             var resetText = resetTextGo.AddComponent<TextMeshProUGUI>();
             resetText.text = "Reset Ball";
-            resetText.fontSize = UITheme.FontSizeRegular.Normal;
+            resetText.fontSize = 13f;
             resetText.color = UITheme.TextPrimary;
             resetText.alignment = TextAlignmentOptions.Center;
             resetText.raycastTarget = false;
@@ -630,13 +655,16 @@ namespace OpenRange.Editor
             var statusGo = new GameObject("StatusSection");
             statusGo.transform.SetParent(parent);
             var statusRect = statusGo.AddComponent<RectTransform>();
+            statusRect.sizeDelta = new Vector2(0, 20f);
 
             var statusLayout = statusGo.AddComponent<LayoutElement>();
-            statusLayout.preferredHeight = 24f;
+            statusLayout.minHeight = 20f;
+            statusLayout.preferredHeight = 20f;
+            statusLayout.flexibleHeight = 0f;
 
             var statusText = statusGo.AddComponent<TextMeshProUGUI>();
             statusText.text = "Ready";
-            statusText.fontSize = UITheme.FontSizeRegular.Small;
+            statusText.fontSize = 11f;
             statusText.color = UITheme.TextSecondary;
             statusText.alignment = TextAlignmentOptions.Center;
             statusText.fontStyle = FontStyles.Italic;
@@ -655,7 +683,7 @@ namespace OpenRange.Editor
             closeRect.anchorMin = new Vector2(1, 1);
             closeRect.anchorMax = new Vector2(1, 1);
             closeRect.pivot = new Vector2(1, 1);
-            closeRect.anchoredPosition = new Vector2(-8, -8);
+            closeRect.anchoredPosition = new Vector2(-6, -6);
             closeRect.sizeDelta = new Vector2(CloseButtonSize, CloseButtonSize);
 
             var closeImage = closeGo.AddComponent<Image>();
@@ -675,7 +703,7 @@ namespace OpenRange.Editor
 
             var xText = xTextGo.AddComponent<TextMeshProUGUI>();
             xText.text = "X";
-            xText.fontSize = UITheme.FontSizeRegular.Normal;
+            xText.fontSize = 14f;
             xText.fontStyle = FontStyles.Bold;
             xText.color = UITheme.TextPrimary;
             xText.alignment = TextAlignmentOptions.Center;
@@ -692,14 +720,17 @@ namespace OpenRange.Editor
         {
             var headerGo = new GameObject("Header");
             headerGo.transform.SetParent(parent);
-            headerGo.AddComponent<RectTransform>();
+            var headerRect = headerGo.AddComponent<RectTransform>();
+            headerRect.sizeDelta = new Vector2(0, 18f);
 
             var headerLayout = headerGo.AddComponent<LayoutElement>();
-            headerLayout.preferredHeight = 20f;
+            headerLayout.minHeight = 18f;
+            headerLayout.preferredHeight = 18f;
+            headerLayout.flexibleHeight = 0f;
 
             var headerText = headerGo.AddComponent<TextMeshProUGUI>();
             headerText.text = text;
-            headerText.fontSize = UITheme.FontSizeRegular.Normal;
+            headerText.fontSize = 12f;
             headerText.fontStyle = FontStyles.Bold;
             headerText.color = UITheme.TextSecondary;
             headerText.alignment = TextAlignmentOptions.MidlineLeft;
@@ -707,36 +738,54 @@ namespace OpenRange.Editor
         }
 
         private static SettingSlider CreateSettingSlider(Transform parent, string label, string suffix,
-            float min, float max, float defaultValue)
+            float min, float max, float defaultValue, bool wholeNumbers)
         {
             var sliderGo = new GameObject(label.Replace(" ", "") + "Slider");
             sliderGo.transform.SetParent(parent);
             var sliderRect = sliderGo.AddComponent<RectTransform>();
+            sliderRect.sizeDelta = new Vector2(0, SliderHeight);
 
             var sliderLayoutElem = sliderGo.AddComponent<LayoutElement>();
+            sliderLayoutElem.minHeight = SliderHeight;
             sliderLayoutElem.preferredHeight = SliderHeight;
+            sliderLayoutElem.flexibleHeight = 0f;
+
+            // Vertical layout for label row + slider
+            var vLayout = sliderGo.AddComponent<VerticalLayoutGroup>();
+            vLayout.spacing = 2f;
+            vLayout.childControlWidth = true;
+            vLayout.childControlHeight = true;
+            vLayout.childForceExpandWidth = true;
+            vLayout.childForceExpandHeight = false;
+            vLayout.padding = new RectOffset(0, 0, 0, 0);
 
             // Label row
             var labelRowGo = new GameObject("LabelRow");
             labelRowGo.transform.SetParent(sliderGo.transform);
             var labelRowRect = labelRowGo.AddComponent<RectTransform>();
-            labelRowRect.anchorMin = new Vector2(0, 0.5f);
-            labelRowRect.anchorMax = new Vector2(1, 1);
-            labelRowRect.offsetMin = Vector2.zero;
-            labelRowRect.offsetMax = Vector2.zero;
+
+            var labelRowLayout = labelRowGo.AddComponent<HorizontalLayoutGroup>();
+            labelRowLayout.childControlWidth = true;
+            labelRowLayout.childControlHeight = true;
+            labelRowLayout.childForceExpandWidth = false;
+            labelRowLayout.childForceExpandHeight = false;
+
+            var labelRowLayoutElem = labelRowGo.AddComponent<LayoutElement>();
+            labelRowLayoutElem.minHeight = 18f;
+            labelRowLayoutElem.preferredHeight = 18f;
+            labelRowLayoutElem.flexibleHeight = 0f;
 
             // Label text
             var labelGo = new GameObject("Label");
             labelGo.transform.SetParent(labelRowGo.transform);
-            var labelRect = labelGo.AddComponent<RectTransform>();
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = new Vector2(0.6f, 1);
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
+            labelGo.AddComponent<RectTransform>();
+
+            var labelLayoutElem = labelGo.AddComponent<LayoutElement>();
+            labelLayoutElem.flexibleWidth = 1f;
 
             var labelText = labelGo.AddComponent<TextMeshProUGUI>();
             labelText.text = label;
-            labelText.fontSize = UITheme.FontSizeRegular.Small;
+            labelText.fontSize = 11f;
             labelText.color = UITheme.TextSecondary;
             labelText.alignment = TextAlignmentOptions.MidlineLeft;
             labelText.raycastTarget = false;
@@ -744,34 +793,35 @@ namespace OpenRange.Editor
             // Value text
             var valueGo = new GameObject("Value");
             valueGo.transform.SetParent(labelRowGo.transform);
-            var valueRect = valueGo.AddComponent<RectTransform>();
-            valueRect.anchorMin = new Vector2(0.6f, 0);
-            valueRect.anchorMax = Vector2.one;
-            valueRect.offsetMin = Vector2.zero;
-            valueRect.offsetMax = Vector2.zero;
+            valueGo.AddComponent<RectTransform>();
+
+            var valueLayoutElem = valueGo.AddComponent<LayoutElement>();
+            valueLayoutElem.minWidth = 70f;
 
             var valueText = valueGo.AddComponent<TextMeshProUGUI>();
-            valueText.text = defaultValue.ToString("F0") + suffix;
-            valueText.fontSize = UITheme.FontSizeRegular.Small;
+            valueText.text = (wholeNumbers ? defaultValue.ToString("F0") : defaultValue.ToString("F1")) + suffix;
+            valueText.fontSize = 11f;
             valueText.color = UITheme.TextPrimary;
             valueText.alignment = TextAlignmentOptions.MidlineRight;
             valueText.raycastTarget = false;
 
-            // Slider background
-            var sliderBgGo = new GameObject("SliderBackground");
-            sliderBgGo.transform.SetParent(sliderGo.transform);
-            var sliderBgRect = sliderBgGo.AddComponent<RectTransform>();
-            sliderBgRect.anchorMin = new Vector2(0, 0);
-            sliderBgRect.anchorMax = new Vector2(1, 0.5f);
-            sliderBgRect.offsetMin = new Vector2(0, 4);
-            sliderBgRect.offsetMax = new Vector2(0, -4);
+            // Slider container
+            var sliderContainerGo = new GameObject("SliderContainer");
+            sliderContainerGo.transform.SetParent(sliderGo.transform);
+            var sliderContainerRect = sliderContainerGo.AddComponent<RectTransform>();
 
-            var sliderBgImage = sliderBgGo.AddComponent<Image>();
+            var sliderContainerLayoutElem = sliderContainerGo.AddComponent<LayoutElement>();
+            sliderContainerLayoutElem.minHeight = 20f;
+            sliderContainerLayoutElem.preferredHeight = 20f;
+            sliderContainerLayoutElem.flexibleHeight = 0f;
+
+            // Slider background
+            var sliderBgImage = sliderContainerGo.AddComponent<Image>();
             sliderBgImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
 
             // Fill area
             var fillAreaGo = new GameObject("Fill Area");
-            fillAreaGo.transform.SetParent(sliderBgGo.transform);
+            fillAreaGo.transform.SetParent(sliderContainerGo.transform);
             var fillAreaRect = fillAreaGo.AddComponent<RectTransform>();
             fillAreaRect.anchorMin = new Vector2(0, 0.25f);
             fillAreaRect.anchorMax = new Vector2(1, 0.75f);
@@ -783,7 +833,7 @@ namespace OpenRange.Editor
             fillGo.transform.SetParent(fillAreaGo.transform);
             var fillRect = fillGo.AddComponent<RectTransform>();
             fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = new Vector2(0.5f, 1);
+            fillRect.anchorMax = new Vector2(0, 1);
             fillRect.offsetMin = Vector2.zero;
             fillRect.offsetMax = Vector2.zero;
 
@@ -792,32 +842,35 @@ namespace OpenRange.Editor
 
             // Handle area
             var handleAreaGo = new GameObject("Handle Slide Area");
-            handleAreaGo.transform.SetParent(sliderBgGo.transform);
+            handleAreaGo.transform.SetParent(sliderContainerGo.transform);
             var handleAreaRect = handleAreaGo.AddComponent<RectTransform>();
             handleAreaRect.anchorMin = Vector2.zero;
             handleAreaRect.anchorMax = Vector2.one;
-            handleAreaRect.offsetMin = new Vector2(10, 0);
-            handleAreaRect.offsetMax = new Vector2(-10, 0);
+            handleAreaRect.offsetMin = new Vector2(8, 0);
+            handleAreaRect.offsetMax = new Vector2(-8, 0);
 
             // Handle
             var handleGo = new GameObject("Handle");
             handleGo.transform.SetParent(handleAreaGo.transform);
             var handleRect = handleGo.AddComponent<RectTransform>();
-            handleRect.sizeDelta = new Vector2(20, 0);
+            handleRect.sizeDelta = new Vector2(16, 0);
+            handleRect.anchorMin = new Vector2(0, 0);
+            handleRect.anchorMax = new Vector2(0, 1);
 
             var handleImage = handleGo.AddComponent<Image>();
             handleImage.color = Color.white;
 
-            // Slider component
-            var slider = sliderBgGo.AddComponent<Slider>();
+            // Slider component on container
+            var slider = sliderContainerGo.AddComponent<Slider>();
             slider.fillRect = fillRect;
             slider.handleRect = handleRect;
             slider.minValue = min;
             slider.maxValue = max;
             slider.value = defaultValue;
-            slider.wholeNumbers = (suffix == " rpm" || suffix == " mph");
+            slider.wholeNumbers = wholeNumbers;
+            slider.direction = Slider.Direction.LeftToRight;
 
-            // SettingSlider component
+            // SettingSlider component on root
             var settingSlider = sliderGo.AddComponent<SettingSlider>();
 
             var so = new SerializedObject(settingSlider);
