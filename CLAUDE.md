@@ -635,3 +635,50 @@ When building native plugins for IL2CPP (standalone macOS/iOS builds):
    - Run from terminal to see console output: `./OpenRange.app/Contents/MacOS/<executable>`
    - Or check Player.log for errors
    - Add debug logging in native plugin with `NSLog()` or similar
+
+### Batchmode Scene Generation
+
+**Critical Issue:** `EditorUtility.DisplayDialog()` returns `false` in batchmode (CLI), causing menu methods to exit early without doing work.
+
+**Symptom:** `make generate` runs but scenes aren't updated. Changes made in generators don't appear in scenes.
+
+**Fix:** Check `Application.isBatchMode` to skip dialogs when running from CLI:
+```csharp
+[MenuItem("OpenRange/Generate All Scenes")]
+public static void GenerateAllScenes()
+{
+    // In batchmode (CLI), skip the dialog and generate directly
+    if (!Application.isBatchMode)
+    {
+        if (!EditorUtility.DisplayDialog("Title", "Message", "OK", "Cancel"))
+        {
+            return;  // User cancelled
+        }
+    }
+    // Proceed with generation...
+}
+```
+
+This pattern applies to any editor menu item that uses `DisplayDialog` for confirmation.
+
+### Unity Built-in Sprites
+
+For common UI icons (checkmarks, arrows, etc.), use Unity's built-in sprites instead of Unicode or custom assets:
+
+```csharp
+var checkmark = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd");
+image.sprite = checkmark;
+image.color = UITheme.AccentGreen;
+image.preserveAspect = true;
+```
+
+Available built-in sprites (path prefix: `UI/Skin/`):
+- `Checkmark.psd` - Checkmark icon for toggles/dropdowns
+- `Background.psd` - Default UI background
+- `UISprite.psd` - Generic UI sprite
+- `InputFieldBackground.psd` - Input field background
+- `Knob.psd` - Slider knob
+- `DropdownArrow.psd` - Dropdown arrow indicator
+- `UIMask.psd` - Mask sprite
+
+This is more reliable than Unicode symbols which may not render correctly with all fonts.

@@ -4,10 +4,11 @@
 **Phase**: 7.5 - UI Refinement & Polish
 **Last Updated**: 2026-01-03
 **Next Prompt**: 46 (Test Shot Panel - Runtime UI)
+**Prompts 43-45**: ✅ UI Refinement complete
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
-**UI**: 🔄 Layout issues identified - Prompts 43-46 added for fixes and test shots
+**UI**: ✅ Prompts 43-45 fixed layout issues | ⏳ Prompt 46 (Test Shot Panel) pending
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
@@ -91,16 +92,16 @@
   - [x] Unit tests: 19 layout validation + 7 modal behavior tests
   - [x] Created OpenRange.Editor.asmdef for test references
 
-- [ ] **Prompt 45**: Settings Panel Dropdown and General UI Polish
-  - [ ] Fix dropdown z-order (render above other elements)
-  - [ ] Fix dropdown option height to show full text
-  - [ ] Fix Settings panel scroll indicator
-  - [ ] Fix "Connect GC2" button overlapping title
-  - [ ] Verify Club Data Panel visibility
-  - [ ] Verify Ball Ready Indicator position
-  - [ ] General UI polish (consistent colors, spacing, fonts)
-  - [ ] Update SceneGenerator for proper positioning
-  - [ ] Unit tests for dropdown and panel visibility
+- [x] **Prompt 45**: Settings Panel Dropdown and General UI Polish (PR #58)
+  - [x] Fix dropdown z-order (Canvas.overrideSorting = 100)
+  - [x] Fix dropdown option height (44px for accessibility)
+  - [x] Fix dropdown ScrollRect wiring (viewport/content not assigned)
+  - [x] Fix checkmark indicator (Unicode → Unity built-in Checkmark.psd sprite)
+  - [x] Fix X button (Unicode "✕" → simple "X" text)
+  - [x] Fix button raycastTarget (text was intercepting clicks)
+  - [x] Move Settings button to left side (next to Back button)
+  - [x] Fix batchmode scene generation (DisplayDialog returns false in CLI)
+  - [x] Unit tests: 13 layout validation tests in SettingsPanelGeneratorTests.cs
 
 - [ ] **Prompt 46**: Test Shot Panel (Runtime UI)
   - [ ] Create TestShotPanel.cs
@@ -362,6 +363,8 @@ All validated ✅ (PR #3):
 ---
 
 ## Recent Issue Log (Last 5 Entries)
+
+**2026-01-03 (Settings Panel Dropdown Fixes)**: Prompt 45 complete (PR #58). Fixed dropdown issues - ScrollRect wiring (viewport/content missing), z-order (Canvas.sortingOrder=100), item height (44px), checkmark (Unity's built-in Checkmark.psd instead of Unicode). Fixed Settings button moved to left side. Critical fix: EditorUtility.DisplayDialog() returns false in batchmode - added Application.isBatchMode check to SceneGenerator.GenerateAllScenes(). 13 new layout tests.
 
 **2026-01-03 (GSPro Mode Panel Layout Fixes)**: Prompt 43 complete (PR #55). Fixed GSPro Mode UI layout - panel width 280px, LED indicators 14px, styled indicator pills, 19 new layout validation tests.
 
