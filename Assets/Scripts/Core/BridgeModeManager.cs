@@ -81,6 +81,13 @@ namespace OpenRange.Core
             }
 
             _statistics = new BridgeModeStatistics();
+
+            // Create platform-specific bridge service
+            if (BridgeServiceFactory.IsBridgeModeSupported())
+            {
+                _bridgeService = BridgeServiceFactory.Create(gameObject);
+                Debug.Log($"BridgeModeManager: Bridge service created: {_bridgeService?.GetType().Name ?? "null"}");
+            }
         }
 
         private void OnDestroy()

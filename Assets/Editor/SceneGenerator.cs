@@ -105,6 +105,11 @@ namespace OpenRange.Editor
             settingsManagerGo.transform.SetParent(gameManagerGo.transform);
             var settingsManager = settingsManagerGo.AddComponent<Core.SettingsManager>();
 
+            // Add BridgeModeManager as child of GameManager
+            var bridgeModeManagerGo = new GameObject("BridgeModeManager");
+            bridgeModeManagerGo.transform.SetParent(gameManagerGo.transform);
+            var bridgeModeManager = bridgeModeManagerGo.AddComponent<Core.BridgeModeManager>();
+
             // Wire up references using SerializedObject
             var gameManagerSo = new SerializedObject(gameManager);
             gameManagerSo.FindProperty("_shotProcessor").objectReferenceValue = shotProcessor;

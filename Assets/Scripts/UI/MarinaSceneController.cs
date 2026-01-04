@@ -121,6 +121,7 @@ namespace OpenRange.UI
                 _gsProModeUI.OnConnectClicked -= OnGSProConnectClicked;
                 _gsProModeUI.OnDisconnectClicked -= OnGSProDisconnectClicked;
                 _gsProModeUI.OnModeChanged -= OnGSProModeChanged;
+                _gsProModeUI.OnBridgeModeChanged -= OnBridgeModeChanged;
             }
 
             if (GameManager.Instance != null)
@@ -344,6 +345,7 @@ namespace OpenRange.UI
             _gsProModeUI.OnConnectClicked += OnGSProConnectClicked;
             _gsProModeUI.OnDisconnectClicked += OnGSProDisconnectClicked;
             _gsProModeUI.OnModeChanged += OnGSProModeChanged;
+            _gsProModeUI.OnBridgeModeChanged += OnBridgeModeChanged;
 
             // Wire up the GSProClient from GameManager for status updates
             if (GameManager.Instance != null)
@@ -407,6 +409,44 @@ namespace OpenRange.UI
             GameManager.Instance.SetMode(newMode);
 
             Debug.Log($"MarinaSceneController: Mode changed to {newMode}");
+        }
+
+        private async void OnBridgeModeChanged(bool isBridgeModeEnabled)
+        {
+            var bridgeManager = BridgeModeManager.Instance;
+            if (bridgeManager == null)
+            {
+                Debug.LogWarning("MarinaSceneController: BridgeModeManager not found");
+                return;
+            }
+
+            if (isBridgeModeEnabled)
+            {
+                // Get GSPro host/port from the UI
+                if (_gsProModeUI != null)
+                {
+                    bridgeManager.GSProHost = _gsProModeUI.Host;
+                    bridgeManager.GSProPort = _gsProModeUI.Port;
+                }
+
+                Debug.Log($"MarinaSceneController: Enabling bridge mode to {bridgeManager.GSProHost}:{bridgeManager.GSProPort}");
+                bool success = await bridgeManager.EnableBridgeModeAsync();
+
+                if (!success)
+                {
+                    Debug.LogError("MarinaSceneController: Failed to enable bridge mode");
+                    // Reset toggle on failure
+                    if (_gsProModeUI != null)
+                    {
+                        _gsProModeUI.SetBridgeMode(false);
+                    }
+                }
+            }
+            else
+            {
+                Debug.Log("MarinaSceneController: Disabling bridge mode");
+                bridgeManager.DisableBridgeMode();
+            }
         }
 
         private void OnDeviceStatusChanged(GC2DeviceStatus status)
