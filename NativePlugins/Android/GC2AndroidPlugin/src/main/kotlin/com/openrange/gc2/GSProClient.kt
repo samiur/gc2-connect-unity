@@ -9,9 +9,10 @@ import android.util.Log
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.PrintWriter
+import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -33,7 +34,7 @@ class GSProClient {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var socket: Socket? = null
-    private var writer: PrintWriter? = null
+    private var outputStream: OutputStream? = null
     private var reader: BufferedReader? = null
 
     private val isConnected = AtomicBoolean(false)
@@ -68,9 +69,14 @@ class GSProClient {
                 newSocket.tcpNoDelay = true  // Disable Nagle's algorithm
                 newSocket.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
 
-                writer = PrintWriter(newSocket.getOutputStream(), true)
-                reader = BufferedReader(InputStreamReader(newSocket.getInputStream()))
+                // Use raw socket output to match C# implementation exactly (no buffering)
+                outputStream = newSocket.getOutputStream()
+                reader = BufferedReader(InputStreamReader(newSocket.getInputStream(), StandardCharsets.UTF_8))
                 socket = newSocket
+
+                // Additional socket options
+                newSocket.keepAlive = true
+                newSocket.soTimeout = 5000  // 5 second read timeout
 
                 isConnected.set(true)
                 shotNumber.set(0)
@@ -100,13 +106,13 @@ class GSProClient {
 
         executor.execute {
             try {
-                writer?.close()
+                outputStream?.close()
                 reader?.close()
                 socket?.close()
             } catch (e: Exception) {
                 Log.e(TAG, "Error closing socket: ${e.message}")
             } finally {
-                writer = null
+                outputStream = null
                 reader = null
                 socket = null
                 isConnected.set(false)
@@ -146,12 +152,45 @@ class GSProClient {
 
         executor.execute {
             try {
-                // Write without newline to match GSPro protocol (C# uses raw bytes)
-                writer?.print(message)
-                writer?.flush()
-                Log.d(TAG, "Sent shot #$currentShotNumber")
+                val stream = outputStream
+                val sock = socket
+                if (stream == null || sock == null) {
+                    Log.e(TAG, "Cannot send shot - stream or socket is null")
+                    isConnected.set(false)
+                    return@execute
+                }
+
+                // Log connection state before send
+                Log.d(TAG, "Socket state: connected=${sock.isConnected}, closed=${sock.isClosed}, bound=${sock.isBound}")
+
+                // Write raw UTF-8 bytes to match C# implementation exactly
+                Log.i(TAG, "Sending shot JSON: $message")
+                val bytes = message.toByteArray(StandardCharsets.UTF_8)
+                stream.write(bytes)
+                stream.flush()
+                Log.i(TAG, "Sent shot #$currentShotNumber (${bytes.size} bytes) to ${sock.inetAddress}:${sock.port}")
+
+                // Note: GSPro may or may not respond to shots. Don't block on response
+                // as this can cause issues. The shot was sent successfully if we get here.
+
+                // Try to read response with timeout, but don't fail if we don't get one
+                try {
+                    if (sock.getInputStream().available() > 0) {
+                        val buffer = ByteArray(4096)
+                        val bytesRead = sock.getInputStream().read(buffer)
+                        if (bytesRead > 0) {
+                            val response = String(buffer, 0, bytesRead, StandardCharsets.UTF_8)
+                            Log.d(TAG, "GSPro response ($bytesRead bytes): $response")
+                        }
+                    } else {
+                        Log.d(TAG, "No immediate response from GSPro (this is OK)")
+                    }
+                } catch (e: Exception) {
+                    // Response reading is optional - shot was already sent
+                    Log.d(TAG, "Could not read response (shot already sent): ${e.message}")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to send shot: ${e.message}")
+                Log.e(TAG, "Failed to send shot: ${e.message}", e)
                 isConnected.set(false)
             }
         }
@@ -194,9 +233,10 @@ class GSProClient {
 
         executor.execute {
             try {
-                // Write without newline to match GSPro protocol (C# uses raw bytes)
-                writer?.print(message)
-                writer?.flush()
+                // Write raw UTF-8 bytes to match C# implementation exactly
+                val bytes = message.toByteArray(StandardCharsets.UTF_8)
+                outputStream?.write(bytes)
+                outputStream?.flush()
                 Log.v(TAG, "Sent heartbeat")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send heartbeat: ${e.message}")
