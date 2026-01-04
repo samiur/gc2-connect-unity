@@ -483,6 +483,58 @@ When using `ContentSizeFitter` with `VerticalFit = PreferredSize`:
 - Children must have `childControlHeight = true` on parent for this to work correctly
 - Without it, children report incorrect sizes and the fitter calculates wrong
 
+#### TMP_Dropdown (TextMeshPro Dropdown) Setup
+
+Creating dropdowns programmatically requires careful attention to the template hierarchy:
+
+1. **ScrollRect wiring is critical**:
+   ```csharp
+   var scrollRect = templateGo.AddComponent<ScrollRect>();
+   scrollRect.viewport = viewportRect;    // MUST be assigned!
+   scrollRect.content = contentRect;       // MUST be assigned!
+   ```
+   Without this wiring, dropdown items won't display or will show white areas.
+
+2. **Z-order for dropdown overlay**:
+   ```csharp
+   var templateCanvas = templateGo.AddComponent<Canvas>();
+   templateCanvas.overrideSorting = true;
+   templateCanvas.sortingOrder = 100;  // Higher than normal UI
+   ```
+
+3. **Font limitations with Unicode**:
+   - LiberationSans SDF (default TMP font) doesn't include many Unicode symbols
+   - Unicode checkmark `\u2713` renders as hollow square `\u25A1`
+   - Use Image components instead of text for symbols like checkmarks
+   - Or use simple ASCII: "X" instead of "✕", styled with bold
+
+4. **Template structure** (TMP_Dropdown expects this exact hierarchy):
+   ```
+   Dropdown (TMP_Dropdown)
+   └── Template (inactive by default)
+       └── Viewport (Mask + Image)
+           └── Content (VerticalLayoutGroup)
+               └── Item (Toggle template)
+                   ├── Item Checkmark (Image, not text!)
+                   └── Item Label (TextMeshProUGUI)
+   ```
+
+#### Button Click Area Issues
+
+By default, TextMeshProUGUI has `raycastTarget = true`, which can intercept clicks intended for the parent Button:
+
+```csharp
+// BAD: Text intercepts clicks before they reach Button
+var text = buttonGo.AddComponent<TextMeshProUGUI>();
+// text.raycastTarget defaults to true!
+
+// GOOD: Let clicks pass through to the Button
+var text = buttonGo.AddComponent<TextMeshProUGUI>();
+text.raycastTarget = false;  // Clicks go to Button
+```
+
+This is a common cause of "button only works when clicking on edges" issues.
+
 ### Coordinate System
 
 The physics engine and Unity use different coordinate systems:
@@ -583,3 +635,50 @@ When building native plugins for IL2CPP (standalone macOS/iOS builds):
    - Run from terminal to see console output: `./OpenRange.app/Contents/MacOS/<executable>`
    - Or check Player.log for errors
    - Add debug logging in native plugin with `NSLog()` or similar
+
+### Batchmode Scene Generation
+
+**Critical Issue:** `EditorUtility.DisplayDialog()` returns `false` in batchmode (CLI), causing menu methods to exit early without doing work.
+
+**Symptom:** `make generate` runs but scenes aren't updated. Changes made in generators don't appear in scenes.
+
+**Fix:** Check `Application.isBatchMode` to skip dialogs when running from CLI:
+```csharp
+[MenuItem("OpenRange/Generate All Scenes")]
+public static void GenerateAllScenes()
+{
+    // In batchmode (CLI), skip the dialog and generate directly
+    if (!Application.isBatchMode)
+    {
+        if (!EditorUtility.DisplayDialog("Title", "Message", "OK", "Cancel"))
+        {
+            return;  // User cancelled
+        }
+    }
+    // Proceed with generation...
+}
+```
+
+This pattern applies to any editor menu item that uses `DisplayDialog` for confirmation.
+
+### Unity Built-in Sprites
+
+For common UI icons (checkmarks, arrows, etc.), use Unity's built-in sprites instead of Unicode or custom assets:
+
+```csharp
+var checkmark = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd");
+image.sprite = checkmark;
+image.color = UITheme.AccentGreen;
+image.preserveAspect = true;
+```
+
+Available built-in sprites (path prefix: `UI/Skin/`):
+- `Checkmark.psd` - Checkmark icon for toggles/dropdowns
+- `Background.psd` - Default UI background
+- `UISprite.psd` - Generic UI sprite
+- `InputFieldBackground.psd` - Input field background
+- `Knob.psd` - Slider knob
+- `DropdownArrow.psd` - Dropdown arrow indicator
+- `UIMask.psd` - Mask sprite
+
+This is more reliable than Unicode symbols which may not render correctly with all fonts.

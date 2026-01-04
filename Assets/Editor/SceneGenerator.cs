@@ -55,13 +55,17 @@ namespace OpenRange.Editor
         [MenuItem("OpenRange/Generate All Scenes", priority = 100)]
         public static void GenerateAllScenes()
         {
-            if (!EditorUtility.DisplayDialog(
-                "Generate Scenes",
-                "This will create Bootstrap.unity, MainMenu.unity, and Ranges/Marina.unity scenes. Existing scenes will be overwritten. Continue?",
-                "Generate",
-                "Cancel"))
+            // In batchmode (CLI), skip the dialog and generate directly
+            if (!Application.isBatchMode)
             {
-                return;
+                if (!EditorUtility.DisplayDialog(
+                    "Generate Scenes",
+                    "This will create Bootstrap.unity, MainMenu.unity, and Ranges/Marina.unity scenes. Existing scenes will be overwritten. Continue?",
+                    "Generate",
+                    "Cancel"))
+                {
+                    return;
+                }
             }
 
             EnsureDirectoriesExist();
@@ -510,14 +514,14 @@ namespace OpenRange.Editor
             backRect.anchoredPosition = new Vector2(20, -20);
             backRect.sizeDelta = new Vector2(100, 40);
 
-            // Settings Button (top-right, next to connection status)
+            // Settings Button (top-left, next to Back button)
             var settingsBtn = CreateButton(canvasGo.transform, "SettingsButton", "Settings");
             var settingsRect = settingsBtn.GetComponent<RectTransform>();
-            settingsRect.anchorMin = new Vector2(1, 1);
-            settingsRect.anchorMax = new Vector2(1, 1);
-            settingsRect.pivot = new Vector2(1, 1);
-            settingsRect.anchoredPosition = new Vector2(-150, -20);
-            settingsRect.sizeDelta = new Vector2(120, 40); // Width increased from 100 to show full "Settings" text
+            settingsRect.anchorMin = new Vector2(0, 1);
+            settingsRect.anchorMax = new Vector2(0, 1);
+            settingsRect.pivot = new Vector2(0, 1);
+            settingsRect.anchoredPosition = new Vector2(130, -20); // 20 + 100 (back width) + 10 (gap)
+            settingsRect.sizeDelta = new Vector2(100, 40);
 
             // Shot Data Bar (bottom panel)
             ShotDataBar shotDataBar = null;
@@ -617,7 +621,8 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: ConnectionPanel.prefab not found. Run 'OpenRange > Create All Connection Status Prefabs' first.");
             }
 
-            // Ball Ready Indicator (top-center, below connection status)
+            // Ball Ready Indicator (top-center, below title - must not overlap "Marina Driving Range")
+            // Title is at anchor 0.9 (~108px from top on 1080p), indicator goes below it
             BallReadyIndicator ballReadyIndicator = null;
             var ballReadyIndicatorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/BallReadyIndicator.prefab");
             if (ballReadyIndicatorPrefab != null)
@@ -626,13 +631,15 @@ namespace OpenRange.Editor
                 ballReadyIndicatorGo.name = "BallReadyIndicator";
                 ballReadyIndicatorGo.transform.SetParent(canvasGo.transform, false);
 
-                // Position at top-center, below connection status
+                // Position at top-center, below title (title at anchor 0.9 = 10% from top)
+                // On 1080p: anchor 0.9 = 972px from bottom = 108px from top
+                // Title is 50px tall, so indicator starts at ~160px from top
                 var indicatorRect = ballReadyIndicatorGo.GetComponent<RectTransform>();
                 indicatorRect.anchorMin = new Vector2(0.5f, 1);
                 indicatorRect.anchorMax = new Vector2(0.5f, 1);
                 indicatorRect.pivot = new Vector2(0.5f, 1);
-                indicatorRect.anchoredPosition = new Vector2(0, -60);
-                indicatorRect.sizeDelta = new Vector2(200, 60);
+                indicatorRect.anchoredPosition = new Vector2(0, -160);
+                indicatorRect.sizeDelta = new Vector2(200, 50);
 
                 ballReadyIndicator = ballReadyIndicatorGo.GetComponent<BallReadyIndicator>();
                 Debug.Log("SceneGenerator: Added BallReadyIndicator to Marina scene");
@@ -990,6 +997,7 @@ namespace OpenRange.Editor
             textRect.offsetMax = Vector2.zero;
             var tmpText = textGo.GetComponent<TextMeshProUGUI>();
             tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.raycastTarget = false; // Let clicks pass through to button
 
             return buttonGo;
         }

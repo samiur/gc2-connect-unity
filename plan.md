@@ -21,7 +21,7 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 | 5 | Visualization | 6-11 | ✅ Complete |
 | 6 | UI System | 12-17 | ✅ Complete |
 | 7 | GSPro & Native Plugins | 18-22, 32-35, 42-43 | ✅ Complete |
-| 7.5 | UI Refinement | 43-46 | 🔄 In Progress (43 done) |
+| 7.5 | UI Refinement | 43-46 | 🔄 In Progress (43-45 done) |
 | 8 | macOS Build & Release | 36-37 | ⏳ Pending |
 | 9 | Android Native Plugin | 23-25 | ⏳ Pending |
 | 10 | iPad Native Plugin | 26-28 | ⏳ Pending |
@@ -70,12 +70,14 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 - **Prompt 35**: Ball Ready Indicator ✅ (PR #51) - Visual states, pulse animation
 - **Prompt 42**: GSPro Buffer Management ✅ (PR #53) - Response parsing, shot confirmation
 - **Prompt 43**: GSPro Mode Panel Fixes ✅ (PR #55) - Layout constants, improved sizing
+- **Prompt 44**: Connection Panel Fixes ✅ (PR #57) - Panel height, modal positioning, close button sizing
+- **Prompt 45**: Settings Dropdown & UI Polish ✅ (PR #58) - Dropdown z-order, ScrollRect wiring, checkmark sprite, batchmode fix
 
 ---
 
 ## Incomplete Prompts (Full Detail)
 
-### Prompt 44: Connection Panel and Settings Button Fixes
+### Prompt 44: Connection Panel and Settings Button Fixes ✅ (Completed in PR #57)
 
 ```text
 Fix the Connection Status panel overflow and truncated Settings button.
@@ -148,75 +150,28 @@ Write/update unit tests for:
 
 ---
 
-### Prompt 45: Settings Panel Dropdown and General UI Polish
+### Prompt 45: Settings Panel Dropdown and General UI Polish ✅ (PR #58 Complete)
 
 ```text
-Fix Settings panel dropdown issues and general UI polish items.
+Fixed Settings panel dropdown issues and UI polish items.
 
-Context: The Settings panel has dropdown issues where options are cut off, and there are various general UI polish items across the Marina scene.
+Completed:
+- ✅ Fixed dropdown z-order with Canvas.overrideSorting (sortingOrder = 100)
+- ✅ Fixed dropdown ScrollRect (viewport/content wiring was missing)
+- ✅ Fixed button click areas (raycastTarget = false on text)
+- ✅ Fixed checkmark → Unity's built-in Checkmark.psd sprite (Unicode didn't render)
+- ✅ Fixed X button from Unicode "✕" to simple "X" text
+- ✅ Moved Settings button to left side (next to Back button)
+- ✅ Fixed batchmode scene generation (DisplayDialog returns false in CLI)
+- ✅ Dropdown item height 44px for accessibility
+- ✅ Dropdown template height shows 4+ items
+- ✅ Unit tests: 13 layout validation tests in SettingsPanelGeneratorTests.cs
 
-Issues identified:
-- Frame Rate dropdown shows partial text ("um" instead of "Medium")
-- Dropdown options overlay the "Units" section header
-- No visible scroll indicator in Settings panel
-- "Connect GC2" button overlaps "Marina Driving Range" title
-- Club Data Panel (left side) may be missing or not visible
-- Ball Ready Indicator position unclear
-
-Files to modify:
-- Assets/Scripts/UI/SettingsPanel.cs
-- Assets/Scripts/UI/SettingDropdown.cs
-- Assets/Editor/SettingsPanelGenerator.cs
-- Assets/Prefabs/UI/SettingsPanel.prefab (regenerate)
-- Assets/Scripts/UI/MarinaSceneController.cs
-- Assets/Editor/SceneGenerator.cs
-
-Requirements:
-
-1. Fix dropdown component:
-   - Ensure dropdown list has proper z-order (renders above other elements)
-   - Set Canvas.sortingOrder or use OverrideSorting
-   - Fix dropdown option height to show full text
-   - Template item height should accommodate text
-
-2. Fix Settings panel scroll:
-   - Add ScrollRect if not present
-   - Show scrollbar when content exceeds visible area
-   - Test with all sections expanded
-
-3. Fix "Connect GC2" button positioning:
-   - Move button so it doesn't overlap title text
-   - Either position above title or use dedicated header area
-   - Or integrate into top navigation bar
-
-4. Verify Club Data Panel visibility:
-   - Ensure ClubDataPanel prefab is instantiated in scene
-   - Check anchor/position (should be left side)
-   - Verify MarinaSceneController has reference wired
-   - Panel should be visible but show placeholder/empty state
-
-5. Verify Ball Ready Indicator:
-   - Check position and visibility
-   - Should be prominent and clearly visible
-   - Consider positioning near tee area or in HUD
-
-6. General UI polish:
-   - Consistent panel background colors (UITheme.PanelBackground)
-   - Consistent border radius where applicable
-   - Consistent font sizes per UITheme
-   - Consistent spacing/padding (UITheme.Padding/Margin)
-
-7. Update SceneGenerator:
-   - Ensure all UI elements are properly positioned
-   - Check z-order/hierarchy for proper layering
-   - Verify all prefab references are wired
-
-Write/update unit tests for:
-- Dropdown options display correctly
-- Settings panel scrolls when needed
-- All panels have correct z-order
-- Club Data Panel is present and positioned
-- Ball Ready Indicator is visible
+Key Learnings:
+1. TMP_Dropdown requires explicit ScrollRect wiring (scrollRect.viewport/content)
+2. EditorUtility.DisplayDialog() returns false in batchmode - use Application.isBatchMode check
+3. Unity built-in sprites via AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd")
+4. LiberationSans SDF font lacks many Unicode symbols - use Image components instead
 ```
 
 ---
@@ -1408,3 +1363,34 @@ private static void OnNativeShotCallbackStatic(string jsonData)
 - **Accumulation**: Wait for `BACK_RPM`/`SIDE_RPM` before processing
 - **Misreads**: Reject zero spin, 2222 error, speed <1.1 or >250 mph
 - **Device status**: FLAGS == 7 = ready, BALLS > 0 = ball detected
+
+### Unity UI Programmatic Creation Lessons
+
+**TMP_Dropdown ScrollRect Wiring:**
+The dropdown template requires explicit ScrollRect wiring or items won't display:
+```csharp
+scrollRect.viewport = viewportRect;  // MUST be assigned!
+scrollRect.content = contentRect;    // MUST be assigned!
+```
+
+**Button raycastTarget Issue:**
+TextMeshProUGUI defaults to `raycastTarget = true`, intercepting clicks intended for the Button. Fix by setting `raycastTarget = false` on button text.
+
+**Unicode Font Limitations:**
+LiberationSans SDF (TMP default) lacks many Unicode symbols. Use Image components for symbols like checkmarks, or simple ASCII with bold styling (e.g., "X" instead of "✕").
+
+**Unity Built-in Sprites:**
+Access via `AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd")`. Available: Checkmark.psd, Background.psd, DropdownArrow.psd, Knob.psd, UISprite.psd, InputFieldBackground.psd.
+
+### Batchmode Scene Generation Issue
+
+`EditorUtility.DisplayDialog()` returns `false` in batchmode (CLI builds/tests), causing menu methods to exit without doing work. Always check `Application.isBatchMode` to skip dialogs:
+
+```csharp
+if (!Application.isBatchMode)
+{
+    if (!EditorUtility.DisplayDialog("Title", "Message", "OK", "Cancel"))
+        return;  // User cancelled
+}
+// Proceed with generation...
+```

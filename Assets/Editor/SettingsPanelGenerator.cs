@@ -17,6 +17,37 @@ namespace OpenRange.Editor
         private const string PrefabsPath = "Assets/Prefabs/UI";
         private const string MaterialsPath = "Assets/Materials/UI";
 
+        #region Dropdown Layout Constants
+
+        /// <summary>
+        /// Height of the dropdown template (expanded area showing options).
+        /// </summary>
+        public const float DropdownTemplateHeight = 180f;
+
+        /// <summary>
+        /// Height of each dropdown item row.
+        /// Must be tall enough to show full text without truncation.
+        /// </summary>
+        public const float DropdownItemHeight = 36f;
+
+        /// <summary>
+        /// Sorting order for dropdown template Canvas.
+        /// Higher than normal UI ensures dropdown renders above other elements.
+        /// </summary>
+        public const int DropdownSortingOrder = 100;
+
+        /// <summary>
+        /// Minimum touch target size for accessibility (Apple HIG).
+        /// </summary>
+        public const float MinTouchTargetSize = 44f;
+
+        /// <summary>
+        /// Width of the scrollbar in settings panel.
+        /// </summary>
+        public const float ScrollbarWidth = 12f;
+
+        #endregion
+
         [MenuItem("OpenRange/Create Setting Toggle Prefab", priority = 340)]
         public static void CreateSettingTogglePrefab()
         {
@@ -296,12 +327,21 @@ namespace OpenRange.Editor
             templateRect.anchorMax = new Vector2(1, 0);
             templateRect.pivot = new Vector2(0.5f, 1);
             templateRect.anchoredPosition = Vector2.zero;
-            templateRect.sizeDelta = new Vector2(0, 150);
+            templateRect.sizeDelta = new Vector2(0, DropdownTemplateHeight);
 
             var templateImage = templateGo.AddComponent<Image>();
             templateImage.color = new Color(0.15f, 0.15f, 0.2f, 0.95f);
 
-            templateGo.AddComponent<ScrollRect>();
+            // Add Canvas for z-order override - ensures dropdown renders above other UI elements
+            var templateCanvas = templateGo.AddComponent<Canvas>();
+            templateCanvas.overrideSorting = true;
+            templateCanvas.sortingOrder = DropdownSortingOrder;
+            templateGo.AddComponent<GraphicRaycaster>();
+
+            var scrollRect = templateGo.AddComponent<ScrollRect>();
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
 
             // Viewport
             var viewportGo = new GameObject("Viewport");
@@ -312,26 +352,34 @@ namespace OpenRange.Editor
             viewportRect.offsetMin = Vector2.zero;
             viewportRect.offsetMax = Vector2.zero;
 
-            viewportGo.AddComponent<Mask>();
+            var viewportMask = viewportGo.AddComponent<Mask>();
+            viewportMask.showMaskGraphic = false; // Hide the mask image so dropdown bg shows through
             var viewportImage = viewportGo.AddComponent<Image>();
-            viewportImage.color = Color.white;
+            viewportImage.color = Color.white; // Required for mask but hidden
 
-            // Content
+            // Content - needs proper layout for items
             var contentGo = new GameObject("Content");
             contentGo.transform.SetParent(viewportGo.transform);
             var contentRect = contentGo.AddComponent<RectTransform>();
             contentRect.anchorMin = new Vector2(0, 1);
             contentRect.anchorMax = new Vector2(1, 1);
             contentRect.pivot = new Vector2(0.5f, 1);
-            contentRect.sizeDelta = new Vector2(0, 28);
+            contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0, DropdownItemHeight);
 
-            // Item
+            // Wire up ScrollRect
+            scrollRect.viewport = viewportRect;
+            scrollRect.content = contentRect;
+
+            // Item - anchor to stretch full width
             var itemGo = new GameObject("Item");
             itemGo.transform.SetParent(contentGo.transform);
             var itemRect = itemGo.AddComponent<RectTransform>();
             itemRect.anchorMin = new Vector2(0, 0.5f);
             itemRect.anchorMax = new Vector2(1, 0.5f);
-            itemRect.sizeDelta = new Vector2(0, 28);
+            itemRect.pivot = new Vector2(0.5f, 0.5f);
+            itemRect.anchoredPosition = Vector2.zero;
+            itemRect.sizeDelta = new Vector2(0, DropdownItemHeight);
 
             var itemToggle = itemGo.AddComponent<Toggle>();
 
@@ -354,14 +402,14 @@ namespace OpenRange.Editor
             itemCheckRect.anchorMin = new Vector2(0, 0.5f);
             itemCheckRect.anchorMax = new Vector2(0, 0.5f);
             itemCheckRect.pivot = new Vector2(0, 0.5f);
-            itemCheckRect.sizeDelta = new Vector2(20, 20);
-            itemCheckRect.anchoredPosition = new Vector2(5, 0);
+            itemCheckRect.sizeDelta = new Vector2(16, 16);
+            itemCheckRect.anchoredPosition = new Vector2(8, 0);
 
-            var itemCheckText = itemCheckGo.AddComponent<TextMeshProUGUI>();
-            itemCheckText.text = "✓";
-            itemCheckText.fontSize = 14;
-            itemCheckText.color = UITheme.AccentGreen;
-            itemCheckText.alignment = TextAlignmentOptions.Center;
+            // Use Unity's built-in Checkmark sprite for proper visual
+            var itemCheckImage = itemCheckGo.AddComponent<Image>();
+            itemCheckImage.sprite = UnityEditor.AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd");
+            itemCheckImage.color = UITheme.AccentGreen;
+            itemCheckImage.preserveAspect = true;
 
             // Item label
             var itemLabelGo = new GameObject("Item Label");
@@ -379,7 +427,7 @@ namespace OpenRange.Editor
             itemLabelText.alignment = TextAlignmentOptions.MidlineLeft;
 
             itemToggle.targetGraphic = itemBgImage;
-            itemToggle.graphic = itemCheckText;
+            itemToggle.graphic = itemCheckImage;
             itemToggle.isOn = true;
 
             // Deactivate template
@@ -480,20 +528,62 @@ namespace OpenRange.Editor
             scrollView.horizontal = false;
             scrollView.vertical = true;
 
-            // Viewport
+            // Viewport - leave room for scrollbar on right
             var viewportGo = new GameObject("Viewport");
             viewportGo.transform.SetParent(scrollGo.transform);
             var viewportRect = viewportGo.AddComponent<RectTransform>();
             viewportRect.anchorMin = Vector2.zero;
             viewportRect.anchorMax = Vector2.one;
             viewportRect.offsetMin = Vector2.zero;
-            viewportRect.offsetMax = Vector2.zero;
+            viewportRect.offsetMax = new Vector2(-ScrollbarWidth, 0); // Room for scrollbar
 
             viewportGo.AddComponent<Mask>();
             var viewportImage = viewportGo.AddComponent<Image>();
             viewportImage.color = new Color(1, 1, 1, 0.01f);
 
             scrollView.viewport = viewportRect;
+
+            // Scrollbar
+            var scrollbarGo = new GameObject("Scrollbar");
+            scrollbarGo.transform.SetParent(scrollGo.transform);
+            var scrollbarRect = scrollbarGo.AddComponent<RectTransform>();
+            scrollbarRect.anchorMin = new Vector2(1, 0);
+            scrollbarRect.anchorMax = new Vector2(1, 1);
+            scrollbarRect.pivot = new Vector2(1, 0.5f);
+            scrollbarRect.anchoredPosition = Vector2.zero;
+            scrollbarRect.sizeDelta = new Vector2(ScrollbarWidth, 0);
+
+            var scrollbarBg = scrollbarGo.AddComponent<Image>();
+            scrollbarBg.color = new Color(0.1f, 0.1f, 0.12f, 0.6f);
+
+            // Scrollbar sliding area
+            var slidingAreaGo = new GameObject("Sliding Area");
+            slidingAreaGo.transform.SetParent(scrollbarGo.transform);
+            var slidingRect = slidingAreaGo.AddComponent<RectTransform>();
+            slidingRect.anchorMin = Vector2.zero;
+            slidingRect.anchorMax = Vector2.one;
+            slidingRect.offsetMin = new Vector2(2, 2);
+            slidingRect.offsetMax = new Vector2(-2, -2);
+
+            // Handle
+            var handleGo = new GameObject("Handle");
+            handleGo.transform.SetParent(slidingAreaGo.transform);
+            var handleRect = handleGo.AddComponent<RectTransform>();
+            handleRect.anchorMin = Vector2.zero;
+            handleRect.anchorMax = new Vector2(1, 0.3f); // Initial size
+            handleRect.offsetMin = Vector2.zero;
+            handleRect.offsetMax = Vector2.zero;
+
+            var handleImage = handleGo.AddComponent<Image>();
+            handleImage.color = new Color(0.4f, 0.4f, 0.45f, 0.8f);
+
+            var scrollbar = scrollbarGo.AddComponent<Scrollbar>();
+            scrollbar.handleRect = handleRect;
+            scrollbar.targetGraphic = handleImage;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+
+            scrollView.verticalScrollbar = scrollbar;
+            scrollView.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
 
             // Content
             var contentGo = new GameObject("Content");

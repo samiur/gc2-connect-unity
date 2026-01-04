@@ -359,10 +359,11 @@ namespace OpenRange.Editor
             xRect.offsetMax = Vector2.zero;
 
             var xText = xGO.AddComponent<TextMeshProUGUI>();
-            xText.text = "✕";
+            xText.text = "X"; // Simple X character - Unicode symbols may not render in default TMP font
             xText.alignment = TextAlignmentOptions.Center;
             xText.color = UITheme.TextPrimary;
-            xText.fontSize = 22; // Larger for visibility
+            xText.fontSize = 20;
+            xText.fontStyle = FontStyles.Bold;
 
             return headerGO;
         }
@@ -529,6 +530,7 @@ namespace OpenRange.Editor
             buttonText.color = UITheme.TextPrimary;
             buttonText.fontSize = UITheme.FontSizeRegular.Normal;
             buttonText.fontStyle = FontStyles.Bold;
+            buttonText.raycastTarget = false; // Let clicks pass through to button
 
             return button;
         }
