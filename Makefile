@@ -369,13 +369,13 @@ build-android: check-unity
 	@Scripts/build_android.sh
 
 # Development APK build (faster, with debugging)
-build-android-dev: check-unity
+build-android-dev: check-unity generate
 	@echo "Building Android development APK..."
 	@chmod +x Scripts/build_android.sh
 	@Scripts/build_android.sh --development --skip-tests
 
 # Build AAB for Play Store
-build-android-aab: check-unity
+build-android-aab: check-unity generate
 	@echo "Building Android App Bundle for Play Store..."
 	@chmod +x Scripts/build_android.sh
 	@Scripts/build_android.sh --aab
