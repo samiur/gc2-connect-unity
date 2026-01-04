@@ -303,6 +303,16 @@ namespace OpenRange.Core
 
         #region Test Shot (Editor/Demo)
 
+        /// <summary>
+        /// Process a shot from any source (test panel, GC2 hardware, etc.).
+        /// This handles both local visualization and GSPro relay.
+        /// </summary>
+        /// <param name="shot">The shot data to process.</param>
+        public void ProcessShot(GC2ShotData shot)
+        {
+            HandleShotReceived(shot);
+        }
+
         [ContextMenu("Fire Test Shot")]
         public void FireTestShot()
         {

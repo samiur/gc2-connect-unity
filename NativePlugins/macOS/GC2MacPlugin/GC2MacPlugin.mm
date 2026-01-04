@@ -4,6 +4,7 @@
 #import "GC2MacPlugin.h"
 #import "libusb.h"
 #import <dispatch/dispatch.h>
+#import <pthread.h>
 
 // =============================================================================
 // Forward Declaration for Unity's UnitySendMessage
@@ -33,6 +34,12 @@ static const float kMaxBallSpeedMph = 250.0f;    // Maximum realistic speed
 static const float kMisreadSpinValue = 2222.0f;  // Known GC2 error pattern
 static const int kFlagsReady = 7;                // Device ready (green light)
 
+// GC2 sends two readings per shot:
+// - Early reading (~150-200ms): BACK_RPM=3500, SIDE_RPM=0 (placeholders)
+// - Final reading (~800-1000ms): Actual spin values
+// We must wait for the final reading to get real spin data.
+static const int kMinMsecToProcess = 500;        // Don't send shots with MSEC < 500ms
+
 // =============================================================================
 // Internal State
 // =============================================================================
@@ -49,6 +56,16 @@ static NSString *g_firmwareVersion = nil;
 static int g_lastShotId = -1;                          // For duplicate detection
 static NSString *g_currentMessageType = nil;           // Current message type (0H or 0M)
 
+// =============================================================================
+// Async USB Transfer State
+// =============================================================================
+
+static const int kNumTransfers = 4;                    // Number of queued transfers (double-buffering+)
+static struct libusb_transfer *g_transfers[4] = {NULL, NULL, NULL, NULL};
+static unsigned char *g_transferBuffers[4] = {NULL, NULL, NULL, NULL};
+static int g_activeTransfers = 0;                      // Count of currently queued transfers
+static pthread_mutex_t g_bufferMutex = PTHREAD_MUTEX_INITIALIZER;  // Protects line buffer access
+
 // Callbacks for non-Unity usage
 static GC2ShotCallback g_shotCallback = NULL;
 static GC2ConnectionCallback g_connectionCallback = NULL;
@@ -58,6 +75,13 @@ static GC2DeviceStatusCallback g_deviceStatusCallback = NULL;
 // Last device status for deduplication
 static BOOL g_lastIsReady = NO;
 static BOOL g_lastBallDetected = NO;
+
+// Forward declarations for async transfers
+static void LIBUSB_CALL TransferCallback(struct libusb_transfer *transfer);
+static void SubmitTransfer(int index);
+static void AllocateTransfers(void);
+static void FreeTransfers(void);
+static void AsyncEventLoop(void);
 
 #pragma mark - Internal Helpers
 
@@ -347,9 +371,28 @@ static NSDictionary* BuildShotJSON(void) {
 
 /// Process completed 0H message (shot data)
 static void ProcessShotMessage(void) {
+    // Log all accumulated fields for diagnostics
+    LogInfo(@"=== SHOT MESSAGE RECEIVED ===");
+    LogInfo([NSString stringWithFormat:@"Accumulated fields (%lu):", (unsigned long)g_shotAccumulator.count]);
+    for (NSString *key in [g_shotAccumulator.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+        LogInfo([NSString stringWithFormat:@"  %@ = %@", key, g_shotAccumulator[key]]);
+    }
+
+    // Check if this is an early reading (MSEC < threshold)
+    // GC2 sends early reading at ~150-200ms with placeholder spin (3500/0),
+    // then final reading at ~800-1000ms with actual spin values.
+    // We skip early readings and wait for the final reading.
+    NSNumber *msec = g_shotAccumulator[@"MSEC_SINCE_CONTACT"];
+    if (msec && [msec intValue] < kMinMsecToProcess) {
+        LogInfo([NSString stringWithFormat:@"Early reading detected (MSEC=%d < %d) - waiting for final reading",
+                 [msec intValue], kMinMsecToProcess]);
+        // DON'T clear the accumulator - let the final reading overwrite fields
+        return;
+    }
+
     // Check if we have spin data (indicates complete shot)
     if (!g_shotAccumulator[@"BACK_RPM"] && !g_shotAccumulator[@"SIDE_RPM"]) {
-        LogDebug(@"Shot message incomplete - waiting for spin data");
+        LogInfo(@"Shot message incomplete - waiting for spin data (BACK_RPM/SIDE_RPM not found)");
         return;
     }
 
@@ -373,6 +416,13 @@ static void ProcessShotMessage(void) {
 
     // Build and send shot JSON
     NSDictionary *shot = BuildShotJSON();
+
+    // Log final JSON for diagnostics
+    LogInfo(@"=== SENDING SHOT TO UNITY ===");
+    for (NSString *key in [shot.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+        LogInfo([NSString stringWithFormat:@"  %@ = %@", key, shot[key]]);
+    }
+
     NotifyShot(shot);
 
     // Clear accumulator for next shot
@@ -446,59 +496,224 @@ static void ProcessBuffer(void) {
     }
 }
 
-#pragma mark - USB Read Loop
+#pragma mark - Async USB Transfers
 
-/// USB read loop - runs on background queue
-static void ReadLoop(void) {
-    LogInfo(@"Read loop started");
+/// Allocate async transfer buffers and structures
+static void AllocateTransfers(void) {
+    LogInfo([NSString stringWithFormat:@"Allocating %d async transfers", kNumTransfers]);
 
-    unsigned char buffer[GC2_BUFFER_SIZE];
-    int transferred = 0;
+    for (int i = 0; i < kNumTransfers; i++) {
+        // Allocate transfer buffer
+        g_transferBuffers[i] = (unsigned char*)malloc(GC2_BUFFER_SIZE);
+        if (!g_transferBuffers[i]) {
+            LogError([NSString stringWithFormat:@"Failed to allocate transfer buffer %d", i]);
+            continue;
+        }
 
-    while (g_isRunning && g_deviceHandle) {
-        // Read from INTERRUPT IN endpoint
-        int result = libusb_interrupt_transfer(
+        // Allocate libusb transfer structure
+        g_transfers[i] = libusb_alloc_transfer(0);
+        if (!g_transfers[i]) {
+            LogError([NSString stringWithFormat:@"Failed to allocate transfer %d", i]);
+            free(g_transferBuffers[i]);
+            g_transferBuffers[i] = NULL;
+            continue;
+        }
+
+        // Fill transfer structure for interrupt endpoint
+        libusb_fill_interrupt_transfer(
+            g_transfers[i],
             g_deviceHandle,
             GC2_EP_IN,
-            buffer,
+            g_transferBuffers[i],
             GC2_BUFFER_SIZE,
-            &transferred,
-            GC2_READ_TIMEOUT_MS
+            TransferCallback,
+            (void*)(intptr_t)i,  // user_data = transfer index
+            0                    // timeout 0 = no timeout for async
         );
 
-        if (result == 0 && transferred > 0) {
-            // Data received - append to line buffer
-            NSString *data = [[NSString alloc] initWithBytes:buffer
-                                                      length:transferred
-                                                    encoding:NSUTF8StringEncoding];
-            if (data) {
-                [g_lineBuffer appendString:data];
-                ProcessBuffer();
-            } else {
-                LogDebug(@"Received non-UTF8 data, skipping");
+        LogDebug([NSString stringWithFormat:@"Transfer %d allocated", i]);
+    }
+}
+
+/// Free all async transfers and buffers
+static void FreeTransfers(void) {
+    LogInfo(@"Freeing async transfers");
+
+    for (int i = 0; i < kNumTransfers; i++) {
+        if (g_transfers[i]) {
+            // Cancel if still pending
+            if (g_activeTransfers > 0) {
+                libusb_cancel_transfer(g_transfers[i]);
             }
-        } else if (result == LIBUSB_ERROR_TIMEOUT) {
-            // Timeout is normal - continue reading
-            continue;
-        } else if (result == LIBUSB_ERROR_NO_DEVICE || result == LIBUSB_ERROR_IO) {
-            // Device disconnected
-            LogInfo([NSString stringWithFormat:@"USB read error: %s", libusb_error_name(result)]);
-            break;
-        } else if (result < 0) {
-            // Other error
-            LogError([NSString stringWithFormat:@"USB transfer error: %s", libusb_error_name(result)]);
-            // Don't break on transient errors, continue trying
-            [NSThread sleepForTimeInterval:0.01];
+            libusb_free_transfer(g_transfers[i]);
+            g_transfers[i] = NULL;
+        }
+
+        if (g_transferBuffers[i]) {
+            free(g_transferBuffers[i]);
+            g_transferBuffers[i] = NULL;
         }
     }
 
-    LogInfo(@"Read loop exited");
+    g_activeTransfers = 0;
+}
+
+/// Submit a single transfer
+static void SubmitTransfer(int index) {
+    if (!g_isRunning || !g_deviceHandle) {
+        return;
+    }
+
+    if (!g_transfers[index]) {
+        LogError([NSString stringWithFormat:@"Cannot submit NULL transfer %d", index]);
+        return;
+    }
+
+    int result = libusb_submit_transfer(g_transfers[index]);
+    if (result == 0) {
+        g_activeTransfers++;
+        LogDebug([NSString stringWithFormat:@"Transfer %d submitted (active: %d)", index, g_activeTransfers]);
+    } else {
+        LogError([NSString stringWithFormat:@"Failed to submit transfer %d: %s", index, libusb_error_name(result)]);
+    }
+}
+
+/// Callback invoked when an async transfer completes
+static void LIBUSB_CALL TransferCallback(struct libusb_transfer *transfer) {
+    int index = (int)(intptr_t)transfer->user_data;
+    g_activeTransfers--;
+
+    LogDebug([NSString stringWithFormat:@"Transfer %d completed, status=%d, length=%d (active: %d)",
+              index, transfer->status, transfer->actual_length, g_activeTransfers]);
+
+    // Check transfer status
+    switch (transfer->status) {
+        case LIBUSB_TRANSFER_COMPLETED:
+            // Success - process data
+            if (transfer->actual_length > 0) {
+                // Log raw packet for diagnostics (include transfer index to verify async buffering)
+                NSMutableString *hexDump = [NSMutableString stringWithFormat:@"USB RAW [T%d] ", index];
+                for (int i = 0; i < transfer->actual_length; i++) {
+                    [hexDump appendFormat:@"%02X ", transfer->buffer[i]];
+                }
+                LogInfo(hexDump);
+
+                // Convert to string and process - protect with mutex
+                pthread_mutex_lock(&g_bufferMutex);
+
+                NSString *data = [[NSString alloc] initWithBytes:transfer->buffer
+                                                          length:transfer->actual_length
+                                                        encoding:NSUTF8StringEncoding];
+                if (data) {
+                    LogInfo([NSString stringWithFormat:@"USB STR [T%d]: %@", index,
+                        [data stringByReplacingOccurrencesOfString:@"\n" withString:@"\\n"]]);
+                    [g_lineBuffer appendString:data];
+                    ProcessBuffer();
+                } else {
+                    LogDebug([NSString stringWithFormat:@"T%d: Received non-UTF8 data, skipping", index]);
+                }
+
+                pthread_mutex_unlock(&g_bufferMutex);
+            }
+
+            // Re-submit the transfer to keep receiving
+            if (g_isRunning) {
+                SubmitTransfer(index);
+            }
+            break;
+
+        case LIBUSB_TRANSFER_CANCELLED:
+            // Transfer was cancelled (during disconnect) - don't resubmit
+            LogDebug([NSString stringWithFormat:@"Transfer %d cancelled", index]);
+            break;
+
+        case LIBUSB_TRANSFER_NO_DEVICE:
+            // Device disconnected
+            LogInfo(@"Device disconnected during transfer");
+            g_isRunning = NO;
+            break;
+
+        case LIBUSB_TRANSFER_TIMED_OUT:
+            // Timeout - re-submit if still running
+            if (g_isRunning) {
+                SubmitTransfer(index);
+            }
+            break;
+
+        case LIBUSB_TRANSFER_STALL:
+        case LIBUSB_TRANSFER_OVERFLOW:
+        case LIBUSB_TRANSFER_ERROR:
+        default:
+            // Error - log and try to recover by re-submitting
+            LogError([NSString stringWithFormat:@"Transfer %d error: status=%d", index, transfer->status]);
+            if (g_isRunning) {
+                // Brief delay before resubmitting after error
+                usleep(10000);  // 10ms
+                SubmitTransfer(index);
+            }
+            break;
+    }
+}
+
+/// Async event loop - runs on background queue, processes libusb events
+static void AsyncEventLoop(void) {
+    LogInfo(@"Async event loop started");
+
+    // Submit all initial transfers to keep multiple reads queued
+    for (int i = 0; i < kNumTransfers; i++) {
+        SubmitTransfer(i);
+    }
+
+    LogInfo([NSString stringWithFormat:@"Submitted %d async transfers", g_activeTransfers]);
+
+    // Process libusb events in a loop
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 100000;  // 100ms timeout for event handling
+
+    while (g_isRunning && g_deviceHandle) {
+        // Handle libusb events (this is where callbacks get invoked)
+        int result = libusb_handle_events_timeout(g_usbContext, &tv);
+
+        if (result < 0) {
+            if (result == LIBUSB_ERROR_INTERRUPTED) {
+                // Signal interrupted, just continue
+                continue;
+            }
+            LogError([NSString stringWithFormat:@"libusb event error: %s", libusb_error_name(result)]);
+
+            if (result == LIBUSB_ERROR_NO_DEVICE) {
+                break;
+            }
+        }
+    }
+
+    LogInfo(@"Async event loop exited");
+
+    // Cancel any pending transfers
+    for (int i = 0; i < kNumTransfers; i++) {
+        if (g_transfers[i] && g_activeTransfers > 0) {
+            libusb_cancel_transfer(g_transfers[i]);
+        }
+    }
+
+    // Process remaining events to complete cancellations
+    struct timeval short_tv;
+    short_tv.tv_sec = 0;
+    short_tv.tv_usec = 100000;  // 100ms
+
+    while (g_activeTransfers > 0) {
+        libusb_handle_events_timeout(g_usbContext, &short_tv);
+    }
+
     g_isRunning = NO;
 
     // Clean up state
+    pthread_mutex_lock(&g_bufferMutex);
     [g_lineBuffer setString:@""];
     [g_shotAccumulator removeAllObjects];
     g_currentMessageType = nil;
+    pthread_mutex_unlock(&g_bufferMutex);
 
     NotifyConnection(NO);
 }
@@ -651,19 +866,24 @@ bool GC2Mac_Connect(void) {
         LogInfo([NSString stringWithFormat:@"Device version: %@", g_firmwareVersion]);
     }
 
-    // Start read loop
+    // Initialize state
     g_isRunning = YES;
     [g_lineBuffer setString:@""];
     [g_shotAccumulator removeAllObjects];
     g_lastShotId = -1;
     g_currentMessageType = nil;
+    g_activeTransfers = 0;
 
+    // Allocate async transfers
+    AllocateTransfers();
+
+    // Start async event loop on background queue
     dispatch_async(g_readQueue, ^{
-        ReadLoop();
+        AsyncEventLoop();
     });
 
     NotifyConnection(YES);
-    LogInfo(@"GC2 connected successfully");
+    LogInfo([NSString stringWithFormat:@"GC2 connected successfully (async mode, %d queued transfers)", kNumTransfers]);
 
     return true;
 }
@@ -671,11 +891,14 @@ bool GC2Mac_Connect(void) {
 void GC2Mac_Disconnect(void) {
     LogInfo(@"Disconnecting from GC2");
 
-    // Stop read loop
+    // Stop async event loop
     g_isRunning = NO;
 
-    // Give read loop time to exit
-    [NSThread sleepForTimeInterval:0.2];
+    // Give async event loop time to exit and cancel transfers
+    [NSThread sleepForTimeInterval:0.3];
+
+    // Free async transfers
+    FreeTransfers();
 
     if (g_deviceHandle) {
         libusb_release_interface(g_deviceHandle, 0);

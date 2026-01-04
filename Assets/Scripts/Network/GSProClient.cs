@@ -293,6 +293,10 @@ namespace OpenRange.Network
 
             var message = CreateShotMessage(shot, currentShotNumber);
 
+            // Debug: Log input shot data and output JSON
+            Debug.Log($"GSProClient: Input shot - BackSpin: {shot.BackSpin:F0}, SideSpin: {shot.SideSpin:F0}, TotalSpin: {shot.TotalSpin:F0}");
+            Debug.Log($"GSProClient: Output JSON: {message.ToJson()}");
+
             try
             {
                 // Clear any stale data from receive buffer before sending

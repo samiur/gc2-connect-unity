@@ -47,6 +47,7 @@ namespace OpenRange.Editor
             SettingsPanelGenerator.CreateAllPrefabs();
             GSProModeUIGenerator.CreatePrefab();
             BallReadyIndicatorGenerator.CreateBallReadyIndicatorPrefab();
+            TestShotPanelGenerator.CreatePrefab();
 
             AssetDatabase.Refresh();
             Debug.Log("SceneGenerator: All prefabs generated successfully!");
@@ -791,6 +792,31 @@ namespace OpenRange.Editor
                 Debug.LogWarning("SceneGenerator: SettingsPanel.prefab not found. Run 'OpenRange > Create All Settings Panel Prefabs' first.");
             }
 
+            // Test Shot Panel (left side, slide-out panel for runtime test shots)
+            TestShotPanel testShotPanel = null;
+            var testShotPanelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/TestShotPanel.prefab");
+            if (testShotPanelPrefab != null)
+            {
+                var testShotPanelGo = (GameObject)PrefabUtility.InstantiatePrefab(testShotPanelPrefab);
+                testShotPanelGo.name = "TestShotPanel";
+                testShotPanelGo.transform.SetParent(canvasGo.transform, false);
+
+                // Position on left side of screen (slide-out panel)
+                var panelRect = testShotPanelGo.GetComponent<RectTransform>();
+                panelRect.anchorMin = new Vector2(0, 0.1f);
+                panelRect.anchorMax = new Vector2(0, 0.9f);
+                panelRect.pivot = new Vector2(0, 0.5f);
+                panelRect.anchoredPosition = new Vector2(0, 0);
+                panelRect.sizeDelta = new Vector2(TestShotPanel.PanelWidth, 0);
+
+                testShotPanel = testShotPanelGo.GetComponent<TestShotPanel>();
+                Debug.Log("SceneGenerator: Added TestShotPanel to Marina scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: TestShotPanel.prefab not found. Run 'OpenRange > Create Test Shot Panel Prefab' first.");
+            }
+
             // UIManager (singleton for toast notifications)
             var uiManagerGo = new GameObject("UIManager");
             var uiManager = uiManagerGo.AddComponent<UIManager>();
@@ -836,6 +862,7 @@ namespace OpenRange.Editor
             controllerSo.FindProperty("_ballReadyIndicator").objectReferenceValue = ballReadyIndicator;
             controllerSo.FindProperty("_gsProModeUI").objectReferenceValue = gsProModeUI;
             controllerSo.FindProperty("_settingsPanel").objectReferenceValue = settingsPanel;
+            controllerSo.FindProperty("_testShotPanel").objectReferenceValue = testShotPanel;
             controllerSo.FindProperty("_sessionInfoPanel").objectReferenceValue = sessionInfoPanel;
             controllerSo.FindProperty("_shotHistoryPanel").objectReferenceValue = shotHistoryPanel;
             controllerSo.FindProperty("_shotDetailModal").objectReferenceValue = shotDetailModal;
