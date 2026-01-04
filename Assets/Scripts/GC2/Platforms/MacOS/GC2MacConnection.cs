@@ -399,7 +399,8 @@ namespace OpenRange.GC2.Platforms.MacOS
                             Debug.LogError($"GC2MacConnection: Shot callback error - {ex.Message}");
                         }
                     });
-                    Debug.Log($"GC2MacConnection: Received shot - {shot.BallSpeed:F1} mph");
+                    Debug.Log($"GC2MacConnection: Received shot - Speed: {shot.BallSpeed:F1} mph, BackSpin: {shot.BackSpin:F0} rpm, SideSpin: {shot.SideSpin:F0} rpm, TotalSpin: {shot.TotalSpin:F0} rpm");
+                    Debug.Log($"GC2MacConnection: Raw JSON: {json}");
                 }
             }
             catch (Exception ex)
