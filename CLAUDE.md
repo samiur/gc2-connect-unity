@@ -88,15 +88,59 @@ make test-edit     # Run EditMode tests only
 make test-play     # Run PlayMode tests only
 make test-physics  # Run physics validation tests only
 
-# Building
+# Building (basic)
 make generate      # Regenerate all prefabs AND scenes from editor scripts
 make build         # Build macOS standalone (runs tests + generate first)
 make build-dev     # Build development build (runs generate first, skips tests)
+
+# macOS Release Builds
+make build-plugin  # Build native macOS plugin only
+make build-app     # Full macOS app build (plugin + tests + Unity)
+make build-app-dev # Development build (faster, debugging enabled)
+make build-release # Release build with version from git tag
+make package       # Create DMG for distribution
+
+# Cleanup
 make clean         # Remove build artifacts and test results
+make clean-builds  # Remove only build outputs (keep test results)
 ```
 
 **IMPORTANT: Always run `make test` before creating a PR.**
 **NOTE: CLI tests require Unity to be closed (batchmode conflict). Use Test Runner in Unity if project is open.**
+
+## Building for macOS
+
+### Quick Build
+
+```bash
+# Development build (fastest)
+make build-app-dev
+
+# Full build with tests
+make build-app
+
+# Release build
+make build-release
+```
+
+### Build Script Options
+
+The comprehensive build script supports various options:
+
+```bash
+Scripts/build_macos.sh [options]
+  --skip-tests      Skip running tests
+  --skip-plugin     Use existing plugin
+  --development     Development build with debugging
+  --version=X.Y.Z   Set version explicitly
+  --verbose         Show full output
+```
+
+### Build Output
+
+Builds are created in `Builds/macOS/OpenRange.app`. Logs are saved to `Builds/logs/`.
+
+For detailed build instructions, troubleshooting, and distribution steps, see [docs/BUILD_MACOS.md](docs/BUILD_MACOS.md).
 
 ## Build Commands
 

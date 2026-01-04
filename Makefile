@@ -15,7 +15,8 @@ TEST_RESULTS_DIR := TestResults
 EDITMODE_RESULTS := $(TEST_RESULTS_DIR)/editmode-results.xml
 PLAYMODE_RESULTS := $(TEST_RESULTS_DIR)/playmode-results.xml
 
-.PHONY: all test test-edit test-play build clean help check-unity run run-marina generate
+.PHONY: all test test-edit test-play build clean help check-unity run run-marina generate \
+       build-plugin build-app build-release build-app-dev package clean-builds
 
 # Default target
 all: test
@@ -39,8 +40,15 @@ help:
 	@echo "  build-dev     - Build macOS development build (runs generate first)"
 	@echo "  generate      - Regenerate all prefabs then all scenes from editor scripts"
 	@echo ""
+	@echo "macOS release targets:"
+	@echo "  build-plugin  - Build native macOS plugin only"
+	@echo "  build-app     - Full macOS app build (plugin + tests + Unity)"
+	@echo "  build-release - Release build with version tagging"
+	@echo "  package       - Create DMG for distribution"
+	@echo ""
 	@echo "Utility targets:"
 	@echo "  clean         - Remove build artifacts and test results"
+	@echo "  clean-builds  - Remove only build outputs (keep test results)"
 	@echo "  check-unity   - Verify Unity installation"
 	@echo ""
 
@@ -198,3 +206,72 @@ run: check-unity
 run-marina: check-unity
 	@echo "Opening Unity Editor with Marina scene..."
 	@open -a "/Applications/Unity/Hub/Editor/$(UNITY_VERSION)/Unity.app" --args -projectPath "$(PROJECT_PATH)" -openScene "Assets/Scenes/Ranges/Marina.unity"
+
+# ============================================
+# macOS Release Build Targets
+# ============================================
+
+# Native plugin directory
+NATIVE_PLUGIN_DIR := NativePlugins/macOS
+PLUGIN_BUILD_SCRIPT := $(NATIVE_PLUGIN_DIR)/build_mac_plugin.sh
+
+# Build native macOS plugin only
+build-plugin:
+	@echo "Building native macOS plugin..."
+	@if [ ! -f "$(PLUGIN_BUILD_SCRIPT)" ]; then \
+		echo "Error: Plugin build script not found at $(PLUGIN_BUILD_SCRIPT)"; \
+		exit 1; \
+	fi
+	@chmod +x "$(PLUGIN_BUILD_SCRIPT)"
+	@"$(PLUGIN_BUILD_SCRIPT)"
+	@echo "Native plugin built successfully"
+
+# Full macOS app build using comprehensive build script
+build-app: check-unity
+	@echo "Building complete macOS application..."
+	@chmod +x Scripts/build_macos.sh
+	@Scripts/build_macos.sh
+
+# Release build with version from git tag
+build-release: check-unity
+	@echo "Building release version..."
+	@chmod +x Scripts/build_macos.sh
+	@VERSION=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//') || VERSION="0.0.0"; \
+	Scripts/build_macos.sh --version=$$VERSION
+
+# Development build (faster, with debugging)
+build-app-dev: check-unity
+	@echo "Building development version..."
+	@chmod +x Scripts/build_macos.sh
+	@Scripts/build_macos.sh --development --skip-tests
+
+# Create DMG package for distribution
+# Note: Requires code signing to be done first (see Scripts/sign_and_notarize.sh)
+package: $(MACOS_BUILD)
+	@echo "Creating DMG package..."
+	@mkdir -p $(BUILD_DIR)/dist
+	@if command -v create-dmg &> /dev/null; then \
+		create-dmg \
+			--volname "OpenRange" \
+			--window-pos 200 120 \
+			--window-size 600 400 \
+			--icon-size 100 \
+			--icon "OpenRange.app" 175 120 \
+			--hide-extension "OpenRange.app" \
+			--app-drop-link 425 120 \
+			"$(BUILD_DIR)/dist/OpenRange.dmg" \
+			"$(MACOS_BUILD)"; \
+	else \
+		echo "create-dmg not found. Creating simple DMG..."; \
+		hdiutil create -volname "OpenRange" -srcfolder "$(MACOS_BUILD)" \
+			-ov -format UDZO "$(BUILD_DIR)/dist/OpenRange.dmg"; \
+	fi
+	@echo "DMG created: $(BUILD_DIR)/dist/OpenRange.dmg"
+
+# Clean only build outputs (keep test results for debugging)
+clean-builds:
+	@echo "Cleaning build outputs..."
+	rm -rf $(BUILD_DIR)/macOS
+	rm -rf $(BUILD_DIR)/dist
+	rm -rf $(BUILD_DIR)/logs
+	@echo "Build outputs cleaned"
