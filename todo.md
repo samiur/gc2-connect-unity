@@ -1,25 +1,24 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7.5 - UI Refinement (Touch Support)
+**Phase**: 7.5 - UI Refinement (Complete)
 **Last Updated**: 2026-01-04
-**Next Prompt**: 60 (Test Shot Button for Touch Devices)
+**Next Prompt**: Phase 15 Bridge Mode (Prompts 55-59)
 **Test Count**: 1600+ EditMode tests passing
 
 ## Progress Summary
 ✅ Physics: Carry, bounce, roll validated (PRs #3, #33, #35, #37)
 ✅ Protocol: 0H shot + 0M device status parsing (PR #39)
 ✅ GSPro: Client + buffer management (PRs #43, #53)
-✅ UI: Prompts 12-17, 43-46 complete (PRs #21-31, #55-59)
+✅ UI: Prompts 12-17, 43-46, 60 complete (PRs #21-31, #55-59, #71)
 ✅ macOS: Plugin + build + signing (PRs #45-49, #61, #63)
 ✅ Android: Plugin + build (PRs #65-69)
 
 ## Priority Order
-1. **Prompt 60**: Test Shot Button (touch device support)
-2. **Phase 15**: Bridge Mode (Prompts 55-59) - Moonlight + GSPro use case
-3. **Phase 14**: Visual Enhancements (Prompts 47-54)
-4. **Phase 11**: Quality & Polish (Prompts 29-31)
-5. **Phase 10**: iPad Native Plugin (Prompts 26-28) - deferred
+1. **Phase 15**: Bridge Mode (Prompts 55-59) - Moonlight + GSPro use case
+2. **Phase 14**: Visual Enhancements (Prompts 47-54)
+3. **Phase 11**: Quality & Polish (Prompts 29-31)
+4. **Phase 10**: iPad Native Plugin (Prompts 26-28) - deferred
 
 ---
 
