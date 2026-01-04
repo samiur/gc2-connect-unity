@@ -10,6 +10,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -57,6 +58,9 @@ class GC2BridgeService : Service() {
 
         /** Extra key for GSPro connection status */
         const val EXTRA_GSPRO_CONNECTED = "gspro_connected"
+
+        /** Extra key for whether to use connectedDevice service type (requires GC2 USB permission) */
+        const val EXTRA_USE_CONNECTED_DEVICE = "use_connected_device"
 
         /** Wake lock tag */
         private const val WAKE_LOCK_TAG = "OpenRange::GC2BridgeWakeLock"
@@ -213,13 +217,31 @@ class GC2BridgeService : Service() {
         shotsRelayed = intent.getIntExtra(EXTRA_SHOTS_RELAYED, 0)
         isGC2Connected = intent.getBooleanExtra(EXTRA_IS_CONNECTED, false)
         isGSProConnected = intent.getBooleanExtra(EXTRA_GSPRO_CONNECTED, false)
+        val useConnectedDevice = intent.getBooleanExtra(EXTRA_USE_CONNECTED_DEVICE, false)
+
+        Log.d(TAG, "Bridge Mode: isGC2Connected=$isGC2Connected, useConnectedDevice=$useConnectedDevice")
 
         // Acquire wake lock
         acquireWakeLock()
 
         // Start as foreground service with notification
         val notification = buildNotification()
-        startForeground(NOTIFICATION_ID, notification)
+
+        // Android 14+ requires specifying foreground service type
+        // Use connectedDevice when GC2 is connected (requires USB permission grant)
+        // Use dataSync for GSPro testing without GC2
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val serviceType = if (useConnectedDevice) {
+                Log.d(TAG, "Using FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE")
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            } else {
+                Log.d(TAG, "Using FOREGROUND_SERVICE_TYPE_DATA_SYNC")
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            }
+            startForeground(NOTIFICATION_ID, notification, serviceType)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
 
         Log.i(TAG, "Bridge Mode started")
         callback?.onServiceStarted()

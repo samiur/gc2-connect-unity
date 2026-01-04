@@ -53,6 +53,11 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         private const string ExtraGSProConnected = "gspro_connected";
 
+        /// <summary>
+        /// Extra key for whether to use connectedDevice service type.
+        /// </summary>
+        private const string ExtraUseConnectedDevice = "use_connected_device";
+
         #endregion
 
         #region Private Fields
@@ -202,18 +207,18 @@ namespace OpenRange.GC2.Platforms.Android
         /// Start the background service.
         /// </summary>
         /// <returns>True if service started successfully.</returns>
-        public Task<bool> StartAsync()
+        public async Task<bool> StartAsync()
         {
             if (_isDisposed)
             {
                 Debug.LogError("AndroidBridgeService: Cannot start - service is disposed");
-                return Task.FromResult(false);
+                return false;
             }
 
             if (_isRunning)
             {
                 Debug.LogWarning("AndroidBridgeService: Service already running");
-                return Task.FromResult(true);
+                return true;
             }
 
             if (!_isInitialized)
@@ -222,20 +227,27 @@ namespace OpenRange.GC2.Platforms.Android
                 if (!_isInitialized)
                 {
                     NotifyError("Service not initialized");
-                    return Task.FromResult(false);
+                    return false;
                 }
+            }
+
+            // Request notification permission on Android 13+ (required for foreground service)
+            if (!await RequestNotificationPermissionAsync())
+            {
+                NotifyError("Notification permission denied - cannot start foreground service");
+                return false;
             }
 
             try
             {
                 StartServiceInternal();
-                return Task.FromResult(true);
+                return true;
             }
             catch (Exception ex)
             {
                 Debug.LogError($"AndroidBridgeService: StartAsync failed - {ex.Message}");
                 NotifyError($"Start error: {ex.Message}");
-                return Task.FromResult(false);
+                return false;
             }
         }
 
@@ -381,11 +393,17 @@ namespace OpenRange.GC2.Platforms.Android
 
         private void StartServiceInternal()
         {
+            // Check if GC2 is currently connected - needed for Android 14+ foreground service type selection
+            bool useConnectedDevice = IsGC2CurrentlyConnected();
+
             using (var intent = CreateServiceIntent(ActionStart))
             {
                 intent.Call<AndroidJavaObject>("putExtra", ExtraShotsRelayed, _shotsRelayed);
                 intent.Call<AndroidJavaObject>("putExtra", ExtraIsConnected, _isGC2Connected);
                 intent.Call<AndroidJavaObject>("putExtra", ExtraGSProConnected, _isGSProConnected);
+                intent.Call<AndroidJavaObject>("putExtra", ExtraUseConnectedDevice, useConnectedDevice);
+
+                Debug.Log($"AndroidBridgeService: Starting service with useConnectedDevice={useConnectedDevice}");
 
                 // Use startForegroundService for Android 8.0+
                 if (GetAndroidApiLevel() >= 26)
@@ -469,6 +487,27 @@ namespace OpenRange.GC2.Platforms.Android
             }
         }
 
+        /// <summary>
+        /// Checks if GC2 is currently connected via GameManager.
+        /// Used to determine which foreground service type to use on Android 14+.
+        /// </summary>
+        private bool IsGC2CurrentlyConnected()
+        {
+            try
+            {
+                var gameManager = Core.GameManager.Instance;
+                if (gameManager?.GC2Connection != null)
+                {
+                    return gameManager.GC2Connection.IsConnected;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"AndroidBridgeService: Could not check GC2 connection - {ex.Message}");
+            }
+            return false;
+        }
+
         private void NotifyError(string message)
         {
             Debug.LogError($"AndroidBridgeService: {message}");
@@ -480,6 +519,75 @@ namespace OpenRange.GC2.Platforms.Android
             {
                 Debug.LogError($"AndroidBridgeService: Error callback error - {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Request notification permission on Android 13+ (API 33).
+        /// Required for foreground service notifications.
+        /// </summary>
+        /// <returns>True if permission granted or not required.</returns>
+        private async Task<bool> RequestNotificationPermissionAsync()
+        {
+            // POST_NOTIFICATIONS permission only required on Android 13+ (API 33)
+            if (GetAndroidApiLevel() < 33)
+            {
+                return true;
+            }
+
+            const string permission = "android.permission.POST_NOTIFICATIONS";
+
+            // Check if already granted
+            if (UnityEngine.Android.Permission.HasUserAuthorizedPermission(permission))
+            {
+                Debug.Log("AndroidBridgeService: POST_NOTIFICATIONS already granted");
+                return true;
+            }
+
+            // Request permission
+            Debug.Log("AndroidBridgeService: Requesting POST_NOTIFICATIONS permission");
+            var callbacks = new UnityEngine.Android.PermissionCallbacks();
+            bool permissionGranted = false;
+            bool permissionResponseReceived = false;
+
+            callbacks.PermissionGranted += (perm) =>
+            {
+                Debug.Log($"AndroidBridgeService: Permission granted: {perm}");
+                permissionGranted = true;
+                permissionResponseReceived = true;
+            };
+
+            callbacks.PermissionDenied += (perm) =>
+            {
+                Debug.LogWarning($"AndroidBridgeService: Permission denied: {perm}");
+                permissionGranted = false;
+                permissionResponseReceived = true;
+            };
+
+            callbacks.PermissionDeniedAndDontAskAgain += (perm) =>
+            {
+                Debug.LogWarning($"AndroidBridgeService: Permission denied (don't ask again): {perm}");
+                permissionGranted = false;
+                permissionResponseReceived = true;
+            };
+
+            UnityEngine.Android.Permission.RequestUserPermission(permission, callbacks);
+
+            // Wait for response (up to 30 seconds)
+            float timeout = 30f;
+            float elapsed = 0f;
+            while (!permissionResponseReceived && elapsed < timeout)
+            {
+                await Task.Delay(100);
+                elapsed += 0.1f;
+            }
+
+            if (!permissionResponseReceived)
+            {
+                Debug.LogWarning("AndroidBridgeService: Permission request timed out");
+                return false;
+            }
+
+            return permissionGranted;
         }
 
         #endregion

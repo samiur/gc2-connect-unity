@@ -113,6 +113,7 @@ namespace OpenRange.Core
 
         /// <summary>
         /// Enable bridge mode and connect to GSPro.
+        /// Works with or without GC2 connected - when GC2 not connected, allows GSPro testing.
         /// </summary>
         /// <returns>True if enabled successfully.</returns>
         public async Task<bool> EnableBridgeModeAsync()
@@ -123,7 +124,13 @@ namespace OpenRange.Core
                 return false;
             }
 
-            Debug.Log($"BridgeModeManager: Enabling bridge mode, connecting to {_gsProHost}:{_gsProPort}");
+            // Note: GC2 connection is NOT required for bridge mode.
+            // - When GC2 connected: Uses connectedDevice foreground service type, relays real shots
+            // - When GC2 not connected: Uses dataSync foreground service type, allows GSPro testing
+            var gc2Connection = GameManager.Instance?.GC2Connection;
+            bool isGC2Connected = gc2Connection?.IsConnected ?? false;
+
+            Debug.Log($"BridgeModeManager: Enabling bridge mode, connecting to {_gsProHost}:{_gsProPort} (GC2 connected: {isGC2Connected})");
 
             // Create and connect relay
             _gsProRelay = new GSProRelay();
