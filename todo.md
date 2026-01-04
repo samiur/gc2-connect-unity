@@ -15,9 +15,10 @@
 
 ## Priority Order (Updated 2026-01-03)
 1. **Android Build & Testing** - Prompt 39 (simulator + APK for real device)
-2. **Visual Enhancements** - Phase 14 (Prompts 47-54)
-3. **Quality & Polish** - Phase 11 (Prompts 29-31)
-4. **iPad Native Plugin** - Phase 10 (Prompts 26-28) - deferred
+2. **Bridge Mode (Background Processing)** - Phase 15 (Prompts 55-59) - enables Moonlight + GSPro use case
+3. **Visual Enhancements** - Phase 14 (Prompts 47-54)
+4. **Quality & Polish** - Phase 11 (Prompts 29-31)
+5. **iPad Native Plugin** - Phase 10 (Prompts 26-28) - deferred
 
 ---
 
@@ -305,7 +306,72 @@
 
 ---
 
-### Phase 14: Visual Enhancements - PRIORITY 2 (after Android Build)
+### Phase 15: Bridge Mode (Background Processing) - PRIORITY 2 (after Android Build)
+
+> **Use Case**: Run GC2 → GSPro bridge in background while using Moonlight to stream GSPro from Windows PC.
+
+- [ ] **Prompt 55**: Bridge Mode Core Architecture
+  - [ ] Create BridgeState.cs enumeration (Idle, Connecting, Active, Suspended, Error)
+  - [ ] Create IBridgeService.cs interface for platform-specific services
+  - [ ] Create BridgeManager.cs singleton controller
+    - [ ] StartBridge(), StopBridge() methods
+    - [ ] State, ShotsRelayed, GC2Connected, GSProConnected properties
+    - [ ] OnStateChanged, OnShotRelayed, OnError events
+    - [ ] Uses existing IGC2Connection and GSProClient
+    - [ ] Bypasses ShotProcessor/physics for minimal resource usage
+  - [ ] Unit tests for state transitions, shot counting, events
+
+- [ ] **Prompt 56**: Android Foreground Service
+  - [ ] Update AndroidManifest.xml
+    - [ ] Add FOREGROUND_SERVICE, WAKE_LOCK permissions
+    - [ ] Add FOREGROUND_SERVICE_CONNECTED_DEVICE (Android 14+)
+    - [ ] Declare BridgeService with foregroundServiceType="connectedDevice"
+  - [ ] Create BridgeNotification.kt
+    - [ ] Notification channel "bridge_channel"
+    - [ ] Persistent notification with shot count, status
+    - [ ] "Stop Bridge" action button
+  - [ ] Create BridgeService.kt
+    - [ ] Foreground Service extending Service
+    - [ ] Wake lock (PARTIAL_WAKE_LOCK) for CPU
+    - [ ] GSPro TCP connection with 2s heartbeat
+    - [ ] Unity callbacks (OnBridgeStarted, OnShotRelayed, etc.)
+    - [ ] Handle USB detach while in background
+
+- [ ] **Prompt 57**: Android Bridge Mode C# Integration
+  - [ ] Create AndroidBridgeService.cs implementing IBridgeService
+    - [ ] AndroidJavaObject calls to BridgeService
+    - [ ] StartBridgeService(), StopBridgeService() methods
+    - [ ] UnitySendMessage callbacks
+  - [ ] Update BridgeManager.cs for platform integration
+    - [ ] Factory pattern for IBridgeService
+    - [ ] OnApplicationPause handling
+    - [ ] State synchronization with native service
+  - [ ] Update GC2AndroidConnection.cs with BridgeMode property
+  - [ ] Unit tests for mock service, lifecycle handling
+
+- [ ] **Prompt 58**: Bridge Mode UI
+  - [ ] Create BridgeStatusIndicator.cs (compact pill/badge)
+    - [ ] Visual states: Inactive, Connecting, Active, Warning, Error
+  - [ ] Create BridgeModePanel.cs
+    - [ ] Connection status section (GC2, GSPro, shot count)
+    - [ ] Start/Stop Bridge button
+    - [ ] Quick Launch section (Moonlight, Steam Link, Parsec)
+    - [ ] Battery warning section
+  - [ ] Create BridgeModePanelGenerator.cs editor tool
+  - [ ] Scene integration (Marina header, visibility logic)
+  - [ ] Unit tests for visibility, states, events
+
+- [ ] **Prompt 59**: iPad Background Mode Research
+  - [ ] Research iOS background options (Audio, BGTaskScheduler, etc.)
+  - [ ] Implement Picture-in-Picture workaround
+  - [ ] Create iOSBridgeService.cs with PiP implementation
+  - [ ] Create docs/IOS_BACKGROUND_LIMITATIONS.md
+  - [ ] Update BridgeModePanel with platform-specific messaging
+  - [ ] Unit tests for platform detection, graceful degradation
+
+---
+
+### Phase 14: Visual Enhancements - PRIORITY 4 (after Bridge Mode)
 
 Visual inspiration from reference projects:
 - **ProceduralGolf** (SolomonBaarda): Toon shaders, water with foam, stylized skybox, outline rendering
@@ -382,7 +448,7 @@ Visual inspiration from reference projects:
 
 ---
 
-### Phase 11: Quality & Polish - PRIORITY 3 (after Visual Enhancements)
+### Phase 11: Quality & Polish - PRIORITY 5 (after Visual Enhancements)
 
 - [ ] **Prompt 29**: Integration Testing
   - [ ] Create Edit Mode tests

@@ -28,6 +28,7 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 | 11 | Quality & Polish | 29-31 | ⏳ Pending |
 | 12-13 | Mobile Builds & CI/CD | 38-41 | ⏳ Future |
 | 14 | Visual Enhancements | 47-54 | ⏳ Pending |
+| 15 | Bridge Mode (Background) | 55-59 | ⏳ Pending |
 
 ---
 
@@ -1922,6 +1923,497 @@ Write comprehensive tests:
 - Toon mode switches all materials correctly
 - Visual presets apply expected settings
 - Performance within targets per quality tier
+```
+
+---
+
+## Phase 15: Bridge Mode (Background Processing)
+
+This phase enables running the GC2 → GSPro bridge in the background on mobile devices, allowing users to simultaneously run Moonlight or other streaming apps to play GSPro remotely.
+
+**Use Case**: User connects GC2 to Android tablet, enables bridge mode, then switches to Moonlight to stream GSPro from Windows PC. The OpenRange app continues relaying GC2 shots to GSPro even while in the background.
+
+**Platform Considerations**:
+- **Android**: Well-supported via Foreground Service with persistent notification
+- **iOS/iPad**: Very restrictive; requires workarounds with documented limitations
+
+---
+
+### Prompt 55: Bridge Mode Core Architecture
+
+```text
+Create the core C# architecture for Bridge Mode - a minimal USB→GSPro relay that runs without visualization.
+
+Context: When using the app as a GSPro bridge alongside a streaming app (like Moonlight), we don't need physics calculations, ball animation, or 3D visualization. We only need:
+1. Read shot data from GC2 via USB
+2. Send shot data to GSPro via TCP
+3. Send heartbeat to GSPro every 2 seconds
+4. Update device status (ball detected, ready state)
+
+This prompt creates the Unity/C# side. Native platform integration comes in subsequent prompts.
+
+Files to create:
+- Assets/Scripts/Network/BridgeManager.cs
+- Assets/Scripts/Network/BridgeState.cs
+- Assets/Scripts/Network/IBridgeService.cs
+- Assets/Tests/EditMode/BridgeManagerTests.cs
+
+Requirements:
+
+1. BridgeState.cs - Enumeration for bridge states:
+   - Idle: Bridge not active
+   - Connecting: Attempting to connect GC2 and GSPro
+   - Active: Bridge running, relaying shots
+   - Suspended: App backgrounded, native service handling relay
+   - Error: Connection failed, with error message
+
+2. IBridgeService.cs - Interface for platform-specific bridge services:
+   - StartBridgeService() - Start native background service
+   - StopBridgeService() - Stop native background service
+   - IsBridgeServiceRunning - Check if service is active
+   - UpdateNotification(int shotCount, string status) - Update persistent notification
+   - OnServiceStatusChanged event
+
+3. BridgeManager.cs - Main bridge controller:
+   - Singleton pattern (DontDestroyOnLoad)
+   - Properties:
+     * State (BridgeState)
+     * IsActive (bool)
+     * ShotsRelayed (int)
+     * GC2Connected (bool)
+     * GSProConnected (bool)
+     * LastShotTime (DateTime?)
+   - Methods:
+     * StartBridge() - Begin bridge mode
+     * StopBridge() - End bridge mode
+     * OnApplicationPause(bool paused) - Handle app lifecycle
+   - Events:
+     * OnStateChanged(BridgeState oldState, BridgeState newState)
+     * OnShotRelayed(GC2ShotData shot, bool success)
+     * OnError(string message)
+   - Integration:
+     * Uses existing IGC2Connection for USB
+     * Uses existing GSProClient for TCP
+     * Bypasses ShotProcessor/physics entirely
+     * Only sends ball data to GSPro (no visualization)
+
+4. Bridge Mode Flow:
+   a. User taps "Start Bridge"
+   b. BridgeManager.StartBridge() called
+   c. Connect to GC2 via IGC2Connection
+   d. Connect to GSPro via GSProClient
+   e. Subscribe to IGC2Connection.OnShotReceived
+   f. On shot received → GSProClient.SendShotAsync()
+   g. Increment ShotsRelayed counter
+   h. When app goes to background → signal native service
+   i. Native service maintains connections
+   j. When app returns → resume from service state
+
+5. Minimal Resource Usage:
+   - No TrajectorySimulator (skip physics)
+   - No BallController (skip visualization)
+   - No SessionManager recording (optional)
+   - Only GSProClient heartbeat + shot forwarding
+
+Write unit tests for:
+- State transitions (Idle→Connecting→Active→Suspended→Active)
+- Shot counting
+- Error state handling
+- Connection status aggregation
+- Event firing
+```
+
+---
+
+### Prompt 56: Android Foreground Service
+
+```text
+Create an Android Foreground Service that keeps the GC2→GSPro bridge alive when the app is backgrounded.
+
+Context: Android kills background apps aggressively, but Foreground Services with persistent notifications are allowed to run indefinitely. This is the standard pattern for long-running tasks like music players, GPS tracking, and USB device communication.
+
+Files to create:
+- NativePlugins/Android/GC2AndroidPlugin/src/main/kotlin/com/openrange/gc2/BridgeService.kt
+- NativePlugins/Android/GC2AndroidPlugin/src/main/kotlin/com/openrange/gc2/BridgeNotification.kt
+- Update NativePlugins/Android/GC2AndroidPlugin/src/main/AndroidManifest.xml
+
+Requirements:
+
+1. AndroidManifest.xml updates:
+   - Add permission: android.permission.FOREGROUND_SERVICE
+   - Add permission: android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE (Android 14+)
+   - Add permission: android.permission.WAKE_LOCK
+   - Declare service:
+     <service
+         android:name=".BridgeService"
+         android:enabled="true"
+         android:exported="false"
+         android:foregroundServiceType="connectedDevice" />
+
+2. BridgeNotification.kt - Notification management:
+   - Create notification channel "bridge_channel" on init
+   - Channel name: "GC2 Bridge"
+   - Importance: IMPORTANCE_LOW (no sound)
+   - Methods:
+     * createNotification(shotCount: Int, status: String): Notification
+     * updateNotification(shotCount: Int, status: String)
+   - Notification content:
+     * Title: "GC2 Bridge Active"
+     * Text: "Shots relayed: X • Status" (e.g., "Shots relayed: 5 • Connected")
+     * Small icon: Use app icon or custom bridge icon
+     * Ongoing: true (can't be swiped away)
+     * Actions: "Stop Bridge" button
+
+3. BridgeService.kt - Foreground Service:
+   - Extends Service
+   - Lifecycle:
+     * onCreate(): Acquire wake lock, create notification
+     * onStartCommand(): Start foreground with notification
+     * onDestroy(): Release wake lock, cleanup
+   - Wake lock:
+     * PowerManager.PARTIAL_WAKE_LOCK
+     * Tag: "openrange:bridge"
+     * Keep CPU running when screen off
+   - Integration with GC2Plugin:
+     * Access GC2Plugin singleton
+     * Delegate USB operations to existing GC2Device
+     * Receive shots via callback
+   - GSPro TCP handling:
+     * Maintain TCP connection in service
+     * Send heartbeat every 2 seconds (Handler + Runnable)
+     * Forward shots from GC2Plugin callback
+   - Unity callbacks:
+     * OnBridgeStarted()
+     * OnBridgeStopped()
+     * OnShotRelayed(jsonData)
+     * OnBridgeError(message)
+   - Methods (called from Unity):
+     * startBridge(gsproHost: String, gsproPort: Int)
+     * stopBridge()
+     * updateNotification(shotCount: Int, status: String)
+     * isBridgeRunning(): Boolean
+
+4. Service Lifecycle Handling:
+   - START_STICKY: Restart if killed
+   - Handle ACTION_STOP from notification button
+   - Clean shutdown on stopBridge()
+   - Handle USB device detach while in background
+
+5. GSPro Connection in Service:
+   - Reuse existing GSPro protocol from GC2Protocol.kt
+   - Simple TCP socket connection
+   - JSON message formatting matching GSProMessage
+   - Heartbeat with device status (ball detected, ready)
+
+6. Error Handling:
+   - USB disconnect → update notification, attempt reconnect
+   - GSPro disconnect → update notification, attempt reconnect
+   - Low battery → warning in notification
+   - Notify Unity of all state changes
+
+Write verification:
+- Service starts and shows notification
+- Service survives app going to background
+- Shots relay when screen is off
+- Notification updates with shot count
+- Service stops cleanly
+```
+
+---
+
+### Prompt 57: Android Bridge Mode C# Integration
+
+```text
+Integrate the Android Foreground Service with Unity C# for seamless bridge mode operation.
+
+Context: BridgeManager (from Prompt 55) needs to communicate with BridgeService (from Prompt 56) via JNI. When the app goes to background, the native service takes over; when it returns, Unity resumes control.
+
+Files to create:
+- Assets/Scripts/Network/Platforms/AndroidBridgeService.cs
+- Assets/Tests/EditMode/AndroidBridgeServiceTests.cs
+
+Files to modify:
+- Assets/Scripts/Network/BridgeManager.cs (add platform integration)
+- Assets/Scripts/GC2/Platforms/Android/GC2AndroidConnection.cs (add bridge hooks)
+
+Requirements:
+
+1. AndroidBridgeService.cs - Implements IBridgeService:
+   - Conditional compilation: #if UNITY_ANDROID && !UNITY_EDITOR
+   - AndroidJavaObject for BridgeService interaction
+   - Methods:
+     * StartBridgeService() - Start foreground service via Context.startForegroundService()
+     * StopBridgeService() - Stop service via Context.stopService()
+     * IsBridgeServiceRunning - Check via ActivityManager
+     * UpdateNotification(shotCount, status) - Call service method
+   - UnitySendMessage callbacks:
+     * OnBridgeServiceStarted()
+     * OnBridgeServiceStopped()
+     * OnBridgeShotRelayed(string json)
+     * OnBridgeError(string message)
+   - Lifecycle handling:
+     * OnApplicationPause(true) - Service takes over USB/TCP
+     * OnApplicationPause(false) - Unity resumes, service provides state
+
+2. Bridge Mode Handoff Protocol:
+   When app goes to background:
+   a. BridgeManager detects OnApplicationPause(true)
+   b. BridgeManager.State → Suspended
+   c. Native service already running, continues relay
+   d. Unity stops processing (saves resources)
+
+   When app returns to foreground:
+   a. BridgeManager detects OnApplicationPause(false)
+   b. Query service for current shot count, connection status
+   c. Update BridgeManager state from service state
+   d. BridgeManager.State → Active
+   e. Resume UI updates
+
+3. Update GC2AndroidConnection:
+   - Add BridgeMode property (bool)
+   - When BridgeMode = true:
+     * Don't process shots in Unity (service handles it)
+     * Forward connection events to BridgeManager
+   - When BridgeMode = false:
+     * Normal operation (shots processed in Unity)
+
+4. BridgeManager Platform Integration:
+   - Factory pattern for IBridgeService:
+     * Android → AndroidBridgeService
+     * iOS → iOSBridgeService (stub for now)
+     * Editor → MockBridgeService (for testing)
+   - OnApplicationPause integration
+   - State synchronization with native service
+
+5. Permission Handling:
+   - Check FOREGROUND_SERVICE permission at runtime
+   - Request battery optimization exemption (optional, improves reliability)
+   - Handle permission denied gracefully
+
+Write unit tests for:
+- IBridgeService mock implementation
+- State synchronization
+- Platform service factory
+- Lifecycle handling (pause/resume)
+```
+
+---
+
+### Prompt 58: Bridge Mode UI
+
+```text
+Create a minimal Bridge Mode UI that shows connection status and allows users to start/stop the bridge.
+
+Context: Bridge Mode needs a simple UI that:
+- Shows clearly if the bridge is working
+- Requires minimal interaction
+- Works well when quickly switching between apps
+- Provides quick access to launch streaming apps
+
+Files to create:
+- Assets/Scripts/UI/BridgeModePanel.cs
+- Assets/Scripts/UI/BridgeStatusIndicator.cs
+- Assets/Editor/BridgeModePanelGenerator.cs
+- Assets/Tests/EditMode/BridgeModePanelTests.cs
+- Assets/Prefabs/UI/BridgeModePanel.prefab (generated)
+
+Requirements:
+
+1. BridgeStatusIndicator.cs - Compact status display:
+   - Visual states:
+     * Inactive (gray): Bridge not running
+     * Connecting (yellow pulse): Establishing connections
+     * Active (green solid): Bridge running
+     * Warning (orange): One connection lost
+     * Error (red): Both connections lost
+   - Small pill/badge design (~100x30px)
+   - Icon + short text (e.g., "● Bridge Active")
+
+2. BridgeModePanel.cs - Main panel:
+   - Layout (vertical, ~300px wide, left side):
+     * Header: "Bridge Mode" with close button
+     * Section: Connection Status
+       - GC2: [icon] Connected / Disconnected
+       - GSPro: [icon] Connected / Disconnected
+       - Shots relayed: [count]
+       - Last shot: [time ago or "None"]
+     * Section: Controls
+       - Start/Stop Bridge button (large, prominent)
+       - GSPro host/port (editable, defaults from SettingsManager)
+     * Section: Quick Launch (Android only)
+       - "Launch Moonlight" button
+       - "Launch Steam Link" button
+       - "Launch Parsec" button
+     * Section: Battery Warning (conditional)
+       - Show if battery < 20%
+       - "Low battery - plug in for reliability"
+   - Events:
+     * OnBridgeStartRequested
+     * OnBridgeStopRequested
+     * OnAppLaunchRequested(string packageName)
+   - Integration:
+     * Subscribe to BridgeManager events
+     * Update UI on state changes
+     * Show toast on errors
+
+3. Quick Launch Implementation (Android):
+   - Use Application.OpenURL("package:com.limelight") pattern
+   - Or use Intent via AndroidJavaObject
+   - Package names:
+     * Moonlight: com.limelight
+     * Steam Link: com.valvesoftware.steamlink
+     * Parsec: com.parsecgaming.parsec
+   - Graceful handling if app not installed
+
+4. BridgeModePanelGenerator.cs:
+   - Menu: OpenRange > Create Bridge Mode Panel Prefab
+   - Creates full panel hierarchy
+   - Left-side anchoring
+
+5. Scene Integration:
+   - Add "Bridge Mode" button to Marina header (next to GSPro toggle)
+   - Only visible when in GSPro mode
+   - MarinaSceneController: Add _bridgeModePanel field
+   - SceneGenerator: Instantiate and wire prefab
+
+6. Visibility Logic:
+   - Show Bridge Mode button only when:
+     * GSPro mode is enabled
+     * Platform supports background (Android for now)
+   - Hide on platforms without background support
+
+7. Accessibility:
+   - Large touch targets (44px minimum)
+   - Clear status colors with text labels
+   - Readable contrast
+
+Write unit tests for:
+- Panel visibility logic
+- Status indicator states
+- Button enable/disable states
+- Event firing
+- Quick launch URL generation
+```
+
+---
+
+### Prompt 59: iPad Background Mode Research and Workarounds
+
+```text
+Research iOS/iPad background processing options and implement the best available solution for bridge mode.
+
+Context: iOS is notoriously restrictive about background processing. Unlike Android, there's no direct equivalent to Foreground Services. This prompt researches available options, documents limitations, and implements the best-effort solution.
+
+Files to create:
+- Assets/Scripts/Network/Platforms/iOSBridgeService.cs
+- docs/IOS_BACKGROUND_LIMITATIONS.md
+
+Files to modify:
+- Assets/Scripts/UI/BridgeModePanel.cs (platform-specific messaging)
+
+Research and Document:
+
+1. iOS Background Mode Options (research each):
+
+   a. Background Audio (com.apple.audio):
+      - Play silent audio to keep app alive
+      - Requires audio session category .playback
+      - Risk: App Store rejection if detected as abuse
+      - Battery impact: Minimal for silent audio
+      - Reliability: Works but not intended use
+
+   b. External Accessory Framework:
+      - For MFi-certified accessories
+      - GC2 is NOT MFi certified
+      - Requires Apple approval and specific protocols
+      - Conclusion: Not applicable
+
+   c. Background Fetch:
+      - iOS wakes app periodically (not guaranteed timing)
+      - Maximum 30 seconds execution
+      - Conclusion: Not suitable for continuous relay
+
+   d. BGTaskScheduler (iOS 13+):
+      - Background processing tasks
+      - Executed opportunistically
+      - Conclusion: Not suitable for real-time relay
+
+   e. VoIP Push:
+      - For voice/video calls
+      - Would be rejected as abuse
+      - Conclusion: Not applicable
+
+   f. Location Updates (com.apple.location):
+      - Continuous location tracking keeps app alive
+      - Heavy battery drain
+      - App Store scrutiny if no legitimate location use
+      - Conclusion: Not recommended
+
+2. Alternative Approaches:
+
+   a. Picture-in-Picture (PiP) Mode:
+      - Keep app visible in small window
+      - User can use other apps while PiP shows status
+      - Requires video content (could show status visualization)
+      - Most legitimate solution for iPad
+      - Implementation: AVPictureInPictureController
+
+   b. Slide Over / Split View:
+      - Use app in split screen with streaming app
+      - App remains in foreground (not background)
+      - Works well on iPad
+      - No special implementation needed
+
+   c. External Device (Mac/PC):
+      - Run bridge on Mac (already working)
+      - iPad connects to GC2, relays to Mac bridge
+      - Mac handles GSPro connection
+      - More complex but reliable
+
+3. iOSBridgeService.cs Implementation:
+
+   Implement Picture-in-Picture approach:
+   - Create minimal video player showing status
+   - Canvas with status text rendered to RenderTexture
+   - AVPictureInPictureController to enter PiP
+   - Methods:
+     * StartBridgeService() - Enter PiP mode
+     * StopBridgeService() - Exit PiP mode
+     * IsBridgeServiceRunning - Check PiP state
+     * UpdateNotification() - Update PiP content
+   - Fallback: Show warning if PiP not available/supported
+
+4. BridgeModePanel Platform Messaging:
+
+   On iPad, show different UI:
+   - Replace "Start Bridge" with "Start PiP Mode"
+   - Info text: "Keep this window visible to maintain connection"
+   - Or: "Use Split View with your streaming app"
+   - Warning: "iOS may suspend the app if fully backgrounded"
+
+5. Documentation (IOS_BACKGROUND_LIMITATIONS.md):
+
+   - Honest explanation of iOS limitations
+   - Comparison with Android capabilities
+   - Recommended approaches (PiP, Split View)
+   - Why true background mode isn't possible
+   - Alternative workflows for users
+
+6. Graceful Degradation:
+
+   When iPad app is backgrounded without PiP:
+   - Save bridge state
+   - Attempt to reconnect on resume
+   - Show notification of suspended time
+   - Reconnect to GSPro automatically
+
+Write unit tests for:
+- Platform detection
+- PiP availability check
+- State persistence across suspend/resume
+- Warning message display logic
+
+Note: This prompt may result in documentation showing that true background mode is not feasible on iPad. That's a valid outcome - honest documentation is better than unreliable features.
 ```
 
 ---
