@@ -20,6 +20,7 @@ namespace OpenRange.UI
         [Header("UI References")]
         [SerializeField] private Button _backButton;
         [SerializeField] private Button _settingsButton;
+        [SerializeField] private Button _testShotButton;
         [SerializeField] private ShotDataBar _shotDataBar;
         [SerializeField] private ClubDataPanel _clubDataPanel;
 
@@ -67,6 +68,11 @@ namespace OpenRange.UI
             {
                 _settingsButton.onClick.AddListener(OnSettingsClicked);
             }
+
+            if (_testShotButton != null)
+            {
+                _testShotButton.onClick.AddListener(OnTestShotClicked);
+            }
         }
 
         private void OnDestroy()
@@ -79,6 +85,11 @@ namespace OpenRange.UI
             if (_settingsButton != null)
             {
                 _settingsButton.onClick.RemoveListener(OnSettingsClicked);
+            }
+
+            if (_testShotButton != null)
+            {
+                _testShotButton.onClick.RemoveListener(OnTestShotClicked);
             }
 
             if (_connectionStatusUI != null)
@@ -208,6 +219,15 @@ namespace OpenRange.UI
             if (_settingsPanel != null)
             {
                 _settingsPanel.Toggle();
+            }
+        }
+
+        private void OnTestShotClicked()
+        {
+            Debug.Log("MarinaSceneController: Test Shot clicked");
+            if (_testShotPanel != null)
+            {
+                _testShotPanel.Toggle();
             }
         }
 

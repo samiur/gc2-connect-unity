@@ -524,6 +524,15 @@ namespace OpenRange.Editor
             settingsRect.anchoredPosition = new Vector2(130, -20); // 20 + 100 (back width) + 10 (gap)
             settingsRect.sizeDelta = new Vector2(100, 40);
 
+            // Test Shot Button (top-left, next to Settings button)
+            var testShotBtn = CreateButton(canvasGo.transform, "TestShotButton", "Test Shot");
+            var testShotRect = testShotBtn.GetComponent<RectTransform>();
+            testShotRect.anchorMin = new Vector2(0, 1);
+            testShotRect.anchorMax = new Vector2(0, 1);
+            testShotRect.pivot = new Vector2(0, 1);
+            testShotRect.anchoredPosition = new Vector2(240, -20); // 130 + 100 (settings width) + 10 (gap)
+            testShotRect.sizeDelta = new Vector2(100, 40);
+
             // Shot Data Bar (bottom panel)
             ShotDataBar shotDataBar = null;
             var shotDataBarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/ShotDataBar.prefab");
@@ -855,6 +864,7 @@ namespace OpenRange.Editor
             var controllerSo = new SerializedObject(controller);
             controllerSo.FindProperty("_backButton").objectReferenceValue = backBtn.GetComponent<Button>();
             controllerSo.FindProperty("_settingsButton").objectReferenceValue = settingsBtn.GetComponent<Button>();
+            controllerSo.FindProperty("_testShotButton").objectReferenceValue = testShotBtn.GetComponent<Button>();
             controllerSo.FindProperty("_shotDataBar").objectReferenceValue = shotDataBar;
             controllerSo.FindProperty("_clubDataPanel").objectReferenceValue = clubDataPanel;
             controllerSo.FindProperty("_connectionStatusUI").objectReferenceValue = connectionStatusUI;

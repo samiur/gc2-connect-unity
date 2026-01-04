@@ -286,6 +286,7 @@ namespace OpenRange.Tests.EditMode
             {
                 "_backButton",
                 "_settingsButton",
+                "_testShotButton",
                 "_shotDataBar",
                 "_clubDataPanel",
                 "_sessionInfoPanel",
@@ -337,6 +338,20 @@ namespace OpenRange.Tests.EditMode
             Assert.AreEqual(0, missingCount,
                 $"{missingCount} prefab(s) are missing. Run 'make test' locally and check " +
                 $"AllRequiredPrefabs_Exist and AllSubComponentPrefabs_Exist tests for details.");
+        }
+
+        [Test]
+        public void SceneGenerator_CreatesTestShotButton()
+        {
+            // Verify SceneGenerator creates TestShotButton in Marina scene
+            var sceneGeneratorPath = "Assets/Editor/SceneGenerator.cs";
+            var content = File.ReadAllText(sceneGeneratorPath);
+
+            Assert.IsTrue(content.Contains("TestShotButton"),
+                "SceneGenerator should create TestShotButton in Marina scene");
+
+            Assert.IsTrue(content.Contains("_testShotButton"),
+                "SceneGenerator should wire _testShotButton to MarinaSceneController");
         }
     }
 }
