@@ -573,12 +573,11 @@ static void LIBUSB_CALL TransferCallback(struct libusb_transfer *transfer) {
         case LIBUSB_TRANSFER_COMPLETED:
             // Success - process data
             if (transfer->actual_length > 0) {
-                // Log raw packet for diagnostics
-                NSMutableString *hexDump = [NSMutableString stringWithString:@"USB RAW ["];
+                // Log raw packet for diagnostics (include transfer index to verify async buffering)
+                NSMutableString *hexDump = [NSMutableString stringWithFormat:@"USB RAW [T%d] ", index];
                 for (int i = 0; i < transfer->actual_length; i++) {
                     [hexDump appendFormat:@"%02X ", transfer->buffer[i]];
                 }
-                [hexDump appendString:@"]"];
                 LogInfo(hexDump);
 
                 // Convert to string and process - protect with mutex
@@ -588,12 +587,12 @@ static void LIBUSB_CALL TransferCallback(struct libusb_transfer *transfer) {
                                                           length:transfer->actual_length
                                                         encoding:NSUTF8StringEncoding];
                 if (data) {
-                    LogInfo([NSString stringWithFormat:@"USB STR: %@",
+                    LogInfo([NSString stringWithFormat:@"USB STR [T%d]: %@", index,
                         [data stringByReplacingOccurrencesOfString:@"\n" withString:@"\\n"]]);
                     [g_lineBuffer appendString:data];
                     ProcessBuffer();
                 } else {
-                    LogDebug(@"Received non-UTF8 data, skipping");
+                    LogDebug([NSString stringWithFormat:@"T%d: Received non-UTF8 data, skipping", index]);
                 }
 
                 pthread_mutex_unlock(&g_bufferMutex);
