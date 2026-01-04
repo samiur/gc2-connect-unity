@@ -37,6 +37,9 @@ namespace OpenRange.UI
         [Header("Settings UI")]
         [SerializeField] private SettingsPanel _settingsPanel;
 
+        [Header("Test Shot UI")]
+        [SerializeField] private TestShotPanel _testShotPanel;
+
         [Header("Visualization References")]
         [SerializeField] private BallController _ballController;
         [SerializeField] private TrajectoryRenderer _trajectoryRenderer;
