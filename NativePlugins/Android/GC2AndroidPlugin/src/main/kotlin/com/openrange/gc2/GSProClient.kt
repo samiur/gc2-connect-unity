@@ -211,14 +211,15 @@ class GSProClient {
         sideSpin: Float,
         spinAxis: Float
     ): String {
+        // Note: JSONObject.put() requires Double, not Float
         val ballData = JSONObject().apply {
-            put("Speed", ballSpeed)
-            put("SpinAxis", spinAxis)
-            put("TotalSpin", totalSpin)
-            put("BackSpin", backSpin)
-            put("SideSpin", sideSpin)
-            put("HLA", direction)
-            put("VLA", launchAngle)
+            put("Speed", ballSpeed.toDouble())
+            put("SpinAxis", spinAxis.toDouble())
+            put("TotalSpin", totalSpin.toDouble())
+            put("BackSpin", backSpin.toDouble())
+            put("SideSpin", sideSpin.toDouble())
+            put("HLA", direction.toDouble())
+            put("VLA", launchAngle.toDouble())
         }
 
         val options = JSONObject().apply {
