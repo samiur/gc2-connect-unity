@@ -39,10 +39,6 @@ namespace OpenRange.UI
         [SerializeField] private TMP_InputField _portInput;
         [SerializeField] private GameObject _configPanel;
 
-        [Header("Bridge Mode")]
-        [SerializeField] private Toggle _bridgeModeToggle;
-        [SerializeField] private TextMeshProUGUI _bridgeModeLabel;
-
         [Header("Colors")]
         [SerializeField] private Color _connectedColor = new Color(0.2f, 0.8f, 0.2f);
         [SerializeField] private Color _connectingColor = new Color(0.9f, 0.7f, 0.1f);
@@ -52,7 +48,6 @@ namespace OpenRange.UI
 
         private GSProClient _client;
         private bool _isGSProMode;
-        private bool _isBridgeModeEnabled;
         private GSProConnectionState _connectionState = GSProConnectionState.Disconnected;
         private bool _isReady;
         private bool _ballDetected;
@@ -69,9 +64,6 @@ namespace OpenRange.UI
         /// <summary>Whether a ball is detected.</summary>
         public bool BallDetected => _ballDetected;
 
-        /// <summary>Whether bridge mode is enabled (relay shots to GSPro without local visualization).</summary>
-        public bool IsBridgeModeEnabled => _isBridgeModeEnabled;
-
         /// <summary>The host address from input field.</summary>
         public string Host => _hostInput != null ? _hostInput.text : "127.0.0.1";
 
@@ -86,9 +78,6 @@ namespace OpenRange.UI
 
         /// <summary>Fired when disconnect button is clicked.</summary>
         public event Action OnDisconnectClicked;
-
-        /// <summary>Fired when bridge mode is toggled.</summary>
-        public event Action<bool> OnBridgeModeChanged;
 
         private void Start()
         {
@@ -172,22 +161,6 @@ namespace OpenRange.UI
         }
 
         /// <summary>
-        /// Set the bridge mode toggle state.
-        /// </summary>
-        /// <param name="enabled">Whether bridge mode is enabled.</param>
-        public void SetBridgeMode(bool enabled)
-        {
-            _isBridgeModeEnabled = enabled;
-
-            if (_bridgeModeToggle != null)
-            {
-                _bridgeModeToggle.SetIsOnWithoutNotify(enabled);
-            }
-
-            UpdateBridgeModeLabel();
-        }
-
-        /// <summary>
         /// Set references for testing.
         /// </summary>
         public void SetReferences(
@@ -203,9 +176,7 @@ namespace OpenRange.UI
             TextMeshProUGUI ballText,
             TMP_InputField hostInput,
             TMP_InputField portInput,
-            GameObject configPanel,
-            Toggle bridgeModeToggle = null,
-            TextMeshProUGUI bridgeModeLabel = null)
+            GameObject configPanel)
         {
             _modeToggle = modeToggle;
             _modeLabel = modeLabel;
@@ -220,8 +191,6 @@ namespace OpenRange.UI
             _hostInput = hostInput;
             _portInput = portInput;
             _configPanel = configPanel;
-            _bridgeModeToggle = bridgeModeToggle;
-            _bridgeModeLabel = bridgeModeLabel;
 
             SetupListeners();
         }
@@ -237,11 +206,6 @@ namespace OpenRange.UI
             {
                 _connectButton.onClick.AddListener(HandleConnectClicked);
             }
-
-            if (_bridgeModeToggle != null)
-            {
-                _bridgeModeToggle.onValueChanged.AddListener(HandleBridgeModeToggled);
-            }
         }
 
         private void RemoveListeners()
@@ -254,11 +218,6 @@ namespace OpenRange.UI
             if (_connectButton != null)
             {
                 _connectButton.onClick.RemoveListener(HandleConnectClicked);
-            }
-
-            if (_bridgeModeToggle != null)
-            {
-                _bridgeModeToggle.onValueChanged.RemoveListener(HandleBridgeModeToggled);
             }
         }
 
@@ -288,13 +247,6 @@ namespace OpenRange.UI
             UpdateModeLabel();
             UpdateConfigVisibility();
             OnModeChanged?.Invoke(isOn);
-        }
-
-        private void HandleBridgeModeToggled(bool isOn)
-        {
-            _isBridgeModeEnabled = isOn;
-            UpdateBridgeModeLabel();
-            OnBridgeModeChanged?.Invoke(isOn);
         }
 
         private void HandleConnectClicked()
@@ -347,7 +299,6 @@ namespace OpenRange.UI
         private void UpdateUI()
         {
             UpdateModeLabel();
-            UpdateBridgeModeLabel();
             UpdateConnectionUI();
             UpdateReadinessUI();
             UpdateConfigVisibility();
@@ -358,14 +309,6 @@ namespace OpenRange.UI
             if (_modeLabel != null)
             {
                 _modeLabel.text = _isGSProMode ? "GSPro Mode" : "Open Range Mode";
-            }
-        }
-
-        private void UpdateBridgeModeLabel()
-        {
-            if (_bridgeModeLabel != null)
-            {
-                _bridgeModeLabel.text = _isBridgeModeEnabled ? "Bridge Mode On" : "Bridge Mode Off";
             }
         }
 

@@ -410,7 +410,7 @@ namespace OpenRange.Core
 
         /// <summary>
         /// Configures the platform bridge service with GSPro connection parameters.
-        /// On Android, enables test shot mode when GC2 is not connected.
+        /// On Android, enables test shot mode when GC2 is not connected and setting is enabled.
         /// </summary>
         private void ConfigureBridgeServiceGSPro(bool isGC2Connected)
         {
@@ -419,11 +419,14 @@ namespace OpenRange.Core
             var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
             if (androidService != null)
             {
-                // Enable test shot mode when GC2 is not connected
+                // Enable test shot mode when:
+                // 1. GC2 is not connected AND
+                // 2. AutoTestShotsEnabled setting is true
                 // Test shots will be sent by the native service when the app is backgrounded
-                bool testShotMode = !isGC2Connected;
+                bool autoTestShotsEnabled = SettingsManager.Instance?.AutoTestShotsEnabled ?? false;
+                bool testShotMode = !isGC2Connected && autoTestShotsEnabled;
                 androidService.ConfigureGSPro(_gsProHost, _gsProPort, testShotMode);
-                Debug.Log($"BridgeModeManager: Configured Android service - testShotMode={testShotMode}");
+                Debug.Log($"BridgeModeManager: Configured Android service - testShotMode={testShotMode} (autoTestShotsEnabled={autoTestShotsEnabled}, isGC2Connected={isGC2Connected})");
             }
 #endif
         }

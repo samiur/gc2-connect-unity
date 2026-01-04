@@ -33,6 +33,7 @@ namespace OpenRange.Tests.EditMode
         private SettingSlider _windSpeedSlider;
         private SettingSlider _windDirectionSlider;
         private SettingToggle _autoConnectToggle;
+        private SettingToggle _autoTestShotsToggle;
         private SettingSlider _masterVolumeSlider;
         private SettingSlider _effectsVolumeSlider;
 
@@ -68,6 +69,7 @@ namespace OpenRange.Tests.EditMode
             _windSpeedSlider = CreateSlider("WindSpeedSlider");
             _windDirectionSlider = CreateSlider("WindDirectionSlider");
             _autoConnectToggle = CreateToggle("AutoConnectToggle");
+            _autoTestShotsToggle = CreateToggle("AutoTestShotsToggle");
             _masterVolumeSlider = CreateSlider("MasterVolumeSlider");
             _effectsVolumeSlider = CreateSlider("EffectsVolumeSlider");
 
@@ -89,6 +91,7 @@ namespace OpenRange.Tests.EditMode
                 windSpeedSlider: _windSpeedSlider,
                 windDirectionSlider: _windDirectionSlider,
                 autoConnectToggle: _autoConnectToggle,
+                autoTestShotsToggle: _autoTestShotsToggle,
                 masterVolumeSlider: _masterVolumeSlider,
                 effectsVolumeSlider: _effectsVolumeSlider
             );

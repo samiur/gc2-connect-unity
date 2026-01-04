@@ -158,6 +158,13 @@ namespace OpenRange.Core
             set => SetSetting(ref _settings.BridgeModeEnabled, value, "BridgeModeEnabled");
         }
 
+        /// <summary>Whether auto test shots are enabled (sends test shots every 15s when backgrounded without GC2).</summary>
+        public bool AutoTestShotsEnabled
+        {
+            get => _settings.AutoTestShotsEnabled;
+            set => SetSetting(ref _settings.AutoTestShotsEnabled, value, "AutoTestShotsEnabled");
+        }
+
         #endregion
 
         #region Audio Settings
@@ -252,6 +259,7 @@ namespace OpenRange.Core
             _settings.GSProPort = PlayerPrefs.GetInt(GetKey("GSProPort"), AppSettings.DefaultGSProPort);
             _settings.GSProModeEnabled = PlayerPrefs.GetInt(GetKey("GSProModeEnabled"), AppSettings.DefaultGSProModeEnabled ? 1 : 0) == 1;
             _settings.BridgeModeEnabled = PlayerPrefs.GetInt(GetKey("BridgeModeEnabled"), AppSettings.DefaultBridgeModeEnabled ? 1 : 0) == 1;
+            _settings.AutoTestShotsEnabled = PlayerPrefs.GetInt(GetKey("AutoTestShotsEnabled"), AppSettings.DefaultAutoTestShotsEnabled ? 1 : 0) == 1;
 
             // Audio
             _settings.MasterVolume = PlayerPrefs.GetFloat(GetKey("MasterVolume"), AppSettings.DefaultMasterVolume);
@@ -298,6 +306,7 @@ namespace OpenRange.Core
             PlayerPrefs.SetInt(GetKey("GSProPort"), _settings.GSProPort);
             PlayerPrefs.SetInt(GetKey("GSProModeEnabled"), _settings.GSProModeEnabled ? 1 : 0);
             PlayerPrefs.SetInt(GetKey("BridgeModeEnabled"), _settings.BridgeModeEnabled ? 1 : 0);
+            PlayerPrefs.SetInt(GetKey("AutoTestShotsEnabled"), _settings.AutoTestShotsEnabled ? 1 : 0);
 
             // Audio
             PlayerPrefs.SetFloat(GetKey("MasterVolume"), _settings.MasterVolume);
@@ -339,6 +348,7 @@ namespace OpenRange.Core
             _settings.GSProPort = AppSettings.DefaultGSProPort;
             _settings.GSProModeEnabled = AppSettings.DefaultGSProModeEnabled;
             _settings.BridgeModeEnabled = AppSettings.DefaultBridgeModeEnabled;
+            _settings.AutoTestShotsEnabled = AppSettings.DefaultAutoTestShotsEnabled;
 
             // Audio
             _settings.MasterVolume = AppSettings.DefaultMasterVolume;
@@ -364,7 +374,7 @@ namespace OpenRange.Core
                 "DistanceUnit", "SpeedUnit", "TemperatureUnit",
                 "TemperatureF", "ElevationFt", "HumidityPct",
                 "WindEnabled", "WindSpeedMph", "WindDirectionDeg",
-                "AutoConnect", "GSProHost", "GSProPort", "GSProModeEnabled", "BridgeModeEnabled",
+                "AutoConnect", "GSProHost", "GSProPort", "GSProModeEnabled", "BridgeModeEnabled", "AutoTestShotsEnabled",
                 "MasterVolume", "EffectsVolume"
             };
 
@@ -405,6 +415,7 @@ namespace OpenRange.Core
                 GSProPort = _settings.GSProPort,
                 GSProModeEnabled = _settings.GSProModeEnabled,
                 BridgeModeEnabled = _settings.BridgeModeEnabled,
+                AutoTestShotsEnabled = _settings.AutoTestShotsEnabled,
                 MasterVolume = _settings.MasterVolume,
                 EffectsVolume = _settings.EffectsVolume
             };
@@ -503,6 +514,7 @@ namespace OpenRange.Core
         public const int DefaultGSProPort = 921;
         public const bool DefaultGSProModeEnabled = false;
         public const bool DefaultBridgeModeEnabled = false;
+        public const bool DefaultAutoTestShotsEnabled = false;
         public const float DefaultMasterVolume = 1f;
         public const float DefaultEffectsVolume = 1f;
 
@@ -529,6 +541,7 @@ namespace OpenRange.Core
         public int GSProPort = DefaultGSProPort;
         public bool GSProModeEnabled = DefaultGSProModeEnabled;
         public bool BridgeModeEnabled = DefaultBridgeModeEnabled;
+        public bool AutoTestShotsEnabled = DefaultAutoTestShotsEnabled;
 
         // Audio
         public float MasterVolume = DefaultMasterVolume;

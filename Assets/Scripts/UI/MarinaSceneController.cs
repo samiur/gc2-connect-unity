@@ -121,7 +121,6 @@ namespace OpenRange.UI
                 _gsProModeUI.OnConnectClicked -= OnGSProConnectClicked;
                 _gsProModeUI.OnDisconnectClicked -= OnGSProDisconnectClicked;
                 _gsProModeUI.OnModeChanged -= OnGSProModeChanged;
-                _gsProModeUI.OnBridgeModeChanged -= OnBridgeModeChanged;
             }
 
             if (GameManager.Instance != null)
@@ -345,7 +344,6 @@ namespace OpenRange.UI
             _gsProModeUI.OnConnectClicked += OnGSProConnectClicked;
             _gsProModeUI.OnDisconnectClicked += OnGSProDisconnectClicked;
             _gsProModeUI.OnModeChanged += OnGSProModeChanged;
-            _gsProModeUI.OnBridgeModeChanged += OnBridgeModeChanged;
 
             // Load settings from SettingsManager
             var settings = SettingsManager.Instance;
@@ -357,11 +355,8 @@ namespace OpenRange.UI
                 // Set GSPro mode from saved settings
                 _gsProModeUI.SetMode(settings.GSProModeEnabled);
 
-                // Set bridge mode from saved settings
-                _gsProModeUI.SetBridgeMode(settings.BridgeModeEnabled);
-
-                // If bridge mode was previously enabled, re-enable it
-                if (settings.BridgeModeEnabled)
+                // If GSPro mode was previously enabled, restore bridge mode (GSPro mode = bridge mode)
+                if (settings.GSProModeEnabled)
                 {
                     RestoreBridgeMode();
                 }
@@ -385,7 +380,7 @@ namespace OpenRange.UI
         }
 
         /// <summary>
-        /// Restores bridge mode from saved settings on scene load.
+        /// Restores bridge mode when GSPro mode is enabled on scene load.
         /// </summary>
         private async void RestoreBridgeMode()
         {
@@ -416,14 +411,14 @@ namespace OpenRange.UI
             if (!success)
             {
                 Debug.LogError("MarinaSceneController: Failed to restore bridge mode");
-                // Reset the UI toggle and saved setting on failure
+                // Reset GSPro mode on failure since bridge mode is part of GSPro mode
                 if (_gsProModeUI != null)
                 {
-                    _gsProModeUI.SetBridgeMode(false);
+                    _gsProModeUI.SetMode(false);
                 }
                 if (settings != null)
                 {
-                    settings.BridgeModeEnabled = false;
+                    settings.GSProModeEnabled = false;
                 }
             }
         }
@@ -463,7 +458,7 @@ namespace OpenRange.UI
             GameManager.Instance.DisconnectFromGSPro();
         }
 
-        private void OnGSProModeChanged(bool isGSProMode)
+        private async void OnGSProModeChanged(bool isGSProMode)
         {
             if (GameManager.Instance == null) return;
 
@@ -478,10 +473,8 @@ namespace OpenRange.UI
             }
 
             Debug.Log($"MarinaSceneController: Mode changed to {newMode}");
-        }
 
-        private async void OnBridgeModeChanged(bool isBridgeModeEnabled)
-        {
+            // GSPro mode = bridge mode, so enable/disable bridge mode accordingly
             var bridgeManager = BridgeModeManager.Instance;
             if (bridgeManager == null)
             {
@@ -489,9 +482,7 @@ namespace OpenRange.UI
                 return;
             }
 
-            var settings = SettingsManager.Instance;
-
-            if (isBridgeModeEnabled)
+            if (isGSProMode)
             {
                 // Get GSPro host/port from the UI and save to settings
                 if (_gsProModeUI != null)
@@ -499,7 +490,7 @@ namespace OpenRange.UI
                     bridgeManager.GSProHost = _gsProModeUI.Host;
                     bridgeManager.GSProPort = _gsProModeUI.Port;
 
-                    // Save host/port to settings when enabling bridge mode
+                    // Save host/port to settings when enabling GSPro mode
                     if (settings != null)
                     {
                         settings.GSProHost = _gsProModeUI.Host;
@@ -510,21 +501,17 @@ namespace OpenRange.UI
                 Debug.Log($"MarinaSceneController: Enabling bridge mode to {bridgeManager.GSProHost}:{bridgeManager.GSProPort}");
                 bool success = await bridgeManager.EnableBridgeModeAsync();
 
-                if (success)
-                {
-                    // Save bridge mode state on success
-                    if (settings != null)
-                    {
-                        settings.BridgeModeEnabled = true;
-                    }
-                }
-                else
+                if (!success)
                 {
                     Debug.LogError("MarinaSceneController: Failed to enable bridge mode");
-                    // Reset toggle on failure
+                    // Reset GSPro mode toggle on failure
                     if (_gsProModeUI != null)
                     {
-                        _gsProModeUI.SetBridgeMode(false);
+                        _gsProModeUI.SetMode(false);
+                    }
+                    if (settings != null)
+                    {
+                        settings.GSProModeEnabled = false;
                     }
                 }
             }
@@ -532,12 +519,6 @@ namespace OpenRange.UI
             {
                 Debug.Log("MarinaSceneController: Disabling bridge mode");
                 bridgeManager.DisableBridgeMode();
-
-                // Save bridge mode state
-                if (settings != null)
-                {
-                    settings.BridgeModeEnabled = false;
-                }
             }
         }
 
