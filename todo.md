@@ -1,10 +1,10 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7.5 - UI Refinement (Complete)
+**Phase**: 15 - Bridge Mode (In Progress)
 **Last Updated**: 2026-01-04
-**Next Prompt**: Phase 15 Bridge Mode (Prompts 55-59)
-**Test Count**: 1600+ EditMode tests passing
+**Next Prompt**: 56 (Android Foreground Service)
+**Test Count**: 1770 EditMode tests passing
 
 ## Progress Summary
 ✅ Physics: Carry, bounce, roll validated (PRs #3, #33, #35, #37)
@@ -44,21 +44,25 @@
 
 ## Incomplete Phases (Full Detail)
 
-### Active: Prompt 60 - Test Shot Button (Touch Device Support)
+### Active: Prompt 55 - Bridge Mode Architecture ✅ (PR #73)
 
-- [ ] Add "Test Shot" button to Marina scene header
-  - [ ] Position: Left side, below Settings button (Y: -70)
-  - [ ] Size: 100x40 (same as Back/Settings)
-  - [ ] Text: "Test Shot" or "Test"
-- [ ] Wire button in MarinaSceneController
-  - [ ] Add _testShotButton serialized field
-  - [ ] Add click handler calling _testShotPanel.Toggle()
-  - [ ] Add cleanup in OnDestroy()
-- [ ] Update SceneGenerator.cs
-  - [ ] Create TestShotButton via CreateButton()
-  - [ ] Wire to controller via SerializedObject
-- [ ] Regenerate Marina scene (make generate)
-- [ ] Test on Android device without keyboard
+- [x] Create IBridgeService.cs interface
+  - [x] IsRunning, StartAsync(), Stop() lifecycle
+  - [x] OnStarted, OnStopped, OnShotRelayed, OnError events
+- [x] Create BridgeModeState enum (Disabled, Active, Backgrounded)
+- [x] Create BridgeModeStatistics struct
+- [x] Create BridgeModeManager.cs singleton
+  - [x] State machine for mode transitions
+  - [x] GSPro connection via GSProRelay
+  - [x] GC2 shot subscription
+  - [x] Platform service injection point
+  - [x] OnApplicationPause handling
+- [x] Create GSProRelay.cs lightweight relay
+  - [x] Wraps GSProClient (no physics)
+  - [x] ConnectAsync, Disconnect, RelayShot
+  - [x] UpdateDeviceStatus for heartbeat
+- [x] Write unit tests (59 tests)
+- [x] All 1770 EditMode tests passing
 
 ---
 
@@ -253,10 +257,11 @@ Visual inspiration: ProceduralGolf (toon shaders), Super-Golf (tropical aestheti
 
 Use case: Moonlight streaming - run OpenRange on Android in background, stream GSPro from PC.
 
-- [ ] **Prompt 55**: Bridge Mode Architecture
-  - [ ] Design background service pattern for each platform
-  - [ ] Define minimal UI for background operation
-  - [ ] Create BridgeModeManager.cs
+- [x] **Prompt 55**: Bridge Mode Architecture ✅ (PR #73)
+  - [x] Create IBridgeService.cs interface
+  - [x] Create BridgeModeManager.cs singleton
+  - [x] Create GSProRelay.cs lightweight relay
+  - [x] Unit tests (59 tests)
 
 - [ ] **Prompt 56**: Android Foreground Service
   - [ ] Create GC2BridgeService.kt (foreground service)
@@ -283,6 +288,8 @@ Use case: Moonlight streaming - run OpenRange on Android in background, stream G
 ---
 
 ## Recent Issue Log
+
+**2026-01-04**: Prompt 55 complete (PR #73). Bridge Mode architecture: BridgeModeManager singleton, IBridgeService interface, GSProRelay lightweight relay. 59 new tests, 1770 total.
 
 **2026-01-04**: Android app tested on real device - works! TestShotPanel inaccessible without keyboard → Added Prompt 60 for Test Shot button.
 
