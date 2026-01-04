@@ -34,6 +34,12 @@ static const float kMaxBallSpeedMph = 250.0f;    // Maximum realistic speed
 static const float kMisreadSpinValue = 2222.0f;  // Known GC2 error pattern
 static const int kFlagsReady = 7;                // Device ready (green light)
 
+// GC2 sends two readings per shot:
+// - Early reading (~150-200ms): BACK_RPM=3500, SIDE_RPM=0 (placeholders)
+// - Final reading (~800-1000ms): Actual spin values
+// We must wait for the final reading to get real spin data.
+static const int kMinMsecToProcess = 500;        // Don't send shots with MSEC < 500ms
+
 // =============================================================================
 // Internal State
 // =============================================================================
@@ -370,6 +376,18 @@ static void ProcessShotMessage(void) {
     LogInfo([NSString stringWithFormat:@"Accumulated fields (%lu):", (unsigned long)g_shotAccumulator.count]);
     for (NSString *key in [g_shotAccumulator.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
         LogInfo([NSString stringWithFormat:@"  %@ = %@", key, g_shotAccumulator[key]]);
+    }
+
+    // Check if this is an early reading (MSEC < threshold)
+    // GC2 sends early reading at ~150-200ms with placeholder spin (3500/0),
+    // then final reading at ~800-1000ms with actual spin values.
+    // We skip early readings and wait for the final reading.
+    NSNumber *msec = g_shotAccumulator[@"MSEC_SINCE_CONTACT"];
+    if (msec && [msec intValue] < kMinMsecToProcess) {
+        LogInfo([NSString stringWithFormat:@"Early reading detected (MSEC=%d < %d) - waiting for final reading",
+                 [msec intValue], kMinMsecToProcess]);
+        // DON'T clear the accumulator - let the final reading overwrite fields
+        return;
     }
 
     // Check if we have spin data (indicates complete shot)
