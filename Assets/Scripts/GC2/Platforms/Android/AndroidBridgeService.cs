@@ -358,8 +358,15 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         public void NotifyAppBackgrounded()
         {
-            if (!_isRunning || _isDisposed || _unityActivity == null)
+            Debug.Log($"AndroidBridgeService: NotifyAppBackgrounded called - isRunning={_isRunning}, isDisposed={_isDisposed}, hasActivity={_unityActivity != null}");
+
+            // Don't check _isRunning - the service might still be starting up
+            // The native service will handle the intent gracefully
+            if (_isDisposed || _unityActivity == null)
+            {
+                Debug.LogWarning("AndroidBridgeService: Cannot notify - disposed or no activity");
                 return;
+            }
 
             try
             {
@@ -367,7 +374,7 @@ namespace OpenRange.GC2.Platforms.Android
                 {
                     _unityActivity.Call("startService", intent);
                 }
-                Debug.Log("AndroidBridgeService: Notified native service - app backgrounded");
+                Debug.Log("AndroidBridgeService: Sent APP_BACKGROUNDED intent to native service");
             }
             catch (Exception ex)
             {
@@ -381,8 +388,15 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         public void NotifyAppResumed()
         {
-            if (!_isRunning || _isDisposed || _unityActivity == null)
+            Debug.Log($"AndroidBridgeService: NotifyAppResumed called - isRunning={_isRunning}, isDisposed={_isDisposed}, hasActivity={_unityActivity != null}");
+
+            // Don't check _isRunning - the service might still be starting up
+            // The native service will handle the intent gracefully
+            if (_isDisposed || _unityActivity == null)
+            {
+                Debug.LogWarning("AndroidBridgeService: Cannot notify - disposed or no activity");
                 return;
+            }
 
             try
             {
@@ -390,7 +404,7 @@ namespace OpenRange.GC2.Platforms.Android
                 {
                     _unityActivity.Call("startService", intent);
                 }
-                Debug.Log("AndroidBridgeService: Notified native service - app resumed");
+                Debug.Log("AndroidBridgeService: Sent APP_RESUMED intent to native service");
             }
             catch (Exception ex)
             {

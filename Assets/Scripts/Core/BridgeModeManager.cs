@@ -112,6 +112,8 @@ namespace OpenRange.Core
 
         private void OnApplicationPause(bool isPaused)
         {
+            Debug.Log($"BridgeModeManager: OnApplicationPause(isPaused={isPaused}), state={_state}");
+
             if (_state == BridgeModeState.Active && isPaused)
             {
                 TransitionToBackgrounded();
@@ -370,8 +372,16 @@ namespace OpenRange.Core
         private void NotifyBridgeServiceAppBackgrounded()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
+            Debug.Log($"BridgeModeManager: NotifyBridgeServiceAppBackgrounded - bridgeService={_bridgeService?.GetType().Name ?? "null"}");
             var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
-            androidService?.NotifyAppBackgrounded();
+            if (androidService != null)
+            {
+                androidService.NotifyAppBackgrounded();
+            }
+            else
+            {
+                Debug.LogWarning("BridgeModeManager: Could not cast to AndroidBridgeService");
+            }
 #endif
         }
 
@@ -381,8 +391,16 @@ namespace OpenRange.Core
         private void NotifyBridgeServiceAppResumed()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
+            Debug.Log($"BridgeModeManager: NotifyBridgeServiceAppResumed - bridgeService={_bridgeService?.GetType().Name ?? "null"}");
             var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
-            androidService?.NotifyAppResumed();
+            if (androidService != null)
+            {
+                androidService.NotifyAppResumed();
+            }
+            else
+            {
+                Debug.LogWarning("BridgeModeManager: Could not cast to AndroidBridgeService");
+            }
 #endif
         }
 
