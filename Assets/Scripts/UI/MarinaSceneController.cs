@@ -347,13 +347,30 @@ namespace OpenRange.UI
             _gsProModeUI.OnModeChanged += OnGSProModeChanged;
             _gsProModeUI.OnBridgeModeChanged += OnBridgeModeChanged;
 
+            // Load settings from SettingsManager
+            var settings = SettingsManager.Instance;
+            if (settings != null)
+            {
+                // Set host/port from saved settings
+                _gsProModeUI.SetHostPort(settings.GSProHost, settings.GSProPort);
+
+                // Set GSPro mode from saved settings
+                _gsProModeUI.SetMode(settings.GSProModeEnabled);
+
+                // Set bridge mode from saved settings
+                _gsProModeUI.SetBridgeMode(settings.BridgeModeEnabled);
+
+                // If bridge mode was previously enabled, re-enable it
+                if (settings.BridgeModeEnabled)
+                {
+                    RestoreBridgeMode();
+                }
+            }
+
             // Wire up the GSProClient from GameManager for status updates
             if (GameManager.Instance != null)
             {
                 _gsProModeUI.SetClient(GameManager.Instance.GSProClient);
-
-                // Initialize mode from current app mode
-                _gsProModeUI.SetMode(GameManager.Instance.CurrentMode == AppMode.GSPro);
 
                 // Initialize device ready state
                 var status = GameManager.Instance.CurrentDeviceStatus;
@@ -365,12 +382,49 @@ namespace OpenRange.UI
                 // Subscribe to device status changes
                 GameManager.Instance.OnDeviceStatusChanged += OnDeviceStatusChanged;
             }
+        }
 
-            // Set default host/port from settings if available
+        /// <summary>
+        /// Restores bridge mode from saved settings on scene load.
+        /// </summary>
+        private async void RestoreBridgeMode()
+        {
+            var bridgeManager = BridgeModeManager.Instance;
+            if (bridgeManager == null)
+            {
+                Debug.LogWarning("MarinaSceneController: Cannot restore bridge mode - BridgeModeManager not found");
+                return;
+            }
+
+            // Don't restore if already enabled
+            if (bridgeManager.IsEnabled)
+            {
+                Debug.Log("MarinaSceneController: Bridge mode already enabled");
+                return;
+            }
+
             var settings = SettingsManager.Instance;
             if (settings != null)
             {
-                _gsProModeUI.SetHostPort(settings.GSProHost, settings.GSProPort);
+                bridgeManager.GSProHost = settings.GSProHost;
+                bridgeManager.GSProPort = settings.GSProPort;
+            }
+
+            Debug.Log($"MarinaSceneController: Restoring bridge mode to {bridgeManager.GSProHost}:{bridgeManager.GSProPort}");
+            bool success = await bridgeManager.EnableBridgeModeAsync();
+
+            if (!success)
+            {
+                Debug.LogError("MarinaSceneController: Failed to restore bridge mode");
+                // Reset the UI toggle and saved setting on failure
+                if (_gsProModeUI != null)
+                {
+                    _gsProModeUI.SetBridgeMode(false);
+                }
+                if (settings != null)
+                {
+                    settings.BridgeModeEnabled = false;
+                }
             }
         }
 
@@ -382,6 +436,14 @@ namespace OpenRange.UI
             int port = _gsProModeUI.Port;
 
             Debug.Log($"MarinaSceneController: GSPro connect requested to {host}:{port}");
+
+            // Save host/port to settings
+            var settings = SettingsManager.Instance;
+            if (settings != null)
+            {
+                settings.GSProHost = host;
+                settings.GSProPort = port;
+            }
 
             // Update connection state to show "Connecting..."
             _gsProModeUI.SetConnectionState(GSProConnectionState.Connecting);
@@ -408,6 +470,13 @@ namespace OpenRange.UI
             var newMode = isGSProMode ? AppMode.GSPro : AppMode.OpenRange;
             GameManager.Instance.SetMode(newMode);
 
+            // Save to settings
+            var settings = SettingsManager.Instance;
+            if (settings != null)
+            {
+                settings.GSProModeEnabled = isGSProMode;
+            }
+
             Debug.Log($"MarinaSceneController: Mode changed to {newMode}");
         }
 
@@ -420,19 +489,36 @@ namespace OpenRange.UI
                 return;
             }
 
+            var settings = SettingsManager.Instance;
+
             if (isBridgeModeEnabled)
             {
-                // Get GSPro host/port from the UI
+                // Get GSPro host/port from the UI and save to settings
                 if (_gsProModeUI != null)
                 {
                     bridgeManager.GSProHost = _gsProModeUI.Host;
                     bridgeManager.GSProPort = _gsProModeUI.Port;
+
+                    // Save host/port to settings when enabling bridge mode
+                    if (settings != null)
+                    {
+                        settings.GSProHost = _gsProModeUI.Host;
+                        settings.GSProPort = _gsProModeUI.Port;
+                    }
                 }
 
                 Debug.Log($"MarinaSceneController: Enabling bridge mode to {bridgeManager.GSProHost}:{bridgeManager.GSProPort}");
                 bool success = await bridgeManager.EnableBridgeModeAsync();
 
-                if (!success)
+                if (success)
+                {
+                    // Save bridge mode state on success
+                    if (settings != null)
+                    {
+                        settings.BridgeModeEnabled = true;
+                    }
+                }
+                else
                 {
                     Debug.LogError("MarinaSceneController: Failed to enable bridge mode");
                     // Reset toggle on failure
@@ -446,6 +532,12 @@ namespace OpenRange.UI
             {
                 Debug.Log("MarinaSceneController: Disabling bridge mode");
                 bridgeManager.DisableBridgeMode();
+
+                // Save bridge mode state
+                if (settings != null)
+                {
+                    settings.BridgeModeEnabled = false;
+                }
             }
         }
 

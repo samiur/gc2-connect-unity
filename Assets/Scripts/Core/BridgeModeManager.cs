@@ -93,6 +93,15 @@ namespace OpenRange.Core
 
             _statistics = new BridgeModeStatistics();
 
+            // Load GSPro host/port from saved settings
+            var settings = SettingsManager.Instance;
+            if (settings != null)
+            {
+                _gsProHost = settings.GSProHost;
+                _gsProPort = settings.GSProPort;
+                Debug.Log($"BridgeModeManager: Loaded settings - host={_gsProHost}, port={_gsProPort}");
+            }
+
             // Create platform-specific bridge service
             if (BridgeServiceFactory.IsBridgeModeSupported())
             {
