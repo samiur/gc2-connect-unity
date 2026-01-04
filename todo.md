@@ -3,8 +3,10 @@
 ## Current Status
 **Phase**: 15 - Bridge Mode (In Progress)
 **Last Updated**: 2026-01-04
-**Next Prompt**: 57 (iOS PiP Workaround)
-**Test Count**: 1775 EditMode tests passing
+**Next Prompt**: 59 (Bridge Mode Testing - manual testing phase)
+**Test Count**: 1901 EditMode tests passing
+
+> **Note**: All iOS/iPad work (Prompts 26-28, 38, 57) deferred until other phases complete.
 
 ## Progress Summary
 ✅ Physics: Carry, bounce, roll validated (PRs #3, #33, #35, #37)
@@ -271,15 +273,18 @@ Use case: Moonlight streaming - run OpenRange on Android in background, stream G
   - [x] AndroidBridgeService.cs C# wrapper implementing IBridgeService
   - [x] Unit tests (32 tests, 5 stub tests on macOS)
 
-- [ ] **Prompt 57**: iOS PiP Workaround
+- [ ] **Prompt 57**: iOS PiP Workaround - DEFERRED
   - [ ] Research Picture-in-Picture as background workaround
   - [ ] Minimal video view to keep app active
   - [ ] Alternative: document iOS limitations
+  - > Deferred: All iOS/iPad work postponed until other phases complete
 
-- [ ] **Prompt 58**: Bridge Mode UI
-  - [ ] Minimal status overlay (connection, shots relayed)
-  - [ ] Quick toggle between full app and bridge mode
-  - [ ] Notification-based control
+- [x] **Prompt 58**: Bridge Mode UI ✅
+  - [x] Minimal status overlay (connection, shots relayed)
+  - [x] Quick toggle between full app and bridge mode
+  - [x] BridgeModeOverlay.cs with drag, expand/collapse, status colors
+  - [x] BridgeModeToggle.cs with GSPro config, battery warning
+  - [x] BridgeModeUIGenerator.cs editor tool
 
 - [ ] **Prompt 59**: Bridge Mode Testing
   - [ ] Test with Moonlight streaming
@@ -290,6 +295,8 @@ Use case: Moonlight streaming - run OpenRange on Android in background, stream G
 ---
 
 ## Recent Issue Log
+
+**2026-01-04**: Prompt 58 complete (PR #77). Bridge Mode UI: BridgeModeOverlay.cs (floating status with drag, expand/collapse, status colors), BridgeModeToggle.cs (enable toggle with GSPro config, battery warning), BridgeModeUIGenerator.cs (prefab creation). 73 new tests, 1901 total.
 
 **2026-01-04**: Prompt 56 complete (PR #75). Android foreground service for Bridge Mode: GC2BridgeService.kt with persistent notification, wake lock, START_STICKY. AndroidBridgeService.cs C# wrapper. 5 new tests (stub), 1775 total.
 
