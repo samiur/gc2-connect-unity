@@ -16,7 +16,8 @@ EDITMODE_RESULTS := $(TEST_RESULTS_DIR)/editmode-results.xml
 PLAYMODE_RESULTS := $(TEST_RESULTS_DIR)/playmode-results.xml
 
 .PHONY: all test test-edit test-play build clean help check-unity run run-marina generate \
-       build-plugin build-app build-release build-app-dev package clean-builds
+       build-plugin build-app build-release build-app-dev package clean-builds \
+       sign notarize dmg release-macos setup-signing cleanup-signing
 
 # Default target
 all: test
@@ -45,6 +46,14 @@ help:
 	@echo "  build-app     - Full macOS app build (plugin + tests + Unity)"
 	@echo "  build-release - Release build with version tagging"
 	@echo "  package       - Create DMG for distribution"
+	@echo ""
+	@echo "Code signing targets:"
+	@echo "  sign          - Sign app bundle with Developer ID"
+	@echo "  notarize      - Submit for notarization and staple ticket"
+	@echo "  dmg           - Create signed DMG for distribution"
+	@echo "  release-macos - Full pipeline: build, sign, notarize, DMG"
+	@echo "  setup-signing - Setup keychain for CI (import certificates)"
+	@echo "  cleanup-signing - Remove CI keychain after build"
 	@echo ""
 	@echo "Utility targets:"
 	@echo "  clean         - Remove build artifacts and test results"
@@ -275,3 +284,48 @@ clean-builds:
 	rm -rf $(BUILD_DIR)/dist
 	rm -rf $(BUILD_DIR)/logs
 	@echo "Build outputs cleaned"
+
+# ============================================
+# Code Signing and Notarization Targets
+# ============================================
+
+# Sign app bundle with Developer ID
+# Requires: APPLE_DEVELOPER_ID environment variable
+sign: $(MACOS_BUILD)
+	@echo "Signing app bundle..."
+	@chmod +x Scripts/sign_and_notarize.sh
+	@Scripts/sign_and_notarize.sh --sign
+
+# Submit for notarization and staple ticket
+# Requires: APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
+notarize: $(MACOS_BUILD)
+	@echo "Submitting for notarization..."
+	@chmod +x Scripts/sign_and_notarize.sh
+	@Scripts/sign_and_notarize.sh --notarize
+
+# Create signed DMG for distribution
+# Requires: App to be signed first
+dmg: $(MACOS_BUILD)
+	@echo "Creating signed DMG..."
+	@chmod +x Scripts/sign_and_notarize.sh
+	@Scripts/sign_and_notarize.sh --sign --dmg
+
+# Full release pipeline: build, sign, notarize, create DMG
+# Requires: All code signing environment variables
+release-macos: build-app
+	@echo "Running full release pipeline..."
+	@chmod +x Scripts/sign_and_notarize.sh
+	@Scripts/sign_and_notarize.sh --all
+
+# Setup keychain for CI (import certificates from base64 env vars)
+# Requires: APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD, KEYCHAIN_PASSWORD
+setup-signing:
+	@echo "Setting up signing keychain..."
+	@chmod +x Scripts/setup_signing.sh
+	@Scripts/setup_signing.sh --setup
+
+# Remove CI keychain after build
+cleanup-signing:
+	@echo "Cleaning up signing keychain..."
+	@chmod +x Scripts/setup_signing.sh
+	@Scripts/setup_signing.sh --cleanup

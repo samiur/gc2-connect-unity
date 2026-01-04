@@ -100,6 +100,14 @@ make build-app-dev # Development build (faster, debugging enabled)
 make build-release # Release build with version from git tag
 make package       # Create DMG for distribution
 
+# Code Signing (requires APPLE_DEVELOPER_ID, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD)
+make sign          # Sign app bundle with Developer ID
+make notarize      # Submit for notarization and staple ticket
+make dmg           # Create signed DMG for distribution
+make release-macos # Full pipeline: build, sign, notarize, DMG
+make setup-signing # Setup keychain for CI (import certificates)
+make cleanup-signing # Remove CI keychain after build
+
 # Cleanup
 make clean         # Remove build artifacts and test results
 make clean-builds  # Remove only build outputs (keep test results)

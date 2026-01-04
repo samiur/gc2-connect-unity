@@ -236,26 +236,111 @@ For distributing outside the Mac App Store, you need to:
 2. Notarize with Apple
 3. Staple the ticket to the app
 
-See [Prompt 37 documentation](../plan.md) for detailed signing instructions.
+### Prerequisites
 
-Quick reference:
+| Requirement | Description |
+|-------------|-------------|
+| Apple Developer Account | $99/year at developer.apple.com |
+| Developer ID Application | Certificate for signing apps |
+| App-Specific Password | For notarization API access |
+
+### Setting Up Code Signing
+
+1. **Get Developer ID Certificate**:
+   - Open Keychain Access > Certificate Assistant > Request a Certificate
+   - Upload to developer.apple.com > Certificates
+   - Download and install the Developer ID Application certificate
+
+2. **Create App-Specific Password**:
+   - Go to appleid.apple.com > Sign-In and Security > App-Specific Passwords
+   - Generate a password for "GC2 Connect Notarization"
+
+3. **Set Environment Variables**:
+   ```bash
+   export APPLE_DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)"
+   export APPLE_ID="your@email.com"
+   export APPLE_TEAM_ID="YOURTEAMID"
+   export APPLE_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+   ```
+
+### Signing Commands
+
 ```bash
-# Sign (requires Apple Developer ID)
-codesign --deep --force --verify --verbose \
-    --options runtime \
-    --sign "Developer ID Application: Your Name (TEAMID)" \
-    Builds/macOS/OpenRange.app
+# Sign app bundle only
+make sign
 
-# Notarize (requires app-specific password)
-xcrun notarytool submit Builds/dist/OpenRange.dmg \
-    --apple-id your@email.com \
-    --team-id YOURTEAMID \
-    --password @keychain:AC_PASSWORD \
-    --wait
+# Sign and submit for notarization
+make notarize
 
-# Staple
-xcrun stapler staple Builds/dist/OpenRange.dmg
+# Create signed DMG (skips notarization)
+make dmg
+
+# Full release pipeline (build, sign, notarize, DMG)
+make release-macos
 ```
+
+### Manual Commands (if needed)
+
+```bash
+# Sign with entitlements
+Scripts/sign_and_notarize.sh --sign
+
+# Submit for notarization
+Scripts/sign_and_notarize.sh --notarize
+
+# Full pipeline with DMG
+Scripts/sign_and_notarize.sh --all
+
+# Dry run (show what would happen)
+Scripts/sign_and_notarize.sh --all --dry-run
+```
+
+### Entitlements
+
+The app requires specific entitlements for:
+- **IL2CPP JIT**: `com.apple.security.cs.allow-jit`
+- **IL2CPP Memory**: `com.apple.security.cs.allow-unsigned-executable-memory`
+- **USB Access**: `com.apple.security.device.usb`
+- **libusb Loading**: `com.apple.security.cs.disable-library-validation`
+
+These are defined in `Scripts/entitlements.plist`.
+
+### Troubleshooting Notarization
+
+| Error | Solution |
+|-------|----------|
+| "The executable does not have the hardened runtime enabled" | Ensure `--options runtime` flag is used |
+| "The signature does not include a timestamp" | Ensure `--timestamp` flag is used |
+| "The executable requests the com.apple.security.get-task-allow" | Remove this entitlement for release builds |
+| "The binary is not signed with a valid Developer ID certificate" | Check certificate is installed and valid |
+
+**View notarization log**:
+```bash
+xcrun notarytool log <submission-id> \
+    --apple-id $APPLE_ID \
+    --team-id $APPLE_TEAM_ID \
+    --password $APPLE_APP_PASSWORD
+```
+
+### CI/CD Signing Setup
+
+For GitHub Actions, use the `setup-signing` target:
+
+```bash
+# Set secrets in GitHub repository settings:
+# APPLE_CERTIFICATE_BASE64 - base64 encoded .p12 file
+# APPLE_CERTIFICATE_PASSWORD - .p12 password
+# KEYCHAIN_PASSWORD - temporary keychain password
+# APPLE_DEVELOPER_ID - certificate name
+# APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
+
+# In workflow:
+make setup-signing   # Before signing
+make release-macos   # Build and sign
+make cleanup-signing # After build
+```
+
+See `Scripts/setup_signing.sh` for details.
 
 ## CI/CD Integration
 

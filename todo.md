@@ -3,13 +3,13 @@
 ## Current Status
 **Phase**: 8 - macOS Build & Release
 **Last Updated**: 2026-01-03
-**Next Prompt**: 36 (macOS Build Script and Configuration)
+**Next Prompt**: 23 (Android Plugin Project) or 29 (Integration Testing)
 **Prompts 43-46**: ✅ UI Refinement complete (Phase 7.5 done)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
 **UI**: ✅ Prompts 43-46 complete (PR #55-59)
-**Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
+**Build**: ✅ Prompt 36 complete (PR #61) | 🔄 Prompts 37-41 pending for signing/notarization and CI/CD
 
 ---
 
@@ -141,46 +141,48 @@
 
 ### Phase 8: macOS Build & Release
 
-- [ ] **Prompt 36**: macOS Build Script and Configuration
-  - [ ] Update Makefile with comprehensive macOS targets
-    - [ ] `make build-macos` - Full macOS build with native plugin
-    - [ ] `make build-macos-dev` - Development build with debugging
-    - [ ] `make package-macos` - Create DMG installer
-    - [ ] `make clean-builds` - Clean all build artifacts
-  - [ ] Create build configuration script (`Scripts/build_macos.sh`)
-    - [ ] Build native plugin first (call `build_mac_plugin.sh`)
-    - [ ] Unity CLI build with correct parameters
-    - [ ] Post-build validation (bundle structure, library linking)
-    - [ ] Architecture verification (arm64/x86_64/universal)
-  - [ ] Update Unity Player Settings for production
-    - [ ] Bundle identifier: `com.openrange.gc2connect`
-    - [ ] Version numbering scheme (semver)
-    - [ ] IL2CPP scripting backend
-    - [ ] Architecture: Apple Silicon + Intel
-  - [ ] Create DMG packaging script
-    - [ ] Application folder symlink
-    - [ ] Background image and icon placement
-    - [ ] Compressed DMG output
-  - [ ] Add build verification tests
-  - [ ] Update CLAUDE.md with build instructions
+- [x] **Prompt 36**: macOS Build Script and Configuration ✅ (PR #61)
+  - [x] Created Scripts/build_macos.sh with comprehensive build orchestration
+    - [x] Pre-build validation (Unity, Xcode, libusb)
+    - [x] Native plugin build (calls build_mac_plugin.sh)
+    - [x] Unity CLI build with IL2CPP
+    - [x] Post-build verification (bundle structure, library paths)
+    - [x] Options: --skip-tests, --skip-plugin, --development, --version=X.Y.Z, --verbose
+  - [x] Updated Makefile with new targets
+    - [x] `make build-plugin` - Native plugin only
+    - [x] `make build-app` - Full build with tests
+    - [x] `make build-app-dev` - Development build (skip tests)
+    - [x] `make build-release` - Release with git tag version
+    - [x] `make package` - Create DMG for distribution
+    - [x] `make clean-builds` - Clean build outputs only
+  - [x] Created docs/BUILD_MACOS.md with comprehensive documentation
+    - [x] Prerequisites and installation
+    - [x] Quick start commands
+    - [x] Build options reference
+    - [x] Troubleshooting guide
+    - [x] Native plugin architecture notes
+  - [x] Updated CLAUDE.md with build instructions
 
-- [ ] **Prompt 37**: macOS Code Signing and Notarization
-  - [ ] Document Apple Developer requirements
-    - [ ] Developer ID Application certificate
-    - [ ] Developer ID Installer certificate
-    - [ ] App-specific password for notarization
-  - [ ] Create signing script (`Scripts/sign_macos.sh`)
-    - [ ] Sign native plugin (GC2MacPlugin.bundle)
-    - [ ] Sign libusb dylib
-    - [ ] Sign main application bundle
-    - [ ] Deep signing with entitlements
-  - [ ] Create notarization script (`Scripts/notarize_macos.sh`)
-    - [ ] Upload to Apple notary service
-    - [ ] Wait for notarization result
-    - [ ] Staple ticket to app
-  - [ ] Create entitlements file for USB access
-  - [ ] Add GitHub secrets documentation
-  - [ ] Update Makefile with signing targets
+- [x] **Prompt 37**: macOS Code Signing and Notarization ✅ (PR #63)
+  - [x] Created Scripts/entitlements.plist with required entitlements
+    - [x] IL2CPP JIT and memory entitlements
+    - [x] USB device access entitlement
+    - [x] Library validation bypass for libusb
+  - [x] Created Scripts/sign_and_notarize.sh with full workflow
+    - [x] Sign libusb.dylib, GC2MacPlugin.bundle, OpenRange.app
+    - [x] Deep signing with hardened runtime
+    - [x] Notarization submission and stapling
+    - [x] DMG creation and signing
+    - [x] Dry-run mode for testing
+  - [x] Created Scripts/setup_signing.sh for CI
+    - [x] Import certificates from base64 env vars
+    - [x] Create temporary keychain
+    - [x] Cleanup target for post-build
+  - [x] Updated Makefile with signing targets
+    - [x] sign, notarize, dmg, release-macos
+    - [x] setup-signing, cleanup-signing
+  - [x] Updated docs/BUILD_MACOS.md with comprehensive signing docs
+  - [x] Updated CLAUDE.md with signing commands
 
 ---
 
@@ -363,6 +365,8 @@ All validated ✅ (PR #3):
 ---
 
 ## Recent Issue Log (Last 5 Entries)
+
+**2026-01-03 (macOS Build Script)**: Prompt 36 complete (PR #61). Created Scripts/build_macos.sh with comprehensive build orchestration (validation, plugin, tests, Unity build, verification). Updated Makefile with build-plugin, build-app, build-app-dev, build-release, package, clean-builds targets. Created docs/BUILD_MACOS.md with full documentation. Updated CLAUDE.md with build instructions.
 
 **2026-01-03 (Settings Panel Dropdown Fixes)**: Prompt 45 complete (PR #58). Fixed dropdown issues - ScrollRect wiring (viewport/content missing), z-order (Canvas.sortingOrder=100), item height (44px), checkmark (Unity's built-in Checkmark.psd instead of Unicode). Fixed Settings button moved to left side. Critical fix: EditorUtility.DisplayDialog() returns false in batchmode - added Application.isBatchMode check to SceneGenerator.GenerateAllScenes(). 13 new layout tests.
 
