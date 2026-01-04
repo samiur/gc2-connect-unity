@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ABOUTME: Android manifest for the GC2 Android Plugin library.
+  ABOUTME: Declares USB host feature requirement for GC2 launch monitor communication.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Required for USB Host API access to communicate with GC2 launch monitor -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="true" />
+
+    <!-- USB permission for accessing the GC2 device -->
+    <uses-permission android:name="android.permission.USB_PERMISSION" />
+
+    <application>
+        <!--
+          USB device filter for automatic app launch when GC2 is connected.
+          This meta-data references the usb_device_filter.xml resource which
+          specifies the GC2's Vendor ID (0x2C79) and Product ID (0x0110).
+        -->
+        <meta-data
+            android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+            android:resource="@xml/usb_device_filter" />
+    </application>
+
+</manifest>

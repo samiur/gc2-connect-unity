@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ABOUTME: USB device filter for the Foresight GC2 launch monitor.
+  ABOUTME: Matches devices with VID 0x2C79 (11385) and PID 0x0110 (272).
+-->
+<resources>
+    <!--
+      Foresight GC2 Launch Monitor
+      Vendor ID:  0x2C79 (11385 decimal)
+      Product ID: 0x0110 (272 decimal)
+
+      When a USB device matching these IDs is connected, Android will:
+      1. Prompt the user for permission to access the device
+      2. Optionally launch the app if configured in the manifest
+    -->
+    <usb-device
+        vendor-id="11385"
+        product-id="272" />
+</resources>
