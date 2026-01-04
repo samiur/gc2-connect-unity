@@ -1,0 +1,340 @@
+// ABOUTME: Singleton manager for Bridge Mode operation (background GC2→GSPro relay).
+// ABOUTME: Coordinates GC2 connection, GSPro relay, and platform-specific services.
+
+using System;
+using System.Threading.Tasks;
+using UnityEngine;
+using OpenRange.GC2;
+using OpenRange.Network;
+
+namespace OpenRange.Core
+{
+    /// <summary>
+    /// Manages Bridge Mode operation for background GC2→GSPro relay.
+    /// Use case: Moonlight streaming - relay shots while GSPro is streamed to device.
+    /// </summary>
+    public class BridgeModeManager : MonoBehaviour
+    {
+        /// <summary>Singleton instance.</summary>
+        public static BridgeModeManager Instance { get; private set; }
+
+        [Header("Configuration")]
+        [SerializeField] private string _gsProHost = "localhost";
+        [SerializeField] private int _gsProPort = GSProClient.DefaultPort;
+
+        [Header("State")]
+        [SerializeField] private BridgeModeState _state = BridgeModeState.Disabled;
+
+        private GSProRelay _gsProRelay;
+        private IBridgeService _bridgeService;
+        private BridgeModeStatistics _statistics;
+
+        /// <summary>Current bridge mode state.</summary>
+        public BridgeModeState State => _state;
+
+        /// <summary>GSPro host address.</summary>
+        public string GSProHost
+        {
+            get => _gsProHost;
+            set => _gsProHost = value;
+        }
+
+        /// <summary>GSPro port.</summary>
+        public int GSProPort
+        {
+            get => _gsProPort;
+            set => _gsProPort = value;
+        }
+
+        /// <summary>Whether bridge mode is currently enabled (Active or Backgrounded).</summary>
+        public bool IsEnabled => _state != BridgeModeState.Disabled;
+
+        /// <summary>Whether GSPro relay is connected.</summary>
+        public bool IsGSProConnected => _gsProRelay?.IsConnected ?? false;
+
+        /// <summary>Current bridge mode statistics.</summary>
+        public BridgeModeStatistics Statistics => _statistics;
+
+        /// <summary>Fired when bridge mode state changes.</summary>
+        public event Action<BridgeModeState> OnBridgeModeStateChanged;
+
+        /// <summary>Fired when a shot is relayed to GSPro.</summary>
+        public event Action<GC2ShotData> OnShotRelayed;
+
+        /// <summary>Fired when a shot relay fails.</summary>
+        public event Action<GC2ShotData, string> OnShotRelayFailed;
+
+        /// <summary>Fired when an error occurs.</summary>
+        public event Action<string> OnError;
+
+        private void Awake()
+        {
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else if (Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            _statistics = new BridgeModeStatistics();
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                DisableBridgeMode();
+                Instance = null;
+            }
+        }
+
+        private void OnApplicationPause(bool isPaused)
+        {
+            if (_state == BridgeModeState.Active && isPaused)
+            {
+                TransitionToBackgrounded();
+            }
+            else if (_state == BridgeModeState.Backgrounded && !isPaused)
+            {
+                TransitionToActive();
+            }
+        }
+
+        /// <summary>
+        /// Enable bridge mode and connect to GSPro.
+        /// </summary>
+        /// <returns>True if enabled successfully.</returns>
+        public async Task<bool> EnableBridgeModeAsync()
+        {
+            if (_state != BridgeModeState.Disabled)
+            {
+                Debug.LogWarning("BridgeModeManager: Already enabled");
+                return false;
+            }
+
+            Debug.Log($"BridgeModeManager: Enabling bridge mode, connecting to {_gsProHost}:{_gsProPort}");
+
+            // Create and connect relay
+            _gsProRelay = new GSProRelay();
+            _gsProRelay.OnShotRelayed += HandleShotRelayed;
+            _gsProRelay.OnError += HandleRelayError;
+
+            bool connected = await _gsProRelay.ConnectAsync(_gsProHost, _gsProPort);
+            if (!connected)
+            {
+                Debug.LogError("BridgeModeManager: Failed to connect to GSPro");
+                _gsProRelay.OnShotRelayed -= HandleShotRelayed;
+                _gsProRelay.OnError -= HandleRelayError;
+                _gsProRelay.Dispose();
+                _gsProRelay = null;
+                OnError?.Invoke("Failed to connect to GSPro");
+                return false;
+            }
+
+            // Subscribe to GC2 shots
+            if (GameManager.Instance?.GC2Connection != null)
+            {
+                GameManager.Instance.GC2Connection.OnShotReceived += HandleGC2Shot;
+            }
+
+            // Start platform service if available
+            if (_bridgeService != null)
+            {
+                await _bridgeService.StartAsync();
+            }
+
+            // Update state
+            _statistics.StartTime = DateTime.UtcNow;
+            SetState(BridgeModeState.Active);
+
+            Debug.Log("BridgeModeManager: Bridge mode enabled");
+            return true;
+        }
+
+        /// <summary>
+        /// Disable bridge mode and disconnect from GSPro.
+        /// </summary>
+        public void DisableBridgeMode()
+        {
+            if (_state == BridgeModeState.Disabled)
+            {
+                return;
+            }
+
+            Debug.Log("BridgeModeManager: Disabling bridge mode");
+
+            // Unsubscribe from GC2 shots
+            if (GameManager.Instance?.GC2Connection != null)
+            {
+                GameManager.Instance.GC2Connection.OnShotReceived -= HandleGC2Shot;
+            }
+
+            // Stop platform service
+            _bridgeService?.Stop();
+
+            // Disconnect relay
+            if (_gsProRelay != null)
+            {
+                _gsProRelay.OnShotRelayed -= HandleShotRelayed;
+                _gsProRelay.OnError -= HandleRelayError;
+                _gsProRelay.Dispose();
+                _gsProRelay = null;
+            }
+
+            SetState(BridgeModeState.Disabled);
+
+            Debug.Log("BridgeModeManager: Bridge mode disabled");
+        }
+
+        /// <summary>
+        /// Transition to backgrounded state.
+        /// Called when app is paused/backgrounded.
+        /// </summary>
+        public void TransitionToBackgrounded()
+        {
+            if (_state != BridgeModeState.Active)
+            {
+                return;
+            }
+
+            Debug.Log("BridgeModeManager: Transitioning to backgrounded");
+            SetState(BridgeModeState.Backgrounded);
+        }
+
+        /// <summary>
+        /// Transition to active state.
+        /// Called when app returns to foreground.
+        /// </summary>
+        public void TransitionToActive()
+        {
+            if (_state != BridgeModeState.Backgrounded)
+            {
+                return;
+            }
+
+            Debug.Log("BridgeModeManager: Transitioning to active");
+            SetState(BridgeModeState.Active);
+        }
+
+        /// <summary>
+        /// Set the platform-specific bridge service.
+        /// </summary>
+        /// <param name="service">The bridge service to use.</param>
+        public void SetBridgeService(IBridgeService service)
+        {
+            _bridgeService = service;
+        }
+
+        /// <summary>
+        /// Reset statistics counters.
+        /// </summary>
+        public void ResetStatistics()
+        {
+            _statistics.Reset();
+            if (IsEnabled)
+            {
+                _statistics.StartTime = DateTime.UtcNow;
+            }
+        }
+
+        /// <summary>
+        /// Relay a shot to GSPro.
+        /// Called internally when a shot is received from GC2.
+        /// </summary>
+        /// <param name="shot">The shot data to relay.</param>
+        public void RelayShotToGSPro(GC2ShotData shot)
+        {
+            if (_state == BridgeModeState.Disabled)
+            {
+                return;
+            }
+
+            if (_gsProRelay == null || !_gsProRelay.IsConnected)
+            {
+                _statistics.ShotsRejected++;
+                OnShotRelayFailed?.Invoke(shot, "GSPro not connected");
+                return;
+            }
+
+            _gsProRelay.RelayShot(shot);
+        }
+
+        /// <summary>
+        /// Update device status for GSPro heartbeat.
+        /// </summary>
+        /// <param name="isReady">Whether GC2 is ready.</param>
+        /// <param name="ballDetected">Whether ball is detected.</param>
+        public void UpdateDeviceStatus(bool isReady, bool ballDetected)
+        {
+            _gsProRelay?.UpdateDeviceStatus(isReady, ballDetected);
+        }
+
+        private void SetState(BridgeModeState newState)
+        {
+            if (_state != newState)
+            {
+                var oldState = _state;
+                _state = newState;
+                Debug.Log($"BridgeModeManager: State changed from {oldState} to {newState}");
+                OnBridgeModeStateChanged?.Invoke(newState);
+            }
+        }
+
+        private void HandleGC2Shot(GC2ShotData shot)
+        {
+            RelayShotToGSPro(shot);
+        }
+
+        private void HandleShotRelayed(GC2ShotData shot)
+        {
+            _statistics.ShotsRelayed++;
+            OnShotRelayed?.Invoke(shot);
+        }
+
+        private void HandleRelayError(string error)
+        {
+            _statistics.ShotsRejected++;
+            OnError?.Invoke(error);
+        }
+
+        #region Testing Support
+
+        /// <summary>
+        /// Force initialize singleton for testing.
+        /// </summary>
+        internal void ForceInitializeSingleton()
+        {
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+        }
+
+        /// <summary>
+        /// Force set state for testing.
+        /// </summary>
+        internal void ForceSetState(BridgeModeState state)
+        {
+            _state = state;
+        }
+
+        /// <summary>
+        /// Get the current GSProRelay for testing.
+        /// </summary>
+        internal GSProRelay GetGSProRelay() => _gsProRelay;
+
+        /// <summary>
+        /// Set statistics for testing.
+        /// </summary>
+        internal void SetStatistics(BridgeModeStatistics stats)
+        {
+            _statistics = stats;
+        }
+
+        #endregion
+    }
+}
