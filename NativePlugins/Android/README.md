@@ -29,9 +29,55 @@ NativePlugins/Android/
         │   └── usb_device_filter.xml  # GC2 VID/PID filter
         └── kotlin/com/openrange/gc2/
             ├── GC2Plugin.kt    # Main entry point
-            ├── GC2Device.kt    # USB device wrapper
+            ├── GC2Device.kt    # USB device wrapper (async reads)
             └── GC2Protocol.kt  # Protocol parser
 ```
+
+## Async USB Architecture
+
+The GC2 sends packets in rapid succession (~1-2ms apart), with 4+ packets per shot burst. Synchronous USB reads cannot keep up, causing kernel buffer overflow and packet loss.
+
+### Solution: Async UsbRequest with Queue
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Android USB Host                         │
+│                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│  │ UsbRequest 1 │    │ UsbRequest 2 │    │ UsbRequest 3 │  │
+│  │  (queued)    │    │  (queued)    │    │  (queued)    │  │
+│  └──────────────┘    └──────────────┘    └──────────────┘  │
+│                              │                              │
+│                              ▼                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │               USB Reader Thread                       │  │
+│  │  requestWait() → copy to queue → re-queue request    │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                              │                              │
+│                              ▼                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │            ConcurrentLinkedQueue<String>              │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                              │                              │
+│                              ▼                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Processor Thread                         │  │
+│  │  poll() → GC2Protocol.processData() → callbacks      │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Decisions
+
+1. **4 Queued UsbRequests**: Matches the macOS async libusb implementation. With 4 requests queued, we can capture packet bursts without loss.
+
+2. **Immediate Re-queue**: When a request completes, we immediately re-queue it while other requests continue receiving. No gaps in reception.
+
+3. **Separate Threads**: USB reading and protocol processing run on separate threads. USB reader never blocks on processing, ensuring no packet loss.
+
+4. **ConcurrentLinkedQueue**: Thread-safe, lock-free queue for passing data between threads with minimal overhead.
+
+5. **AtomicBoolean for Shutdown**: Clean, race-condition-free shutdown coordination between threads.
 
 ## Building
 

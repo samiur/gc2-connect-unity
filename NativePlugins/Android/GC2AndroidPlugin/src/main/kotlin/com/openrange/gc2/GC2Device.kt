@@ -1,5 +1,5 @@
 // ABOUTME: USB device wrapper for GC2 communication on Android.
-// ABOUTME: Handles USB connection, interface claiming, and data reading.
+// ABOUTME: Uses async UsbRequest for continuous packet reading without loss.
 
 package com.openrange.gc2
 
@@ -7,8 +7,12 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
+import android.hardware.usb.UsbRequest
 import android.util.Log
 import java.io.Closeable
+import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Wrapper class for USB communication with the GC2 device.
@@ -16,8 +20,21 @@ import java.io.Closeable
  * This class handles the low-level USB operations including:
  * - Interface claiming
  * - Endpoint discovery (INTERRUPT IN at 0x82)
- * - Data reading via interrupt transfers
+ * - Async data reading via UsbRequest (no packet loss)
  * - Protocol parsing via [GC2Protocol]
+ *
+ * ## Async USB Architecture
+ *
+ * The GC2 sends packets in rapid succession (~1-2ms apart), with 4+ packets
+ * per shot burst. Synchronous reads can't keep up, causing kernel buffer
+ * overflow and packet loss.
+ *
+ * Solution: Use Android's async UsbRequest API with multiple queued requests:
+ * 1. Queue [NUM_USB_REQUESTS] requests at startup
+ * 2. When one completes, copy data to processing queue, immediately re-queue
+ * 3. Separate thread processes the queue through GC2Protocol
+ *
+ * This mirrors the async libusb pattern used in the macOS plugin.
  *
  * @param device The USB device representing the GC2
  * @param connection The opened USB device connection
@@ -38,16 +55,31 @@ class GC2Device(
         /** USB interface index for the GC2 */
         const val INTERFACE_INDEX = 0
 
-        /** Timeout for interrupt transfers in milliseconds */
-        const val TRANSFER_TIMEOUT_MS = 100
-
         /** Buffer size for USB reads (64 bytes for interrupt transfers) */
         const val BUFFER_SIZE = 64
+
+        /**
+         * Number of async USB requests to keep queued.
+         * With 4 requests queued, we can handle bursts of packets without loss.
+         * Matches the macOS libusb implementation.
+         */
+        const val NUM_USB_REQUESTS = 4
     }
 
     private var usbInterface: UsbInterface? = null
     private var inEndpoint: UsbEndpoint? = null
-    private var readThread: Thread? = null
+
+    // Async USB request handling
+    private val usbRequests = mutableListOf<UsbRequest>()
+    private val requestBuffers = mutableMapOf<UsbRequest, ByteBuffer>()
+    private var usbReaderThread: Thread? = null
+    private var processorThread: Thread? = null
+
+    // Thread-safe queue for passing data from USB reader to processor
+    private val packetQueue = ConcurrentLinkedQueue<String>()
+
+    // Atomic flag for clean shutdown
+    private val running = AtomicBoolean(false)
 
     @Volatile
     var isConnected: Boolean = false
@@ -93,12 +125,20 @@ class GC2Device(
         Log.d(TAG, "Found endpoint: address=0x${Integer.toHexString(inEndpoint!!.address)}, " +
                 "type=${inEndpoint!!.type}, direction=${inEndpoint!!.direction}")
 
+        // Initialize async USB requests
+        if (!initializeUsbRequests()) {
+            Log.e(TAG, "Failed to initialize USB requests")
+            connection.releaseInterface(iface)
+            return false
+        }
+
         isConnected = true
+        running.set(true)
 
-        // Start the read thread
-        startReadThread()
+        // Start the reader and processor threads
+        startThreads()
 
-        Log.i(TAG, "GC2 device opened successfully")
+        Log.i(TAG, "GC2 device opened successfully with $NUM_USB_REQUESTS async requests")
         return true
     }
 
@@ -109,10 +149,37 @@ class GC2Device(
         Log.d(TAG, "Closing GC2 device")
 
         isConnected = false
+        running.set(false)
 
-        // Stop the read thread
-        readThread?.interrupt()
-        readThread = null
+        // Stop threads
+        usbReaderThread?.interrupt()
+        processorThread?.interrupt()
+
+        // Wait for threads to finish (with timeout)
+        try {
+            usbReaderThread?.join(1000)
+            processorThread?.join(1000)
+        } catch (e: InterruptedException) {
+            Log.w(TAG, "Interrupted while waiting for threads to stop")
+        }
+
+        usbReaderThread = null
+        processorThread = null
+
+        // Cancel and close all USB requests
+        for (request in usbRequests) {
+            try {
+                request.cancel()
+                request.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error closing USB request: ${e.message}")
+            }
+        }
+        usbRequests.clear()
+        requestBuffers.clear()
+
+        // Clear the packet queue
+        packetQueue.clear()
 
         // Release the interface
         usbInterface?.let { iface ->
@@ -151,55 +218,177 @@ class GC2Device(
     }
 
     /**
-     * Starts the background thread for reading USB data.
+     * Initializes async USB requests with buffers.
+     *
+     * Creates [NUM_USB_REQUESTS] UsbRequest objects, each with its own ByteBuffer.
+     * These will be queued for continuous reading.
      */
-    private fun startReadThread() {
-        readThread = Thread({
-            Log.d(TAG, "Read thread started")
-            readLoop()
-            Log.d(TAG, "Read thread finished")
-        }, "GC2-ReadThread")
+    private fun initializeUsbRequests(): Boolean {
+        val endpoint = inEndpoint ?: return false
 
-        readThread?.start()
+        for (i in 0 until NUM_USB_REQUESTS) {
+            val request = UsbRequest()
+
+            if (!request.initialize(connection, endpoint)) {
+                Log.e(TAG, "Failed to initialize USB request $i")
+                // Clean up already created requests
+                for (req in usbRequests) {
+                    req.close()
+                }
+                usbRequests.clear()
+                requestBuffers.clear()
+                return false
+            }
+
+            // Allocate a direct ByteBuffer for this request
+            val buffer = ByteBuffer.allocateDirect(BUFFER_SIZE)
+            requestBuffers[request] = buffer
+            usbRequests.add(request)
+
+            Log.d(TAG, "Initialized USB request $i")
+        }
+
+        return true
     }
 
     /**
-     * Main read loop for receiving data from the GC2.
-     *
-     * This runs on a background thread and performs interrupt transfers
-     * to receive shot data and device status messages.
+     * Starts the USB reader and packet processor threads.
      */
-    private fun readLoop() {
-        val buffer = ByteArray(BUFFER_SIZE)
-        val endpoint = inEndpoint ?: return
+    private fun startThreads() {
+        // Start the processor thread first so it's ready for data
+        processorThread = Thread({
+            Log.d(TAG, "Processor thread started")
+            processorLoop()
+            Log.d(TAG, "Processor thread finished")
+        }, "GC2-Processor")
+        processorThread?.start()
 
-        while (isConnected && !Thread.currentThread().isInterrupted) {
+        // Start the USB reader thread
+        usbReaderThread = Thread({
+            Log.d(TAG, "USB reader thread started")
+            usbReaderLoop()
+            Log.d(TAG, "USB reader thread finished")
+        }, "GC2-UsbReader")
+        usbReaderThread?.start()
+    }
+
+    /**
+     * USB reader loop using async UsbRequest.
+     *
+     * This thread:
+     * 1. Queues all USB requests at startup
+     * 2. Waits for any request to complete
+     * 3. Copies data to the packet queue
+     * 4. Immediately re-queues the request
+     *
+     * The key is that we always have multiple requests queued, so packets
+     * arriving in rapid succession are captured without loss.
+     */
+    private fun usbReaderLoop() {
+        // Queue all requests initially
+        for (request in usbRequests) {
+            val buffer = requestBuffers[request] ?: continue
+            buffer.clear()
+            buffer.limit(BUFFER_SIZE)  // Set limit for queue()
+            if (!request.queue(buffer)) {
+                Log.e(TAG, "Failed to queue initial USB request")
+            }
+        }
+
+        Log.d(TAG, "Queued $NUM_USB_REQUESTS initial USB requests")
+
+        while (running.get() && !Thread.currentThread().isInterrupted) {
             try {
-                // Perform interrupt transfer
-                val bytesRead = connection.bulkTransfer(
-                    endpoint,
-                    buffer,
-                    BUFFER_SIZE,
-                    TRANSFER_TIMEOUT_MS
-                )
+                // Wait for any request to complete (blocking)
+                val completedRequest = connection.requestWait()
 
+                if (completedRequest == null) {
+                    if (running.get()) {
+                        Log.w(TAG, "requestWait returned null")
+                    }
+                    continue
+                }
+
+                // Get the buffer for this request
+                val buffer = requestBuffers[completedRequest]
+                if (buffer == null) {
+                    Log.w(TAG, "No buffer found for completed request")
+                    continue
+                }
+
+                // Read the data from the buffer
+                val bytesRead = buffer.position()
                 if (bytesRead > 0) {
-                    // Convert to string and process
-                    val data = String(buffer, 0, bytesRead, Charsets.UTF_8)
-                    processReceivedData(data)
-                } else if (bytesRead < 0) {
-                    // Error occurred - might be disconnect
-                    if (isConnected) {
-                        Log.w(TAG, "USB transfer error: $bytesRead")
+                    // Convert to string
+                    buffer.flip()
+                    val bytes = ByteArray(bytesRead)
+                    buffer.get(bytes)
+                    val data = String(bytes, Charsets.UTF_8)
+
+                    // Add to processing queue (non-blocking)
+                    packetQueue.offer(data)
+
+                    Log.v(TAG, "Received $bytesRead bytes, queue size: ${packetQueue.size}")
+                }
+
+                // Immediately re-queue the request for the next read
+                buffer.clear()
+                buffer.limit(BUFFER_SIZE)  // Set limit for queue()
+                if (!completedRequest.queue(buffer)) {
+                    if (running.get()) {
+                        Log.e(TAG, "Failed to re-queue USB request")
                     }
                 }
-                // bytesRead == 0 means timeout, which is normal
             } catch (e: Exception) {
-                if (isConnected) {
-                    Log.e(TAG, "Read error: ${e.message}")
+                if (running.get()) {
+                    Log.e(TAG, "USB reader error: ${e.message}")
                 }
             }
         }
+
+        Log.d(TAG, "USB reader loop exiting")
+    }
+
+    /**
+     * Processor loop for handling received packets.
+     *
+     * This thread pulls packets from the queue and processes them through
+     * the GC2Protocol parser. Runs independently of USB reading so we never
+     * block packet reception.
+     */
+    private fun processorLoop() {
+        while (running.get() && !Thread.currentThread().isInterrupted) {
+            try {
+                // Poll the queue (non-blocking)
+                val data = packetQueue.poll()
+
+                if (data != null) {
+                    processReceivedData(data)
+                } else {
+                    // No data available, sleep briefly to avoid busy-waiting
+                    Thread.sleep(1)
+                }
+            } catch (e: InterruptedException) {
+                // Thread interrupted, exit gracefully
+                break
+            } catch (e: Exception) {
+                if (running.get()) {
+                    Log.e(TAG, "Processor error: ${e.message}")
+                }
+            }
+        }
+
+        // Process any remaining packets in the queue before exiting
+        while (true) {
+            val data = packetQueue.poll() ?: break
+            try {
+                processReceivedData(data)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing remaining packet: ${e.message}")
+            }
+        }
+
+        Log.d(TAG, "Processor loop exiting")
     }
 
     /**
@@ -208,10 +397,7 @@ class GC2Device(
      * @param data Raw string data from USB transfer
      */
     private fun processReceivedData(data: String) {
-        // TODO: Implement full parsing in Prompt 24
-        // This stub just logs the data
-
-        Log.v(TAG, "Received: $data")
+        Log.v(TAG, "Processing: $data")
 
         // Forward to protocol parser
         protocol.processData(data) { messageType, jsonData ->
