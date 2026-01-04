@@ -8,9 +8,9 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 ## Current State
 
 **Test Count**: 1600+ EditMode tests passing
-**Phases Complete**: 1-7, plus prompts 32-35, 42-43
-**Current Phase**: 7.5 - UI Refinement (Prompts 44-46)
-**Next Prompt**: 46
+**Phases Complete**: 1-8, plus prompts 23, 32-35, 42-46
+**Current Phase**: 9 - Android Native Plugin (Prompts 23-25)
+**Next Prompt**: 24 (Android Plugin Implementation) or 25 (Android C# Bridge)
 
 ## Phase Breakdown
 
@@ -21,9 +21,9 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 | 5 | Visualization | 6-11 | ✅ Complete |
 | 6 | UI System | 12-17 | ✅ Complete |
 | 7 | GSPro & Native Plugins | 18-22, 32-35, 42-43 | ✅ Complete |
-| 7.5 | UI Refinement | 43-46 | 🔄 In Progress (43-45 done) |
-| 8 | macOS Build & Release | 36-37 | ⏳ Pending |
-| 9 | Android Native Plugin | 23-25 | ⏳ Pending |
+| 7.5 | UI Refinement | 43-46 | ✅ Complete |
+| 8 | macOS Build & Release | 36-37 | ✅ Complete |
+| 9 | Android Native Plugin | 23-25 | 🔄 In Progress (23 done) |
 | 10 | iPad Native Plugin | 26-28 | ⏳ Pending |
 | 11 | Quality & Polish | 29-31 | ⏳ Pending |
 | 12-13 | Mobile Builds & CI/CD | 38-41 | ⏳ Future |
@@ -73,6 +73,14 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 - **Prompt 43**: GSPro Mode Panel Fixes ✅ (PR #55) - Layout constants, improved sizing
 - **Prompt 44**: Connection Panel Fixes ✅ (PR #57) - Panel height, modal positioning, close button sizing
 - **Prompt 45**: Settings Dropdown & UI Polish ✅ (PR #58) - Dropdown z-order, ScrollRect wiring, checkmark sprite, batchmode fix
+- **Prompt 46**: Test Shot Panel ✅ (PR #59) - Runtime test shots without GC2 hardware
+
+### Phase 8: macOS Build & Release
+- **Prompt 36**: macOS Build Script ✅ (PR #61) - build_macos.sh, Makefile targets
+- **Prompt 37**: Code Signing & Notarization ✅ (PR #63) - sign_and_notarize.sh, entitlements
+
+### Phase 9: Android Native Plugin
+- **Prompt 23**: Android Plugin Project ✅ (PR #65) - Kotlin/Gradle, async UsbRequest, GC2Protocol
 
 ---
 
@@ -274,57 +282,30 @@ Write comprehensive unit tests for:
 
 ---
 
-### Prompt 23: Android Plugin Project
+### Prompt 23: Android Plugin Project ✅ (Completed in PR #65)
 
 ```text
-Create the Android native plugin project structure.
+Created Android native plugin project with async USB implementation.
 
-Context: Android uses USB Host API via Kotlin.
+Completed:
+- ✅ Gradle project (Kotlin 1.9.21, AGP 8.3.0, minSdk 26, targetSdk 34)
+- ✅ AndroidManifest.xml with USB host permission
+- ✅ USB device filter (VID 0x2C79, PID 0x0110)
+- ✅ GC2Plugin.kt - Main entry point, singleton, Unity callbacks
+- ✅ GC2Device.kt - Async UsbRequest with 4 queued requests
+- ✅ GC2Protocol.kt - 0H/0M parsing, misread detection
+- ✅ build_android_plugin.sh - Builds AAR to Assets/Plugins/Android/
+- ✅ README.md with async USB architecture documentation
 
-Create NativePlugins/Android/GC2AndroidPlugin/:
+Key Implementation Detail:
+The GC2 sends 4+ packets per shot burst at 1-2ms intervals.
+Synchronous bulkTransfer() can't keep up, causing packet loss.
 
-1. Project structure:
-   - build.gradle (library)
-   - settings.gradle
-   - src/main/
-     - kotlin/com/openrange/gc2/
-     - AndroidManifest.xml
-     - res/xml/usb_device_filter.xml
-
-2. build.gradle:
-   - Android library plugin
-   - Kotlin support
-   - Min SDK 26, Target SDK 33
-   - Output: AAR
-
-3. AndroidManifest.xml:
-   - <uses-feature android:name="android.hardware.usb.host" />
-
-4. usb_device_filter.xml:
-   - vendor-id: 11385 (0x2C79)
-   - product-id: 272 (0x0110)
-
-5. Kotlin files (stubs):
-   - GC2Plugin.kt - Main entry point
-   - GC2Device.kt - USB device wrapper
-   - GC2Protocol.kt - Protocol parsing
-
-6. Unity integration:
-   - Uses UnityPlayer.UnitySendMessage
-
-7. Build script:
-   - build_android_plugin.sh
-   - Runs ./gradlew assembleRelease
-   - Copies AAR to Assets/Plugins/Android/
-
-Create NativePlugins/Android/README.md:
-- Build instructions
-- Required Android SDK
-- Testing on device
-
-Write verification tests:
-- Project builds AAR
-- AAR can be imported to Unity
+Solution: Async UsbRequest pattern matching macOS libusb:
+- 4 queued UsbRequest objects for continuous reception
+- ConcurrentLinkedQueue for thread-safe packet buffering
+- Separate USB reader thread (I/O) and processor thread (parsing)
+- Immediate re-queue on completion - no reception gaps
 ```
 
 ---

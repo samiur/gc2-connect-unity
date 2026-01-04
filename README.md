@@ -20,11 +20,11 @@ A cross-platform driving range simulator for the Foresight GC2 launch monitor, b
 | Platform | Status | USB Support |
 |----------|--------|-------------|
 | macOS (Intel + Apple Silicon) | ✅ Working | libusb |
-| iPad Pro (M1+) | 🚧 In Development | DriverKit |
-| Android Tablets | 🚧 In Development | USB Host API |
+| iPad Pro (M1+) | 🔜 Planned | DriverKit |
+| Android Tablets | 🔄 In Progress | USB Host API (async UsbRequest) |
 | Windows | 🔜 Planned | - |
 
-> **Development Status**: Phase 7.5 (UI Refinement) nearly complete - macOS USB working with real GC2 hardware! All UI components complete and polished (Shot Data Bar, Club Data Panel, Session Info, Settings Panel, Connection Status, GSPro Mode, Ball Ready Indicator). GSPro relay functional with buffer management. Next: Test Shot Panel (Prompt 46) for runtime shot testing without hardware. See [todo.md](todo.md) for current status and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
+> **Development Status**: Phase 9 (Android Native Plugin) in progress - macOS USB fully working with real GC2 hardware! Android plugin project structure complete with async USB implementation (Kotlin UsbRequest API). All UI components complete and polished. GSPro relay functional. See [todo.md](todo.md) for current status and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
 
 ## Quick Start
 

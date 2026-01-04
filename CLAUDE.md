@@ -293,8 +293,15 @@ Critical Implementation Notes:
   - Pulse animation when ready to hit
   - BallReadyIndicatorGenerator.cs editor tool for prefab creation
 
+- Android native plugin project structure (PR #65)
+  - GC2Plugin.kt - Main entry point with UnitySendMessage callbacks
+  - GC2Device.kt - Async UsbRequest pattern with 4 queued requests
+  - GC2Protocol.kt - 0H shot parsing, 0M status parsing, misread detection
+  - build_android_plugin.sh - Gradle build script
+  - AAR built and copied to Assets/Plugins/Android/
+
 **Not yet implemented:**
-- Android native plugin (Prompts 23-25)
+- Android native plugin C# bridge (Prompts 24-25)
 - iPad native plugin (Prompts 26-28)
 
 ## Editor Tools
@@ -688,7 +695,9 @@ When building native plugins for IL2CPP (standalone macOS/iOS builds):
    - Or check Player.log for errors
    - Add debug logging in native plugin with `NSLog()` or similar
 
-5. **Async libusb for packet handling** - The GC2 sends packets 1-2ms apart (4+ packets per burst). Synchronous `libusb_interrupt_transfer()` can't keep up, causing kernel buffer overflow and packet loss. The plugin uses async libusb with 4 queued transfers:
+5. **Async USB for packet handling** - The GC2 sends packets 1-2ms apart (4+ packets per burst). Synchronous reads can't keep up, causing kernel buffer overflow and packet loss.
+
+   **macOS (libusb):**
    ```objc
    // Allocate multiple transfers for continuous reading
    libusb_fill_interrupt_transfer(transfer, handle, endpoint, buffer, size, callback, user_data, 0);
@@ -705,7 +714,35 @@ When building native plugins for IL2CPP (standalone macOS/iOS builds):
        libusb_handle_events_timeout(ctx, &tv);  // Callbacks invoked here
    }
    ```
-   This keeps 4 transfers queued at all times - when one completes, it's immediately re-submitted while others continue receiving.
+
+   **Android (UsbRequest):**
+   ```kotlin
+   // Queue 4 async UsbRequest objects
+   for (request in usbRequests) {
+       val buffer = requestBuffers[request]!!
+       buffer.clear()
+       buffer.limit(BUFFER_SIZE)
+       request.queue(buffer)  // Non-blocking
+   }
+
+   // Reader thread waits for any completion
+   while (running.get()) {
+       val completedRequest = connection.requestWait()  // Blocking
+       val buffer = requestBuffers[completedRequest]!!
+       // Copy data to ConcurrentLinkedQueue, then immediately re-queue
+       buffer.clear()
+       buffer.limit(BUFFER_SIZE)
+       completedRequest.queue(buffer)
+   }
+
+   // Separate processor thread consumes from queue
+   while (running.get()) {
+       val data = packetQueue.poll()
+       if (data != null) processReceivedData(data)
+   }
+   ```
+
+   Both platforms keep 4 requests queued at all times - when one completes, it's immediately re-submitted while others continue receiving.
 
 ### Batchmode Scene Generation
 
