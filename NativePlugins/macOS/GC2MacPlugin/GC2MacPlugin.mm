@@ -347,9 +347,16 @@ static NSDictionary* BuildShotJSON(void) {
 
 /// Process completed 0H message (shot data)
 static void ProcessShotMessage(void) {
+    // Log all accumulated fields for diagnostics
+    LogInfo(@"=== SHOT MESSAGE RECEIVED ===");
+    LogInfo([NSString stringWithFormat:@"Accumulated fields (%lu):", (unsigned long)g_shotAccumulator.count]);
+    for (NSString *key in [g_shotAccumulator.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+        LogInfo([NSString stringWithFormat:@"  %@ = %@", key, g_shotAccumulator[key]]);
+    }
+
     // Check if we have spin data (indicates complete shot)
     if (!g_shotAccumulator[@"BACK_RPM"] && !g_shotAccumulator[@"SIDE_RPM"]) {
-        LogDebug(@"Shot message incomplete - waiting for spin data");
+        LogInfo(@"Shot message incomplete - waiting for spin data (BACK_RPM/SIDE_RPM not found)");
         return;
     }
 
@@ -373,6 +380,13 @@ static void ProcessShotMessage(void) {
 
     // Build and send shot JSON
     NSDictionary *shot = BuildShotJSON();
+
+    // Log final JSON for diagnostics
+    LogInfo(@"=== SENDING SHOT TO UNITY ===");
+    for (NSString *key in [shot.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+        LogInfo([NSString stringWithFormat:@"  %@ = %@", key, shot[key]]);
+    }
+
     NotifyShot(shot);
 
     // Clear accumulator for next shot
@@ -467,11 +481,21 @@ static void ReadLoop(void) {
         );
 
         if (result == 0 && transferred > 0) {
+            // Data received - log raw packet for diagnostics
+            NSMutableString *hexDump = [NSMutableString stringWithString:@"USB RAW ["];
+            for (int i = 0; i < transferred; i++) {
+                [hexDump appendFormat:@"%02X ", buffer[i]];
+            }
+            [hexDump appendString:@"]"];
+            LogInfo(hexDump);
+
             // Data received - append to line buffer
             NSString *data = [[NSString alloc] initWithBytes:buffer
                                                       length:transferred
                                                     encoding:NSUTF8StringEncoding];
             if (data) {
+                LogInfo([NSString stringWithFormat:@"USB STR: %@",
+                    [data stringByReplacingOccurrencesOfString:@"\n" withString:@"\\n"]]);
                 [g_lineBuffer appendString:data];
                 ProcessBuffer();
             } else {
