@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   ABOUTME: Android manifest for the GC2 Android Plugin library.
-  ABOUTME: Declares USB host feature requirement for GC2 launch monitor communication.
+  ABOUTME: Declares USB host feature, foreground service, and required permissions.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -13,6 +13,18 @@
     <!-- USB permission for accessing the GC2 device -->
     <uses-permission android:name="android.permission.USB_PERMISSION" />
 
+    <!-- Required for foreground service (Android 9+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- Required for connected device foreground service (Android 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+    <!-- Required for wake lock to keep USB alive when screen is off -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Required for notifications on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application>
         <!--
           USB device filter for automatic app launch when GC2 is connected.
@@ -22,6 +34,16 @@
         <meta-data
             android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
             android:resource="@xml/usb_device_filter" />
+
+        <!--
+          Foreground service for Bridge Mode operation.
+          Keeps USB connection alive when app is backgrounded for GSPro relay.
+          foregroundServiceType="connectedDevice" is required for USB access in background.
+        -->
+        <service
+            android:name=".GC2BridgeService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
     </application>
 
 </manifest>
