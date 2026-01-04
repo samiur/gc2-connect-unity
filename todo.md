@@ -1,9 +1,9 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 9 - Android Native Plugin
+**Phase**: 10 - iPad Native Plugin
 **Last Updated**: 2026-01-03
-**Next Prompt**: 25 (Android C# Bridge)
+**Next Prompt**: 26 (iPad Plugin Structure)
 **Prompts 43-46**: ✅ UI Refinement complete (Phase 7.5 done)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
@@ -221,13 +221,14 @@
   - [x] Fixed isDeviceAvailable() context reference
   - Note: Read thread, message parsing, device status in GC2Device.kt/GC2Protocol.kt (PR #65)
 
-- [ ] **Prompt 25**: Android C# Bridge
-  - [ ] Create GC2AndroidConnection.cs
-  - [ ] AndroidJavaObject calls
-  - [ ] Message handlers (OnNativeShotReceived, OnNativeDeviceStatus)
-  - [ ] Update factory
-  - [ ] Create prefab
-  - [ ] Tests
+- [x] **Prompt 25**: Android C# Bridge ✅ (PR #67)
+  - [x] Create GC2AndroidConnection.cs implementing IGC2Connection
+  - [x] AndroidJavaObject calls to GC2Plugin.kt singleton
+  - [x] UnitySendMessage callbacks (OnNativeShotReceived, OnNativeConnectionChanged, OnNativeError, OnNativeDeviceStatus)
+  - [x] JSON parsing for shot data and device status
+  - [x] Thread-safe event dispatching via MainThreadDispatcher
+  - [x] GC2ConnectionFactory already routes UNITY_ANDROID (no changes needed)
+  - [x] 52 unit tests for JSON parsing, lifecycle, event handlers
 
 ---
 
@@ -455,6 +456,8 @@ All validated ✅ (PR #3):
 ---
 
 ## Recent Issue Log (Last 5 Entries)
+
+**2026-01-03 (Android C# Bridge)**: Prompt 25 complete (PR #67). Created GC2AndroidConnection.cs implementing IGC2Connection via AndroidJavaObject. Uses UnitySendMessage callbacks for native-to-C# communication. JSON parsing for shot data (maps LaunchDirection→Direction, ClubPath→Path) and device status. Thread-safe event dispatching via MainThreadDispatcher. 52 unit tests covering JSON parsing, lifecycle, event handlers. GC2ConnectionFactory already routed UNITY_ANDROID - no changes needed.
 
 **2026-01-03 (Android Plugin Implementation)**: Prompt 24 complete (PR #66). Completed GC2Plugin.kt with full USB permission handling. Added registerReceivers()/unregisterReceivers() with RECEIVER_NOT_EXPORTED for Android 13+. Added BroadcastReceivers for USB permission (grant/deny), attach (auto-connect), detach (disconnect). connect() implementation with hasPermission() check, PendingIntent with FLAG_MUTABLE for Android 12+, requestPermission(). openDevice() creates GC2Device wrapper. getDeviceSerial() returns serial from connection. isGC2Device() helper. Fixed isDeviceAvailable() context reference.
 
