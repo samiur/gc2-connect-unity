@@ -19,6 +19,9 @@
     <!-- Required for connected device foreground service (Android 14+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
 
+    <!-- Required for data sync foreground service when GC2 not connected (Android 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <!-- Required for wake lock to keep USB alive when screen is off -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
@@ -38,11 +41,12 @@
         <!--
           Foreground service for Bridge Mode operation.
           Keeps USB connection alive when app is backgrounded for GSPro relay.
-          foregroundServiceType="connectedDevice" is required for USB access in background.
+          - connectedDevice: Used when GC2 is connected (requires USB permission grant)
+          - dataSync: Used for GSPro testing without GC2 connected
         -->
         <service
             android:name=".GC2BridgeService"
-            android:foregroundServiceType="connectedDevice"
+            android:foregroundServiceType="connectedDevice|dataSync"
             android:exported="false" />
     </application>
 
