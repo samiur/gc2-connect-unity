@@ -3,9 +3,14 @@
 
 package com.openrange.gc2
 
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
+import android.os.Build
 import android.util.Log
 
 /**
@@ -33,6 +38,9 @@ class GC2Plugin private constructor() {
         /** GC2 USB Product ID */
         const val GC2_PRODUCT_ID = 0x0110  // 272
 
+        /** Action for USB permission intent */
+        private const val ACTION_USB_PERMISSION = "com.openrange.gc2.USB_PERMISSION"
+
         @Volatile
         private var instance: GC2Plugin? = null
 
@@ -48,10 +56,99 @@ class GC2Plugin private constructor() {
         }
     }
 
-    private var context: Context? = null
+    private var appContext: Context? = null
     private var callbackGameObject: String? = null
     private var gc2Device: GC2Device? = null
     private var isInitialized = false
+    private var pendingConnectionContext: Context? = null
+    private var receiversRegistered = false
+
+    // -------------------------------------------------------------------------
+    // BroadcastReceivers for USB events
+    // -------------------------------------------------------------------------
+
+    /**
+     * BroadcastReceiver for USB permission responses.
+     * Handles the result of UsbManager.requestPermission().
+     */
+    private val usbPermissionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == ACTION_USB_PERMISSION) {
+                synchronized(this@GC2Plugin) {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
+
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        Log.i(TAG, "USB permission granted for device: ${device?.deviceName}")
+                        device?.let { openDevice(it) }
+                    } else {
+                        Log.w(TAG, "USB permission denied for device: ${device?.deviceName}")
+                        sendError("USB permission denied by user")
+                    }
+
+                    pendingConnectionContext = null
+                }
+            }
+        }
+    }
+
+    /**
+     * BroadcastReceiver for USB device attach events.
+     * Auto-connects when a GC2 device is attached.
+     */
+    private val usbAttachReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                }
+
+                if (device != null && isGC2Device(device)) {
+                    Log.i(TAG, "GC2 device attached: ${device.deviceName}")
+
+                    // Auto-connect if initialized
+                    if (isInitialized) {
+                        appContext?.let { ctx ->
+                            connect(ctx)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * BroadcastReceiver for USB device detach events.
+     * Disconnects and notifies Unity when the device is removed.
+     */
+    private val usbDetachReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == UsbManager.ACTION_USB_DEVICE_DETACHED) {
+                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                }
+
+                if (device != null && isGC2Device(device)) {
+                    Log.i(TAG, "GC2 device detached: ${device.deviceName}")
+                    disconnect()
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
 
     /**
      * Initializes the plugin with the Unity activity context.
@@ -62,9 +159,12 @@ class GC2Plugin private constructor() {
     fun initialize(context: Context, gameObjectName: String) {
         Log.d(TAG, "Initializing GC2Plugin with callback object: $gameObjectName")
 
-        this.context = context.applicationContext
+        this.appContext = context.applicationContext
         this.callbackGameObject = gameObjectName
         this.isInitialized = true
+
+        // Register broadcast receivers
+        registerReceivers(context)
 
         Log.i(TAG, "GC2Plugin initialized successfully")
     }
@@ -76,7 +176,8 @@ class GC2Plugin private constructor() {
         Log.d(TAG, "Shutting down GC2Plugin")
 
         disconnect()
-        context = null
+        unregisterReceivers()
+        appContext = null
         callbackGameObject = null
         isInitialized = false
 
@@ -89,7 +190,7 @@ class GC2Plugin private constructor() {
      * @return true if a GC2 device is connected, false otherwise
      */
     fun isDeviceAvailable(): Boolean {
-        val ctx = context ?: run {
+        val ctx = appContext ?: run {
             Log.w(TAG, "isDeviceAvailable called before initialization")
             return false
         }
@@ -100,8 +201,8 @@ class GC2Plugin private constructor() {
             return false
         }
 
-        val gc2Device = findGC2Device(usbManager)
-        return gc2Device != null
+        val device = findGC2Device(usbManager)
+        return device != null
     }
 
     /**
@@ -122,6 +223,12 @@ class GC2Plugin private constructor() {
             return false
         }
 
+        // Already connected?
+        if (gc2Device?.isConnected == true) {
+            Log.d(TAG, "Already connected to GC2 device")
+            return true
+        }
+
         val usbManager = context.getSystemService(Context.USB_SERVICE) as? UsbManager
         if (usbManager == null) {
             Log.e(TAG, "USB Manager not available")
@@ -136,11 +243,31 @@ class GC2Plugin private constructor() {
             return false
         }
 
-        // TODO: Implement permission request and connection in Prompt 24
         Log.d(TAG, "Found GC2 device: ${device.deviceName}")
 
-        // Stub: Would create GC2Device and start reading
-        sendConnectionChanged(true)
+        // Check if we already have permission
+        if (usbManager.hasPermission(device)) {
+            Log.d(TAG, "Already have USB permission, opening device")
+            openDevice(device)
+            return true
+        }
+
+        // Request permission - result will be handled by usbPermissionReceiver
+        Log.d(TAG, "Requesting USB permission")
+        pendingConnectionContext = context
+
+        val permissionIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            Intent(ACTION_USB_PERMISSION),
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+        )
+
+        usbManager.requestPermission(device, permissionIntent)
         return true
     }
 
@@ -171,17 +298,20 @@ class GC2Plugin private constructor() {
      * @return Serial number string, or null if not connected
      */
     fun getDeviceSerial(): String? {
-        // TODO: Implement in Prompt 24
-        return null
+        return gc2Device?.getSerialNumber()
     }
 
     /**
      * Gets the firmware version of the connected GC2 device.
      *
-     * @return Firmware version string, or null if not connected
+     * Note: GC2 firmware version is not exposed via USB descriptors.
+     * This would require a protocol-level query which is not yet implemented.
+     *
+     * @return Firmware version string, or null if not available
      */
     fun getFirmwareVersion(): String? {
-        // TODO: Implement in Prompt 24
+        // GC2 firmware version is not available via USB descriptors.
+        // Would need protocol-level query to retrieve this.
         return null
     }
 
@@ -255,5 +385,119 @@ class GC2Plugin private constructor() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message to Unity: ${e.message}")
         }
+    }
+
+    /**
+     * Registers BroadcastReceivers for USB events.
+     */
+    private fun registerReceivers(context: Context) {
+        if (receiversRegistered) {
+            Log.d(TAG, "Receivers already registered")
+            return
+        }
+
+        val ctx = context.applicationContext
+
+        // Register permission receiver
+        val permissionFilter = IntentFilter(ACTION_USB_PERMISSION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(usbPermissionReceiver, permissionFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(usbPermissionReceiver, permissionFilter)
+        }
+
+        // Register attach receiver
+        val attachFilter = IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(usbAttachReceiver, attachFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(usbAttachReceiver, attachFilter)
+        }
+
+        // Register detach receiver
+        val detachFilter = IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(usbDetachReceiver, detachFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(usbDetachReceiver, detachFilter)
+        }
+
+        receiversRegistered = true
+        Log.d(TAG, "USB BroadcastReceivers registered")
+    }
+
+    /**
+     * Unregisters BroadcastReceivers for USB events.
+     */
+    private fun unregisterReceivers() {
+        if (!receiversRegistered) {
+            return
+        }
+
+        appContext?.let { ctx ->
+            try {
+                ctx.unregisterReceiver(usbPermissionReceiver)
+                ctx.unregisterReceiver(usbAttachReceiver)
+                ctx.unregisterReceiver(usbDetachReceiver)
+                Log.d(TAG, "USB BroadcastReceivers unregistered")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error unregistering receivers: ${e.message}")
+            }
+        }
+
+        receiversRegistered = false
+    }
+
+    /**
+     * Checks if the given USB device is a GC2 launch monitor.
+     */
+    private fun isGC2Device(device: UsbDevice): Boolean {
+        return device.vendorId == GC2_VENDOR_ID && device.productId == GC2_PRODUCT_ID
+    }
+
+    /**
+     * Opens a connection to the GC2 device after permission is granted.
+     */
+    private fun openDevice(device: UsbDevice) {
+        val ctx = appContext ?: run {
+            Log.e(TAG, "Cannot open device: context is null")
+            sendError("Internal error: context is null")
+            return
+        }
+
+        val usbManager = ctx.getSystemService(Context.USB_SERVICE) as? UsbManager
+        if (usbManager == null) {
+            Log.e(TAG, "Cannot open device: USB Manager not available")
+            sendError("USB Manager not available")
+            return
+        }
+
+        // Close any existing connection
+        gc2Device?.close()
+        gc2Device = null
+
+        // Open the USB device connection
+        val connection = usbManager.openDevice(device)
+        if (connection == null) {
+            Log.e(TAG, "Failed to open USB device connection")
+            sendError("Failed to open USB device")
+            return
+        }
+
+        // Create and open our device wrapper
+        val gc2 = GC2Device(device, connection, this)
+        if (!gc2.open()) {
+            Log.e(TAG, "Failed to initialize GC2 device")
+            connection.close()
+            sendError("Failed to initialize GC2 device")
+            return
+        }
+
+        gc2Device = gc2
+        Log.i(TAG, "GC2 device connected successfully")
+        sendConnectionChanged(true)
     }
 }
