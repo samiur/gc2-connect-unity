@@ -304,11 +304,14 @@ class GC2BridgeService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // NOTE: Do NOT connect to GSPro here! Unity's GSProRelay is already connected.
-        // We only connect the native GSProClient when the app goes to background,
-        // at which point Unity's connection becomes inactive.
-        // See onAppBackgrounded() for the actual connection.
-        Log.d(TAG, "Deferring GSPro connection until app is backgrounded")
+        // Connect to GSPro immediately - native service handles ALL GSPro communication on Android.
+        // Unity does NOT connect to GSPro when Bridge Mode is enabled (prevents dual connection issues).
+        if (pendingGSProHost.isNotEmpty()) {
+            Log.d(TAG, "Connecting to GSPro immediately (native service handles all GSPro on Android)")
+            connectToGSPro(pendingGSProHost, pendingGSProPort)
+        } else {
+            Log.w(TAG, "No GSPro host configured")
+        }
 
         Log.i(TAG, "Bridge Mode started")
         callback?.onServiceStarted()
@@ -475,35 +478,34 @@ class GC2BridgeService : Service() {
 
     /**
      * Called when Unity app goes to background.
-     * Connects native GSPro client (Unity's connection is now paused) and starts test shots.
+     * Starts test shots if conditions are met (GSPro already connected from startBridgeMode).
      */
     private fun onAppBackgrounded() {
-        Log.i(TAG, "App backgrounded - native GSPro client taking over")
+        Log.i(TAG, "App backgrounded")
         Log.i(TAG, "  testShotModeEnabled=$testShotModeEnabled")
         Log.i(TAG, "  isGC2Connected=$isGC2Connected")
-        Log.i(TAG, "  pendingGSProHost=$pendingGSProHost:$pendingGSProPort")
+        Log.i(TAG, "  isGSProConnected=$isGSProConnected")
         isAppBackgrounded = true
 
-        // Connect to GSPro now that Unity is paused (Unity's connection becomes inactive)
-        // Then start test shots if conditions are met
-        if (pendingGSProHost.isNotEmpty()) {
-            connectToGSPro(pendingGSProHost, pendingGSProPort)
+        // GSPro is already connected from startBridgeMode() - just start test shots if conditions are met
+        if (testShotModeEnabled && !isGC2Connected && isGSProConnected) {
+            Log.i(TAG, "Conditions met - starting test shots")
+            startTestShots()
         } else {
-            Log.w(TAG, "No GSPro host configured")
+            Log.d(TAG, "Not starting test shots: testShotMode=$testShotModeEnabled, gc2=$isGC2Connected, gspro=$isGSProConnected")
         }
     }
 
     /**
      * Called when Unity app returns to foreground.
-     * Disconnects native client and stops test shots - Unity handles everything when in foreground.
+     * Stops test shots but keeps GSPro connected (native service handles all GSPro on Android).
      */
     private fun onAppResumed() {
-        Log.i(TAG, "App resumed - handing back to Unity")
+        Log.i(TAG, "App resumed - stopping test shots")
         isAppBackgrounded = false
 
-        // Stop test shots and disconnect - Unity's GSProClient will resume
+        // Stop test shots only - keep GSPro connected (native service handles all GSPro on Android)
         stopTestShots()
-        disconnectFromGSPro()
     }
 
     private fun disconnectFromGSPro() {

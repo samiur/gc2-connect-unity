@@ -145,6 +145,32 @@ namespace OpenRange.Core
 
             Debug.Log($"BridgeModeManager: Enabling bridge mode, connecting to {_gsProHost}:{_gsProPort} (GC2 connected: {isGC2Connected})");
 
+            // On Android, the native service handles ALL GSPro communication.
+            // Unity's GSProRelay is NOT used - this prevents dual connection issues.
+#if UNITY_ANDROID && !UNITY_EDITOR
+            Debug.Log("BridgeModeManager: Android - native service will handle GSPro connection");
+
+            // Start platform service - it will handle GSPro connection
+            if (_bridgeService != null)
+            {
+                // Configure GSPro parameters for native background relay
+                ConfigureBridgeServiceGSPro(isGC2Connected);
+                await _bridgeService.StartAsync();
+            }
+            else
+            {
+                Debug.LogError("BridgeModeManager: No bridge service available on Android");
+                OnError?.Invoke("Bridge service not available");
+                return false;
+            }
+
+            // Subscribe to GC2 shots (for relaying via native service)
+            if (GameManager.Instance?.GC2Connection != null)
+            {
+                GameManager.Instance.GC2Connection.OnShotReceived += HandleGC2Shot;
+            }
+#else
+            // On other platforms (macOS, Editor), use Unity's GSProRelay
             // Create and connect relay
             _gsProRelay = new GSProRelay();
             _gsProRelay.OnShotRelayed += HandleShotRelayed;
@@ -175,6 +201,7 @@ namespace OpenRange.Core
                 ConfigureBridgeServiceGSPro(isGC2Connected);
                 await _bridgeService.StartAsync();
             }
+#endif
 
             // Update state
             _statistics.StartTime = DateTime.UtcNow;
