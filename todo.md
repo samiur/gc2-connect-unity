@@ -1,14 +1,14 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 7.5 - UI Refinement & Polish
+**Phase**: 8 - macOS Build & Release
 **Last Updated**: 2026-01-03
-**Next Prompt**: 46 (Test Shot Panel - Runtime UI)
-**Prompts 43-45**: ✅ UI Refinement complete
+**Next Prompt**: 36 (macOS Build Script and Configuration)
+**Prompts 43-46**: ✅ UI Refinement complete (Phase 7.5 done)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
 **GSPro**: ✅ Client complete (PR #43) | ✅ Buffer management (PR #53)
-**UI**: ✅ Prompts 43-45 fixed layout issues | ⏳ Prompt 46 (Test Shot Panel) pending
+**UI**: ✅ Prompts 43-46 complete (PR #55-59)
 **Build**: 🔄 Prompts 36-41 added for macOS/iOS/Android builds and CI/CD release workflow
 
 ---
@@ -78,7 +78,7 @@
 
 ## Incomplete Phases (Full Detail)
 
-### Phase 7.5: UI Refinement & Polish (Continued)
+### Phase 7.5: UI Refinement & Polish ✅ Complete
 
 - [x] **Prompt 44**: Connection Panel and Settings Button Fixes (PR #57)
   - [x] Fix Connection Panel height to fit all content (420px vs ~400px required)
@@ -103,39 +103,39 @@
   - [x] Fix batchmode scene generation (DisplayDialog returns false in CLI)
   - [x] Unit tests: 13 layout validation tests in SettingsPanelGeneratorTests.cs
 
-- [ ] **Prompt 46**: Test Shot Panel (Runtime UI)
-  - [ ] Create TestShotPanel.cs
-    - [ ] Slide-out panel from left side
-    - [ ] Toggle via button or T key
-    - [ ] Quick preset buttons: Driver, 7-Iron, Wedge, Hook, Slice
-    - [ ] Ball data sliders: Speed, Launch Angle, Direction
-    - [ ] Spin data sliders: Backspin, Sidespin
-    - [ ] Optional club data section toggle
-    - [ ] Fire Shot button (green, prominent)
-    - [ ] Reset Ball button
-    - [ ] Event: OnTestShotFired(GC2ShotData)
-  - [ ] Create TestShotPanelGenerator.cs
-    - [ ] Menu: OpenRange > Create Test Shot Panel Prefab
-    - [ ] Create panel hierarchy with all UI components
-    - [ ] Left-side anchoring (300px width)
-  - [ ] Scene Integration
-    - [ ] Add Test Shot button to Marina header
-    - [ ] MarinaSceneController: Add _testShotPanel field
-    - [ ] SceneGenerator: Instantiate and wire prefab
-    - [ ] Hide when GC2 is connected
-  - [ ] Integration with ShotProcessor
-    - [ ] Call ShotProcessor.ProcessShot() with generated data
-    - [ ] Triggers full pipeline (ball, trajectory, UI, session)
-  - [ ] Keyboard shortcuts (optional)
-    - [ ] T: Toggle panel
-    - [ ] D/I/W: Fire preset shots
-    - [ ] Space: Fire current settings
-  - [ ] Unit tests
-    - [ ] Panel visibility toggle
-    - [ ] Preset values applied correctly
-    - [ ] GC2ShotData creation
-    - [ ] Event firing
-    - [ ] Club data toggle
+- [x] **Prompt 46**: Test Shot Panel (Runtime UI) ✅ (PR #59)
+  - [x] Create TestShotPanel.cs
+    - [x] Slide-out panel from left side
+    - [x] Toggle via button or T key
+    - [x] Quick preset buttons: Driver, 7-Iron, Wedge, Hook, Slice
+    - [x] Ball data sliders: Speed, Launch Angle, Direction
+    - [x] Spin data sliders: Backspin, Sidespin
+    - [x] Optional club data section toggle
+    - [x] Fire Shot button (green, prominent)
+    - [x] Reset Ball button
+    - [x] Event: OnTestShotFired(GC2ShotData)
+  - [x] Create TestShotPanelGenerator.cs
+    - [x] Menu: OpenRange > Create Test Shot Panel Prefab
+    - [x] Create panel hierarchy with all UI components
+    - [x] Left-side anchoring (300px width)
+  - [x] Scene Integration
+    - [x] Add Test Shot button to Marina header
+    - [x] MarinaSceneController: Add _testShotPanel field
+    - [x] SceneGenerator: Instantiate and wire prefab
+    - [x] Hide when GC2 is connected
+  - [x] Integration with ShotProcessor
+    - [x] Call ShotProcessor.ProcessShot() with generated data
+    - [x] Triggers full pipeline (ball, trajectory, UI, session)
+  - [x] Keyboard shortcuts (optional)
+    - [x] T: Toggle panel
+    - [x] D/I/W: Fire preset shots
+    - [x] Space: Fire current settings
+  - [x] Unit tests
+    - [x] Panel visibility toggle
+    - [x] Preset values applied correctly
+    - [x] GC2ShotData creation
+    - [x] Event firing
+    - [x] Club data toggle
 
 ---
 
