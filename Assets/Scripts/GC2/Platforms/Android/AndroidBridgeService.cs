@@ -88,6 +88,7 @@ namespace OpenRange.GC2.Platforms.Android
         #region Private Fields
 
         private AndroidJavaObject _unityActivity;
+        private AndroidJavaObject _applicationContext;
         private bool _isRunning;
         private bool _isInitialized;
         private bool _isDisposed;
@@ -178,6 +179,16 @@ namespace OpenRange.GC2.Platforms.Android
                     return;
                 }
 
+                // Get the application context for service calls
+                // Unity 6 uses GameActivity which doesn't have startService directly,
+                // so we need to use the application context
+                _applicationContext = _unityActivity.Call<AndroidJavaObject>("getApplicationContext");
+                if (_applicationContext == null)
+                {
+                    Debug.LogError("AndroidBridgeService: Failed to get application context");
+                    return;
+                }
+
                 _isInitialized = true;
                 Debug.Log($"AndroidBridgeService: Initialized with callback object: {gameObject.name}");
             }
@@ -213,6 +224,8 @@ namespace OpenRange.GC2.Platforms.Android
             }
             finally
             {
+                _applicationContext?.Dispose();
+                _applicationContext = null;
                 _unityActivity?.Dispose();
                 _unityActivity = null;
             }
@@ -309,7 +322,7 @@ namespace OpenRange.GC2.Platforms.Android
         /// <param name="isGSProConnected">Whether GSPro is connected</param>
         public void UpdateNotification(int shotsRelayed, bool isGC2Connected, bool isGSProConnected)
         {
-            if (!_isRunning || _isDisposed || _unityActivity == null)
+            if (!_isRunning || _isDisposed || _applicationContext == null)
                 return;
 
             _shotsRelayed = shotsRelayed;
@@ -323,7 +336,7 @@ namespace OpenRange.GC2.Platforms.Android
                     intent.Call<AndroidJavaObject>("putExtra", ExtraShotsRelayed, shotsRelayed);
                     intent.Call<AndroidJavaObject>("putExtra", ExtraIsConnected, isGC2Connected);
                     intent.Call<AndroidJavaObject>("putExtra", ExtraGSProConnected, isGSProConnected);
-                    _unityActivity.Call("startService", intent);
+                    _applicationContext.Call<AndroidJavaObject>("startService", intent);
                 }
             }
             catch (Exception ex)
@@ -358,13 +371,13 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         public void NotifyAppBackgrounded()
         {
-            Debug.Log($"AndroidBridgeService: NotifyAppBackgrounded called - isRunning={_isRunning}, isDisposed={_isDisposed}, hasActivity={_unityActivity != null}");
+            Debug.Log($"AndroidBridgeService: NotifyAppBackgrounded called - isRunning={_isRunning}, isDisposed={_isDisposed}, hasContext={_applicationContext != null}");
 
             // Don't check _isRunning - the service might still be starting up
             // The native service will handle the intent gracefully
-            if (_isDisposed || _unityActivity == null)
+            if (_isDisposed || _applicationContext == null)
             {
-                Debug.LogWarning("AndroidBridgeService: Cannot notify - disposed or no activity");
+                Debug.LogWarning("AndroidBridgeService: Cannot notify - disposed or no context");
                 return;
             }
 
@@ -372,7 +385,7 @@ namespace OpenRange.GC2.Platforms.Android
             {
                 using (var intent = CreateServiceIntent(ActionAppBackgrounded))
                 {
-                    _unityActivity.Call("startService", intent);
+                    _applicationContext.Call<AndroidJavaObject>("startService", intent);
                 }
                 Debug.Log("AndroidBridgeService: Sent APP_BACKGROUNDED intent to native service");
             }
@@ -388,13 +401,13 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         public void NotifyAppResumed()
         {
-            Debug.Log($"AndroidBridgeService: NotifyAppResumed called - isRunning={_isRunning}, isDisposed={_isDisposed}, hasActivity={_unityActivity != null}");
+            Debug.Log($"AndroidBridgeService: NotifyAppResumed called - isRunning={_isRunning}, isDisposed={_isDisposed}, hasContext={_applicationContext != null}");
 
             // Don't check _isRunning - the service might still be starting up
             // The native service will handle the intent gracefully
-            if (_isDisposed || _unityActivity == null)
+            if (_isDisposed || _applicationContext == null)
             {
-                Debug.LogWarning("AndroidBridgeService: Cannot notify - disposed or no activity");
+                Debug.LogWarning("AndroidBridgeService: Cannot notify - disposed or no context");
                 return;
             }
 
@@ -402,7 +415,7 @@ namespace OpenRange.GC2.Platforms.Android
             {
                 using (var intent = CreateServiceIntent(ActionAppResumed))
                 {
-                    _unityActivity.Call("startService", intent);
+                    _applicationContext.Call<AndroidJavaObject>("startService", intent);
                 }
                 Debug.Log("AndroidBridgeService: Sent APP_RESUMED intent to native service");
             }
@@ -515,13 +528,14 @@ namespace OpenRange.GC2.Platforms.Android
                     $"gsProHost={_gsProHost}, gsProPort={_gsProPort}, testShotMode={_testShotModeEnabled}");
 
                 // Use startForegroundService for Android 8.0+
+                // Use application context since Unity 6's GameActivity doesn't have startService directly
                 if (GetAndroidApiLevel() >= 26)
                 {
-                    _unityActivity.Call<AndroidJavaObject>("startForegroundService", intent);
+                    _applicationContext.Call<AndroidJavaObject>("startForegroundService", intent);
                 }
                 else
                 {
-                    _unityActivity.Call<AndroidJavaObject>("startService", intent);
+                    _applicationContext.Call<AndroidJavaObject>("startService", intent);
                 }
             }
 
@@ -535,7 +549,7 @@ namespace OpenRange.GC2.Platforms.Android
         {
             using (var intent = CreateServiceIntent(ActionStop))
             {
-                _unityActivity.Call("startService", intent);
+                _applicationContext.Call<AndroidJavaObject>("startService", intent);
             }
 
             _isRunning = false;
