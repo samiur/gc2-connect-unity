@@ -355,13 +355,18 @@ namespace OpenRange.Editor
             var buttonGo = new GameObject(text + "Button");
             buttonGo.transform.SetParent(parent);
             var buttonRect = buttonGo.AddComponent<RectTransform>();
+            buttonRect.sizeDelta = new Vector2(ButtonMinWidth, PresetButtonHeight);
 
             var buttonLayout = buttonGo.AddComponent<LayoutElement>();
             buttonLayout.minWidth = ButtonMinWidth;
+            buttonLayout.minHeight = PresetButtonHeight;
+            buttonLayout.preferredHeight = PresetButtonHeight;
             buttonLayout.flexibleWidth = 1f;
+            buttonLayout.flexibleHeight = 0f;
 
             var buttonImage = buttonGo.AddComponent<Image>();
             buttonImage.color = new Color(0.25f, 0.25f, 0.30f, 0.9f);
+            buttonImage.raycastTarget = true;  // Ensure button receives clicks
 
             var button = buttonGo.AddComponent<Button>();
             button.targetGraphic = buttonImage;
