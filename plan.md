@@ -27,6 +27,7 @@ Platforms: macOS (Intel + Apple Silicon), iPad (M1+ with DriverKit), Android tab
 | 10 | iPad Native Plugin | 26-28 | ⏳ Pending |
 | 11 | Quality & Polish | 29-31 | ⏳ Pending |
 | 12-13 | Mobile Builds & CI/CD | 38-41 | ⏳ Future |
+| 14 | Visual Enhancements | 47-54 | ⏳ Pending |
 
 ---
 
@@ -1223,6 +1224,723 @@ Write verification:
 - All platform builds complete (or skip gracefully)
 - GitHub Release created with correct assets
 - Release notes generated correctly
+```
+
+---
+
+## Phase 14: Visual Enhancements
+
+Visual inspiration from:
+- **ProceduralGolf** (SolomonBaarda): Toon shaders, water with foam, stylized skybox, outline rendering
+- **Super-Golf** (jzgom067): Tropical island aesthetic, trail renderers, dramatic landscapes
+- **golf_simulator** (JanWalsh91): Custom shaders (14% ShaderLab), beautiful landscapes
+
+Key visual elements to implement:
+1. Stylized skybox with volumetric clouds
+2. Improved grass shader with wind animation
+3. Enhanced water shader with foam and reflections
+4. Toon/outline shader option for stylized mode
+5. Improved ball trail with gradient glow
+6. Post-processing effects (bloom, color grading, ambient occlusion)
+7. Environment props (trees, rocks, scenery)
+8. Dramatic lighting setup
+
+---
+
+### Prompt 47: Stylized Skybox and Lighting Setup
+
+```text
+Create a dramatic skybox and lighting configuration for the Marina driving range.
+
+Context: Looking at reference projects like Super-Golf and ProceduralGolf, they use stylized skyboxes with volumetric-looking clouds that create a dramatic atmosphere. The current Marina scene likely uses default lighting. We need a cohesive visual atmosphere.
+
+Inspiration: The SuperGolf screenshot shows:
+- Blue sky with white fluffy clouds
+- Dramatic mountain silhouettes
+- Warm/cool color contrast
+- Clear horizon line
+
+Files to create:
+- Assets/Shaders/Skybox/StylizedSkybox.shader
+- Assets/Materials/Skybox/MarinaSkybox.mat
+- Assets/Scripts/Visualization/DayNightCycle.cs (optional, for future expansion)
+- Assets/Editor/LightingSetupGenerator.cs
+- Assets/Tests/EditMode/SkyboxTests.cs
+
+Requirements:
+
+1. StylizedSkybox.shader (URP compatible):
+   - Procedural gradient sky (horizon to zenith color blend)
+   - Sun position parameter affecting sky color
+   - Cloud layer using noise texture or procedural noise
+   - Horizon fog/haze effect
+   - HDR output for bloom compatibility
+   - Properties:
+     * _TopColor (HDR color for zenith)
+     * _HorizonColor (HDR color for horizon)
+     * _SunColor (HDR for sun disc)
+     * _SunSize (float, sun disc size)
+     * _CloudDensity (float, 0-1)
+     * _CloudSpeed (float, animation speed)
+     * _HorizonFogDensity (float)
+
+2. MarinaSkybox.mat:
+   - Use StylizedSkybox shader
+   - Preset for "Golden Hour" look:
+     * Top: Deep blue (0.1, 0.3, 0.8)
+     * Horizon: Warm orange-pink (1.0, 0.6, 0.4)
+     * Sun: Bright yellow-white (1.5, 1.4, 1.0) HDR
+   - Alternative "Clear Day" preset values documented
+
+3. Lighting Configuration:
+   - Directional light as sun:
+     * Soft shadows
+     * Warm color temperature (5500-6500K)
+     * Rotation matching skybox sun position
+   - Ambient lighting:
+     * Gradient mode (sky/equator/ground colors)
+     * Sky color from skybox top
+     * Ground color darker/cooler
+   - Reflection probe for environmental reflections
+
+4. LightingSetupGenerator.cs:
+   - Menu: OpenRange > Lighting > Setup Marina Lighting
+   - Creates/configures directional light
+   - Sets RenderSettings for ambient
+   - Creates skybox material if missing
+   - Applies to current scene
+
+5. Integration with QualityManager:
+   - High: Full skybox, soft shadows, reflection probe
+   - Medium: Simplified skybox, hard shadows, no probe
+   - Low: Solid color skybox, no shadows
+
+Write unit tests for:
+- Shader compiles without errors
+- Material properties are accessible
+- Lighting generator creates expected objects
+- Quality tier changes affect lighting settings
+```
+
+---
+
+### Prompt 48: Enhanced Grass Shader with Wind Animation
+
+```text
+Create a stylized grass shader with wind animation for the Marina driving range terrain.
+
+Context: The current grass materials are likely basic URP Lit materials. ProceduralGolf uses stylized toon rendering, and real golf courses have grass that moves in the wind, adding life to the scene.
+
+Files to create:
+- Assets/Shaders/Environment/StylizedGrass.shader
+- Assets/Shaders/Environment/StylizedGrass.hlsl (include file)
+- Assets/Materials/Environment/FairwayGrassEnhanced.mat
+- Assets/Materials/Environment/RoughGrass.mat
+- Assets/Materials/Environment/GreenGrass.mat
+- Assets/Scripts/Visualization/WindController.cs
+- Assets/Editor/GrassShaderSetup.cs
+- Assets/Tests/EditMode/GrassShaderTests.cs
+
+Requirements:
+
+1. StylizedGrass.shader (URP Lit-based):
+   - Base color with albedo texture support
+   - Wind animation via vertex displacement:
+     * Global wind direction (Vector3)
+     * Wind strength parameter
+     * Wind turbulence (noise-based variation)
+     * Height-based influence (grass tips move more)
+   - Color variation:
+     * Tip color tint (lighter at grass tips)
+     * Shadow color tint (darker in shadows)
+   - Optional subsurface scattering approximation for backlit grass
+   - Properties:
+     * _BaseColor, _BaseMap
+     * _TipColor (color at grass blade tips)
+     * _WindDirection (Vector4, xyz = direction, w = strength)
+     * _WindSpeed (animation speed)
+     * _WindTurbulence (noise scale)
+     * _GrassHeight (for vertex displacement scaling)
+
+2. WindController.cs:
+   - Singleton managing global wind parameters
+   - Properties:
+     * WindDirection (Vector3)
+     * WindStrength (0-1 normalized)
+     * WindSpeed (m/s for physics)
+     * Gusting (bool, enables variation)
+   - Updates Shader.SetGlobalVector("_GlobalWindDirection")
+   - Optional: Gusting with Perlin noise variation
+   - Integration with SettingsManager wind settings
+   - Events: OnWindChanged
+
+3. Material Presets:
+   - FairwayGrassEnhanced: Short, well-maintained look
+     * Bright green base
+     * Subtle tip lightening
+     * Low grass height (minimal wind effect)
+   - RoughGrass: Longer, wilder grass
+     * Darker/yellower green
+     * More wind movement
+     * Higher grass height
+   - GreenGrass: Putting green
+     * Very short, uniform
+     * Minimal/no wind effect
+     * Smooth, manicured look
+
+4. GrassShaderSetup.cs:
+   - Menu: OpenRange > Materials > Create Grass Materials
+   - Creates all grass material presets
+   - Applies to terrain if present
+   - Creates WindController if missing
+
+5. Performance considerations:
+   - Shader LOD for quality tiers
+   - Disable wind animation on Low quality
+   - Vertex animation only (no geometry shader)
+
+Write unit tests for:
+- Shader compiles without errors
+- WindController updates global shader properties
+- Material presets have correct default values
+- Quality tier affects wind animation toggle
+```
+
+---
+
+### Prompt 49: Water Shader with Foam and Reflections
+
+```text
+Create a stylized water shader for water hazards and the marina backdrop.
+
+Context: ProceduralGolf uses the "Simple Water Shader URP" by IgniteCoders which features scrolling normals, depth-based foam, and wave animation. Water adds significant visual interest and the Marina scene should have ocean/lake backdrop.
+
+Files to create:
+- Assets/Shaders/Environment/StylizedWater.shader
+- Assets/Shaders/Environment/WaterFunctions.hlsl
+- Assets/Materials/Environment/OceanWater.mat
+- Assets/Materials/Environment/PondWater.mat
+- Assets/Scripts/Visualization/WaterController.cs
+- Assets/Editor/WaterSetupGenerator.cs
+- Assets/Tests/EditMode/WaterShaderTests.cs
+
+Requirements:
+
+1. StylizedWater.shader (URP compatible):
+   - Base water color (deep and shallow blend based on depth)
+   - Scrolling normal maps for wave appearance:
+     * Two normal maps scrolling in different directions
+     * Blended for complex wave patterns
+   - Depth-based effects (requires depth texture):
+     * Shallow water lighter color
+     * Foam line at water-object intersection
+     * Transparency falloff
+   - Reflection:
+     * Planar reflection (High quality)
+     * Cubemap fallback (Medium/Low)
+     * Fresnel-based reflection intensity
+   - Wave vertex animation:
+     * Gerstner wave approximation or sine-based
+     * Configurable amplitude and frequency
+   - Properties:
+     * _ShallowColor, _DeepColor
+     * _NormalMap1, _NormalMap2
+     * _NormalScale, _NormalSpeed1, _NormalSpeed2
+     * _FoamColor, _FoamThreshold, _FoamSoftness
+     * _WaveAmplitude, _WaveFrequency, _WaveSpeed
+     * _ReflectionStrength, _FresnelPower
+
+2. WaterController.cs:
+   - Manages water plane instances
+   - Planar reflection camera setup (High quality):
+     * Creates reflection camera
+     * Renders to RenderTexture
+     * Passes texture to water material
+   - Quality tier handling:
+     * High: Planar reflection + foam + waves
+     * Medium: Cubemap reflection + foam, reduced waves
+     * Low: Solid color + basic scrolling, no foam
+
+3. Material Presets:
+   - OceanWater: Open water, darker blue, larger waves
+   - PondWater: Calm water hazard, lighter, minimal waves
+
+4. WaterSetupGenerator.cs:
+   - Menu: OpenRange > Environment > Create Water Prefab
+   - Creates water plane with material
+   - Configures WaterController
+   - Optional: Creates ocean backdrop plane for Marina
+
+5. Normal map textures:
+   - Create procedural normal map generation OR
+   - Document how to import water normal textures
+   - Include simple tiling normal in shader as fallback
+
+6. Integration:
+   - Depth texture must be enabled in URP asset
+   - Document URP settings required
+
+Write unit tests for:
+- Shader compiles without errors
+- WaterController quality tier switching
+- Material depth fade works (mock depth)
+- Foam threshold affects output
+```
+
+---
+
+### Prompt 50: Post-Processing Volume Configuration
+
+```text
+Configure post-processing effects for cinematic visual quality.
+
+Context: Modern golf games use post-processing to enhance visuals. ProceduralGolf mentions SSAO support, and the SuperGolf screenshot shows subtle bloom on the sky. URP's Volume system provides these effects.
+
+Files to create:
+- Assets/Settings/PostProcessing/MarinaVolume.asset
+- Assets/Settings/PostProcessing/HighQualityProfile.asset
+- Assets/Settings/PostProcessing/MediumQualityProfile.asset
+- Assets/Settings/PostProcessing/LowQualityProfile.asset
+- Assets/Scripts/Visualization/PostProcessingController.cs
+- Assets/Editor/PostProcessingSetupGenerator.cs
+- Assets/Tests/EditMode/PostProcessingTests.cs
+
+Requirements:
+
+1. Volume Profiles (URP Post-Processing):
+
+   HighQualityProfile.asset:
+   - Bloom:
+     * Threshold: 0.9
+     * Intensity: 0.5
+     * Scatter: 0.7
+     * Tint: Warm white
+   - Color Adjustments:
+     * Saturation: +10
+     * Contrast: +5
+     * Post Exposure: 0
+   - Vignette:
+     * Intensity: 0.2
+     * Smoothness: 0.4
+   - Ambient Occlusion (SSAO):
+     * Intensity: 0.5
+     * Radius: 0.3
+   - Depth of Field (optional, for replay mode):
+     * Mode: Bokeh
+     * Focus distance: Ball position
+   - Motion Blur (optional):
+     * Intensity: 0.1 (only during fast camera moves)
+
+   MediumQualityProfile.asset:
+   - Bloom: Intensity 0.3, lower quality
+   - Color Adjustments: Same as High
+   - Vignette: Same
+   - No SSAO, no DOF, no Motion Blur
+
+   LowQualityProfile.asset:
+   - Bloom: Disabled
+   - Color Adjustments: Saturation +5 only
+   - No other effects
+
+2. PostProcessingController.cs:
+   - Manages active Volume based on quality tier
+   - Methods:
+     * SetQualityTier(QualityTier) - swaps profile
+     * SetDepthOfFieldFocus(Vector3 target) - for cinematic shots
+     * EnableMotionBlur(bool) - toggle during fast transitions
+   - References Volume component in scene
+   - Integration with QualityManager.OnQualityTierChanged
+
+3. MarinaVolume.asset:
+   - Global Volume with default Medium profile
+   - Priority 0 (base effects)
+
+4. PostProcessingSetupGenerator.cs:
+   - Menu: OpenRange > Post-Processing > Create Volume Profiles
+   - Creates all profile assets
+   - Menu: OpenRange > Post-Processing > Add Volume to Scene
+   - Adds Global Volume to current scene with controller
+
+5. URP Asset Configuration:
+   - Document required URP settings:
+     * Post-processing enabled
+     * HDR enabled
+     * Depth texture enabled (for SSAO)
+   - Update existing URP quality assets if needed
+
+6. Scene Integration:
+   - SceneGenerator.cs: Add Volume to Marina scene
+   - Wire PostProcessingController to MarinaSceneController
+
+Write unit tests for:
+- Profile assets created with expected overrides
+- PostProcessingController quality switching
+- Volume component properly configured
+- Effects enabled/disabled per tier
+```
+
+---
+
+### Prompt 51: Enhanced Ball Trail and Trajectory Visuals
+
+```text
+Enhance the ball trail and trajectory line visuals for more dramatic flight visualization.
+
+Context: The SuperGolf screenshot shows a thin white trajectory line arcing through the sky. ProceduralGolf likely uses stylized trails. Current implementation uses basic LineRenderer and TrailRenderer. We want a more polished, glowing effect.
+
+Files to create:
+- Assets/Shaders/Effects/TrailGlow.shader
+- Assets/Shaders/Effects/TrajectoryLine.shader
+- Assets/Materials/Effects/EnhancedTrajectory.mat
+- Assets/Materials/Effects/EnhancedBallTrail.mat
+- Assets/Scripts/Visualization/TrajectoryEnhancer.cs
+- Assets/Editor/TrajectoryVisualsGenerator.cs
+- Assets/Tests/EditMode/EnhancedTrajectoryTests.cs
+
+Requirements:
+
+1. TrailGlow.shader (for ball trail):
+   - Additive blending for glow effect
+   - Gradient along trail length (bright at ball, fade out)
+   - HDR color support for bloom interaction
+   - Soft edges using alpha gradient
+   - Properties:
+     * _TrailColor (HDR color)
+     * _GlowIntensity (multiplier for HDR)
+     * _FadeLength (how quickly trail fades)
+     * _TrailWidth
+   - Vertex color support for gradient
+
+2. TrajectoryLine.shader (for arc preview/history):
+   - Dashed or solid line options
+   - Glow effect (softer than trail)
+   - Gradient along path (start to end color)
+   - Optional: Animated dash movement
+   - Properties:
+     * _LineColor (HDR color)
+     * _GlowIntensity
+     * _DashLength, _GapLength (0 for solid)
+     * _DashSpeed (animation speed)
+
+3. Material Presets:
+   - EnhancedTrajectory.mat:
+     * White with subtle cyan tint (matching SuperGolf)
+     * Low glow intensity (not overpowering)
+     * Solid line (no dashes for actual flight)
+   - EnhancedBallTrail.mat:
+     * Bright white/cyan core
+     * Higher HDR intensity for bloom
+     * Quick fade (short trail length)
+
+4. TrajectoryEnhancer.cs:
+   - Component to enhance existing TrajectoryRenderer
+   - Adds secondary "glow" LineRenderer behind main line
+   - Configurable glow parameters
+   - Quality tier support:
+     * High: Glow + main line + HDR
+     * Medium: Main line only, subtle glow
+     * Low: Basic line, no glow
+   - Optional: Trail particles along trajectory
+
+5. Update existing components:
+   - BallVisuals.cs: Use new trail material
+   - TrajectoryRenderer.cs: Support for enhanced materials
+
+6. TrajectoryVisualsGenerator.cs:
+   - Menu: OpenRange > Visuals > Create Enhanced Trajectory Materials
+   - Creates shaders and materials
+   - Menu: OpenRange > Visuals > Upgrade Ball Trail
+   - Updates existing BallTrail prefab/material
+
+7. Color Customization:
+   - Allow trajectory color to indicate shot quality:
+     * Perfect shot: Gold/yellow glow
+     * Good shot: White/cyan
+     * Mishit: Orange/red tint
+   - TrajectoryRenderer.SetShotQualityColor(ShotQuality)
+
+Write unit tests for:
+- Shaders compile without errors
+- Materials have HDR colors
+- TrajectoryEnhancer quality tier switching
+- Color customization works
+```
+
+---
+
+### Prompt 52: Environment Props - Trees and Scenery
+
+```text
+Add environmental scenery to the Marina driving range for visual interest.
+
+Context: Super-Golf features dramatic mountain/island scenery. ProceduralGolf uses low-poly tree and rock assets. The Marina scene needs background scenery to feel like a real driving range location.
+
+Files to create:
+- Assets/Prefabs/Environment/Props/PalmTree.prefab
+- Assets/Prefabs/Environment/Props/RockCluster.prefab
+- Assets/Prefabs/Environment/Props/DistantMountain.prefab
+- Assets/Prefabs/Environment/Props/FlagPole.prefab
+- Assets/Materials/Environment/Foliage.mat
+- Assets/Materials/Environment/Rock.mat
+- Assets/Scripts/Visualization/PropPlacer.cs
+- Assets/Scripts/Visualization/LODController.cs
+- Assets/Editor/EnvironmentPropsGenerator.cs
+- Assets/Tests/EditMode/EnvironmentPropsTests.cs
+
+Requirements:
+
+1. Low-Poly Prop Meshes (create procedurally or document asset sources):
+
+   PalmTree.prefab:
+   - Simple trunk (cylinder/cone)
+   - 4-6 frond planes with alpha texture
+   - LOD Group: High (full), Medium (fewer fronds), Low (billboard)
+   - Optional: Frond wind animation via shader
+   - Foliage material with alpha cutout
+
+   RockCluster.prefab:
+   - 3-5 rock meshes grouped
+   - Low-poly stylized shapes
+   - LOD Group: High (detailed), Low (simplified)
+   - Rock material with subtle normal detail
+
+   DistantMountain.prefab:
+   - Large background silhouette mesh
+   - Simplified geometry
+   - Atmospheric fog shader (fades with distance)
+   - Non-collidable (visual only)
+
+   FlagPole.prefab:
+   - Pole mesh + flag plane
+   - Flag wind animation (vertex shader)
+   - Target green flag appearance
+
+2. Materials:
+   - Foliage.mat: Alpha cutout, backface rendering, wind support
+   - Rock.mat: Stylized color with subtle detail
+   - Mountain.mat: Fog/distance fade shader
+
+3. PropPlacer.cs:
+   - Runtime prop placement manager
+   - Spawns props around range perimeter
+   - Respects exclusion zones (fairway, greens)
+   - Quality tier adjustments:
+     * High: Full prop density, all LODs
+     * Medium: 50% density, force lower LODs
+     * Low: 25% density, billboards only
+   - Randomization: rotation, scale variation
+
+4. LODController.cs:
+   - Manages LOD distances based on quality tier
+   - Aggressive culling for distant props
+   - Integrates with Unity LOD system
+
+5. EnvironmentPropsGenerator.cs:
+   - Menu: OpenRange > Environment > Create Prop Prefabs
+   - Creates basic procedural meshes for props
+   - Menu: OpenRange > Environment > Place Marina Props
+   - Runs PropPlacer to populate Marina scene
+   - Saves placed props as scene objects
+
+6. Marina Scene Layout:
+   - Palm trees along sides of range
+   - Rock clusters near boundaries
+   - Distant mountains on horizon
+   - Scattered small props (benches, signs)
+
+7. Performance:
+   - GPU instancing for repeated props
+   - Occlusion culling friendly
+   - Batching for static props
+
+Write unit tests for:
+- Prefabs have LODGroup components
+- PropPlacer respects exclusion zones
+- Quality tier affects prop density
+- Materials use correct shaders
+```
+
+---
+
+### Prompt 53: Toon/Outline Shader Option
+
+```text
+Create an optional toon shader mode for a stylized visual style inspired by ProceduralGolf.
+
+Context: ProceduralGolf uses DELTation's URP Toon Shader for a cartoon-like appearance with rim lighting and outlines. This could be an alternative visual style option in Settings.
+
+Files to create:
+- Assets/Shaders/Toon/ToonLit.shader
+- Assets/Shaders/Toon/ToonOutline.shader
+- Assets/Shaders/Toon/ToonFunctions.hlsl
+- Assets/Materials/Toon/ToonBall.mat
+- Assets/Materials/Toon/ToonGrass.mat
+- Assets/Materials/Toon/ToonEnvironment.mat
+- Assets/Scripts/Visualization/ToonModeController.cs
+- Assets/Editor/ToonMaterialGenerator.cs
+- Assets/Tests/EditMode/ToonShaderTests.cs
+
+Requirements:
+
+1. ToonLit.shader (URP compatible):
+   - Cel/toon shading with configurable steps:
+     * 2-step color ramp (light/shadow)
+     * Adjustable threshold and smoothness
+   - Rim lighting (Fresnel effect):
+     * HDR rim color for bloom
+     * Rim power (thickness)
+   - Specular highlights:
+     * Hard cutoff specular
+     * Optional anisotropic for stylized highlights
+   - Properties:
+     * _BaseColor, _BaseMap
+     * _ShadowColor, _ShadowThreshold, _ShadowSmoothness
+     * _RimColor (HDR), _RimPower, _RimThreshold
+     * _SpecularColor, _SpecularSize, _SpecularSmoothness
+
+2. ToonOutline.shader (Renderer Feature or second pass):
+   - Inverted hull technique:
+     * Render back faces only
+     * Vertex extrusion along normals
+     * Solid outline color
+   - Properties:
+     * _OutlineColor
+     * _OutlineWidth
+     * _OutlineZOffset (prevent z-fighting)
+   - Clip space width option (consistent outline regardless of distance)
+
+3. Material Presets:
+   - ToonBall.mat: White with cyan rim, sharp specular
+   - ToonGrass.mat: Green with darker green shadow, subtle rim
+   - ToonEnvironment.mat: Configurable base for props
+
+4. ToonModeController.cs:
+   - Toggle between realistic and toon rendering modes
+   - Methods:
+     * SetToonMode(bool enabled)
+     * IsToonModeEnabled
+   - Material swapping:
+     * Stores original material references
+     * Swaps to toon variants when enabled
+     * Restores originals when disabled
+   - Integration with SettingsManager (new ToonMode setting)
+
+5. ToonMaterialGenerator.cs:
+   - Menu: OpenRange > Toon > Create Toon Materials
+   - Creates toon variants of existing materials
+   - Menu: OpenRange > Toon > Setup Outline Renderer Feature
+   - Configures URP Renderer with outline feature
+
+6. URP Renderer Feature Setup:
+   - Document how to add outline renderer feature
+   - Or create custom renderer feature for outlines
+
+7. Settings Integration:
+   - Add "Visual Style" dropdown to Settings Panel:
+     * Realistic (default)
+     * Stylized/Toon
+   - SettingsManager: VisualStyle property
+   - Persists across sessions
+
+Write unit tests for:
+- Toon shader compiles
+- Outline shader compiles
+- ToonModeController material swapping
+- Settings persistence for visual style
+```
+
+---
+
+### Prompt 54: Visual Polish and Integration
+
+```text
+Final visual polish pass integrating all new visual systems and ensuring they work together.
+
+Context: Previous prompts created individual visual systems (skybox, grass, water, post-processing, trails, props, toon mode). This prompt integrates everything, fixes any conflicts, and adds final polish.
+
+Files to create/modify:
+- Assets/Scripts/Visualization/VisualManager.cs
+- Assets/Editor/VisualSystemValidator.cs
+- Assets/Tests/EditMode/VisualIntegrationTests.cs
+- Assets/Tests/PlayMode/VisualSystemTests.cs
+
+Requirements:
+
+1. VisualManager.cs:
+   - Central manager for all visual systems
+   - Coordinates:
+     * PostProcessingController
+     * WindController
+     * WaterController
+     * ToonModeController
+     * PropPlacer
+     * LODController
+   - Quality tier propagation to all systems
+   - Initialization order management
+   - Methods:
+     * Initialize() - sets up all visual systems
+     * SetQualityTier(QualityTier) - updates all systems
+     * SetToonMode(bool) - coordinates toon switching
+     * RefreshVisuals() - force update all systems
+
+2. Scene Integration:
+   - Update SceneGenerator.cs to include:
+     * VisualManager creation
+     * Skybox setup
+     * Post-processing Volume
+     * Environment props
+     * Water plane (if Marina has water)
+   - Update MarinaSceneController to reference VisualManager
+
+3. Quality Tier Polish:
+   - Verify all systems respond correctly to tier changes
+   - Create quality presets that feel cohesive:
+     * High: All effects, full props, reflections
+     * Medium: Core effects, reduced props, no reflections
+     * Low: Minimal effects, sparse props, simple shaders
+   - Smooth transitions when quality changes
+
+4. Performance Validation:
+   - Target frame rates:
+     * High: 60 FPS on M1 Mac
+     * Medium: 60 FPS on mid-range devices
+     * Low: 30 FPS on low-end devices
+   - Profile and optimize if needed
+
+5. VisualSystemValidator.cs:
+   - Editor tool to validate visual setup
+   - Menu: OpenRange > Visuals > Validate Visual Systems
+   - Checks:
+     * All required components present
+     * Materials using correct shaders
+     * Post-processing configured
+     * Skybox assigned
+     * LOD distances appropriate
+
+6. Visual Presets:
+   - Create named visual presets:
+     * "Marina Day" (default)
+     * "Marina Sunset"
+     * "Marina Overcast"
+   - Each preset configures: skybox colors, lighting, post-processing
+
+7. Polish Items:
+   - Ball visibility: Ensure ball is visible against all backgrounds
+   - Trajectory contrast: Line visible against sky and ground
+   - Landing marker visibility: Clear against all surfaces
+   - Text readability: UI text readable with all lighting
+
+8. Documentation:
+   - Update CLAUDE.md with visual system architecture
+   - Document shader properties and customization
+   - List quality tier effects on each system
+
+Write comprehensive tests:
+- All visual managers initialize correctly
+- Quality tier changes propagate to all systems
+- Toon mode switches all materials correctly
+- Visual presets apply expected settings
+- Performance within targets per quality tier
 ```
 
 ---

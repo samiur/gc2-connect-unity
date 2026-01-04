@@ -244,6 +244,83 @@
 
 ---
 
+### Phase 14: Visual Enhancements
+
+Visual inspiration from reference projects:
+- **ProceduralGolf** (SolomonBaarda): Toon shaders, water with foam, stylized skybox, outline rendering
+- **Super-Golf** (jzgom067): Tropical island aesthetic, trail renderers, dramatic landscapes
+- **golf_simulator** (JanWalsh91): Custom shaders (14% ShaderLab), beautiful landscapes
+
+- [ ] **Prompt 47**: Stylized Skybox and Lighting Setup
+  - [ ] Create StylizedSkybox.shader (procedural gradient, clouds, sun)
+  - [ ] Create MarinaSkybox.mat with "Golden Hour" preset
+  - [ ] Configure directional light, ambient, reflection probe
+  - [ ] Create LightingSetupGenerator.cs editor tool
+  - [ ] Quality tier integration (soft/hard/no shadows)
+  - [ ] Unit tests
+
+- [ ] **Prompt 48**: Enhanced Grass Shader with Wind Animation
+  - [ ] Create StylizedGrass.shader (vertex displacement, wind)
+  - [ ] Create WindController.cs singleton
+  - [ ] Create grass material presets (Fairway, Rough, Green)
+  - [ ] Create GrassShaderSetup.cs editor tool
+  - [ ] Integration with SettingsManager wind settings
+  - [ ] Unit tests
+
+- [ ] **Prompt 49**: Water Shader with Foam and Reflections
+  - [ ] Create StylizedWater.shader (scrolling normals, depth foam)
+  - [ ] Create WaterController.cs (planar reflection, quality tiers)
+  - [ ] Create water material presets (Ocean, Pond)
+  - [ ] Create WaterSetupGenerator.cs editor tool
+  - [ ] Document URP depth texture requirements
+  - [ ] Unit tests
+
+- [ ] **Prompt 50**: Post-Processing Volume Configuration
+  - [ ] Create Volume Profiles (High/Medium/Low quality)
+  - [ ] Configure Bloom, Color Adjustments, Vignette, SSAO
+  - [ ] Create PostProcessingController.cs
+  - [ ] Create PostProcessingSetupGenerator.cs editor tool
+  - [ ] Scene integration with MarinaSceneController
+  - [ ] Unit tests
+
+- [ ] **Prompt 51**: Enhanced Ball Trail and Trajectory Visuals
+  - [ ] Create TrailGlow.shader (additive, HDR, fade)
+  - [ ] Create TrajectoryLine.shader (glow, optional dashes)
+  - [ ] Create enhanced materials (trajectory, ball trail)
+  - [ ] Create TrajectoryEnhancer.cs component
+  - [ ] Shot quality color customization
+  - [ ] Create TrajectoryVisualsGenerator.cs editor tool
+  - [ ] Unit tests
+
+- [ ] **Prompt 52**: Environment Props - Trees and Scenery
+  - [ ] Create PalmTree, RockCluster, DistantMountain prefabs
+  - [ ] Create Foliage and Rock materials with LOD
+  - [ ] Create PropPlacer.cs and LODController.cs
+  - [ ] Create EnvironmentPropsGenerator.cs editor tool
+  - [ ] GPU instancing and batching
+  - [ ] Unit tests
+
+- [ ] **Prompt 53**: Toon/Outline Shader Option
+  - [ ] Create ToonLit.shader (cel shading, rim lighting)
+  - [ ] Create ToonOutline.shader (inverted hull)
+  - [ ] Create toon material presets
+  - [ ] Create ToonModeController.cs
+  - [ ] Add "Visual Style" setting to Settings Panel
+  - [ ] Create ToonMaterialGenerator.cs editor tool
+  - [ ] Unit tests
+
+- [ ] **Prompt 54**: Visual Polish and Integration
+  - [ ] Create VisualManager.cs (coordinates all visual systems)
+  - [ ] Update SceneGenerator.cs for visual systems
+  - [ ] Quality tier polish and validation
+  - [ ] Create VisualSystemValidator.cs editor tool
+  - [ ] Visual presets (Day, Sunset, Overcast)
+  - [ ] Performance validation (60 FPS targets)
+  - [ ] Documentation updates
+  - [ ] Integration and PlayMode tests
+
+---
+
 ### Phase 11: Quality & Polish
 
 - [ ] **Prompt 29**: Integration Testing
