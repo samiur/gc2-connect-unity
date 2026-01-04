@@ -3,7 +3,7 @@
 ## Current Status
 **Phase**: 9 - Android Native Plugin
 **Last Updated**: 2026-01-03
-**Next Prompt**: 24 (Android Plugin Implementation) or 25 (Android C# Bridge)
+**Next Prompt**: 25 (Android C# Bridge)
 **Prompts 43-46**: ✅ UI Refinement complete (Phase 7.5 done)
 **Physics**: ✅ Carry validated (PR #3) | ✅ Bounce improved (PR #33) | ✅ Roll improved (PR #35) | ✅ Validation (PR #37)
 **Protocol**: ✅ 0H shot parsing | ✅ 0M device status (PR #39)
@@ -202,17 +202,24 @@
     - [x] Separate USB reader and processor threads
     - [x] Immediate re-queue on completion for continuous reception
 
-- [ ] **Prompt 24**: Android Plugin Implementation
-  - [ ] Complete GC2Plugin.kt
-  - [ ] USB permission handling (BroadcastReceiver)
-  - [ ] Device enumeration with INTERRUPT IN endpoint
-  - [ ] Read thread with 64-byte interrupt transfers
-  - [ ] Message type filtering (0H for shots, 0M for status)
-  - [ ] Data accumulation until BACK_RPM/SIDE_RPM received
-  - [ ] Wait for message terminator (\n\t)
-  - [ ] Device status callback from 0M (FLAGS=7 ready, BALLS>0 detected)
-  - [ ] Misread detection (zero spin, 2222 error, speed range)
-  - [ ] Tests (device required)
+- [x] **Prompt 24**: Android Plugin Implementation ✅ (PR #66)
+  - [x] Complete GC2Plugin.kt with USB permission handling
+  - [x] USB permission handling (BroadcastReceiver)
+    - [x] registerReceivers() with RECEIVER_NOT_EXPORTED for Android 13+
+    - [x] unregisterReceivers() cleanup on shutdown
+    - [x] usbPermissionReceiver handles grant/deny
+  - [x] Device attach/detach BroadcastReceivers
+    - [x] usbAttachReceiver auto-connects when GC2 plugged in
+    - [x] usbDetachReceiver disconnects and notifies Unity
+  - [x] connect() with permission request logic
+    - [x] hasPermission() check to skip dialog if granted
+    - [x] PendingIntent with FLAG_MUTABLE for Android 12+
+    - [x] requestPermission() triggers system dialog
+  - [x] openDevice() opens USB connection
+  - [x] getDeviceSerial() returns serial from connection
+  - [x] isGC2Device() helper (VID 0x2C79, PID 0x0110)
+  - [x] Fixed isDeviceAvailable() context reference
+  - Note: Read thread, message parsing, device status in GC2Device.kt/GC2Protocol.kt (PR #65)
 
 - [ ] **Prompt 25**: Android C# Bridge
   - [ ] Create GC2AndroidConnection.cs
@@ -448,6 +455,8 @@ All validated ✅ (PR #3):
 ---
 
 ## Recent Issue Log (Last 5 Entries)
+
+**2026-01-03 (Android Plugin Implementation)**: Prompt 24 complete (PR #66). Completed GC2Plugin.kt with full USB permission handling. Added registerReceivers()/unregisterReceivers() with RECEIVER_NOT_EXPORTED for Android 13+. Added BroadcastReceivers for USB permission (grant/deny), attach (auto-connect), detach (disconnect). connect() implementation with hasPermission() check, PendingIntent with FLAG_MUTABLE for Android 12+, requestPermission(). openDevice() creates GC2Device wrapper. getDeviceSerial() returns serial from connection. isGC2Device() helper. Fixed isDeviceAvailable() context reference.
 
 **2026-01-03 (Android Plugin Project)**: Prompt 23 complete (PR #65). Created Gradle project with Kotlin 1.9.21, AGP 8.3.0, minSdk 26. GC2Plugin.kt (singleton entry point), GC2Device.kt (USB wrapper with INTERRUPT IN endpoint), GC2Protocol.kt (0H/0M parsing, misread detection). Build script auto-detects Android Studio Java/SDK. AAR built and copied to Assets/Plugins/Android/.
 
