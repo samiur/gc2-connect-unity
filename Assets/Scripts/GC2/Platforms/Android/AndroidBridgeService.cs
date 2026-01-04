@@ -438,16 +438,20 @@ namespace OpenRange.GC2.Platforms.Android
 
         private AndroidJavaObject CreateServiceIntent(string action)
         {
-            using (var serviceClass = new AndroidJavaClass(ServiceClassName))
-            {
-                var intent = new AndroidJavaObject(
-                    "android.content.Intent",
-                    _unityActivity,
-                    serviceClass.Call<AndroidJavaObject>("getClass")
-                );
-                intent.Call<AndroidJavaObject>("setAction", action);
-                return intent;
-            }
+            // Create intent with explicit component name (package + class)
+            var packageName = _unityActivity.Call<string>("getPackageName");
+            var componentName = new AndroidJavaObject(
+                "android.content.ComponentName",
+                packageName,
+                ServiceClassName
+            );
+
+            var intent = new AndroidJavaObject("android.content.Intent");
+            intent.Call<AndroidJavaObject>("setComponent", componentName);
+            intent.Call<AndroidJavaObject>("setAction", action);
+
+            componentName.Dispose();
+            return intent;
         }
 
         private int GetAndroidApiLevel()
