@@ -146,7 +146,9 @@ class GSProClient {
 
         executor.execute {
             try {
-                writer?.println(message)
+                // Write without newline to match GSPro protocol (C# uses raw bytes)
+                writer?.print(message)
+                writer?.flush()
                 Log.d(TAG, "Sent shot #$currentShotNumber")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send shot: ${e.message}")
@@ -192,7 +194,9 @@ class GSProClient {
 
         executor.execute {
             try {
-                writer?.println(message)
+                // Write without newline to match GSPro protocol (C# uses raw bytes)
+                writer?.print(message)
+                writer?.flush()
                 Log.v(TAG, "Sent heartbeat")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send heartbeat: ${e.message}")
