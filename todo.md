@@ -196,6 +196,11 @@
   - [x] Build script (build_android_plugin.sh) with Android Studio integration
   - [x] AAR built and copied to Assets/Plugins/Android/
   - [x] README.md with API documentation
+  - [x] **FIX**: Async UsbRequest implementation to prevent packet loss
+    - [x] 4 queued UsbRequest objects (matches macOS libusb pattern)
+    - [x] ConcurrentLinkedQueue for thread-safe packet buffering
+    - [x] Separate USB reader and processor threads
+    - [x] Immediate re-queue on completion for continuous reception
 
 - [ ] **Prompt 24**: Android Plugin Implementation
   - [ ] Complete GC2Plugin.kt
