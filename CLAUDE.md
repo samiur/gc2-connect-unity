@@ -636,6 +636,25 @@ When building native plugins for IL2CPP (standalone macOS/iOS builds):
    - Or check Player.log for errors
    - Add debug logging in native plugin with `NSLog()` or similar
 
+5. **Async libusb for packet handling** - The GC2 sends packets 1-2ms apart (4+ packets per burst). Synchronous `libusb_interrupt_transfer()` can't keep up, causing kernel buffer overflow and packet loss. The plugin uses async libusb with 4 queued transfers:
+   ```objc
+   // Allocate multiple transfers for continuous reading
+   libusb_fill_interrupt_transfer(transfer, handle, endpoint, buffer, size, callback, user_data, 0);
+   libusb_submit_transfer(transfer);
+
+   // In callback: process data, then immediately re-submit
+   static void LIBUSB_CALL TransferCallback(struct libusb_transfer *transfer) {
+       // Process transfer->buffer
+       if (g_isRunning) libusb_submit_transfer(transfer);  // Re-queue
+   }
+
+   // Event loop on background thread
+   while (g_isRunning) {
+       libusb_handle_events_timeout(ctx, &tv);  // Callbacks invoked here
+   }
+   ```
+   This keeps 4 transfers queued at all times - when one completes, it's immediately re-submitted while others continue receiving.
+
 ### Batchmode Scene Generation
 
 **Critical Issue:** `EditorUtility.DisplayDialog()` returns `false` in batchmode (CLI), causing menu methods to exit early without doing work.
