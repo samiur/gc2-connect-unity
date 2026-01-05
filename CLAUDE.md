@@ -225,6 +225,13 @@ Critical Implementation Notes:
 - Response handling: Shots get responses, heartbeats/status do NOT - don't block!
 - Buffer management: Clear receive buffer before sends, parse first JSON only (Prompt 42)
 - Graceful shutdown: Clean socket close required, GSPro doesn't handle abrupt disconnections
+
+Known Limitation - Reconnection:
+GSPro's Open Connect server does not properly accept new connections after a client
+disconnects. The disconnect IS registered by GSPro, but subsequent connection attempts
+fail (GSPro shows "Waiting for LM to connect" even though the TCP connection succeeds).
+Workaround: Restart GSPro's Open Connect listener (or restart GSPro) to reconnect.
+This is a GSPro server-side limitation, not a client-side issue.
 ```
 
 ## Key Documentation

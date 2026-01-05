@@ -142,6 +142,8 @@ namespace OpenRange.Network
                 _client.NoDelay = true;
                 _client.ReceiveTimeout = ConnectionTimeoutMs;
                 _client.SendTimeout = ConnectionTimeoutMs;
+                // Linger for 1 second on close to allow buffered data to be sent
+                _client.LingerState = new LingerOption(true, 1);
 
                 using var cts = new CancellationTokenSource(ConnectionTimeoutMs);
                 await _client.ConnectAsync(host, port);
@@ -158,8 +160,19 @@ namespace OpenRange.Network
                 {
                     _isConnected = true;
                     _isReconnecting = false;
-                    _shotNumber = 0;
+                    // Don't reset shot number - keep unique across reconnects
+                    // GSPro may track shot numbers and ignore duplicates
                 }
+
+                // Send initial heartbeat immediately to register with GSPro
+                // This is required for GSPro to recognize us as a launch monitor
+                Debug.Log($"GSProClient: Sending registration heartbeat to {host}:{port}");
+                var registrationMsg = CreateHeartbeatMessage();
+                await SendMessageAsync(registrationMsg);
+                Debug.Log("GSProClient: Registration heartbeat sent");
+
+                // Brief delay to let GSPro process registration
+                await Task.Delay(200);
 
                 StartHeartbeat();
 
@@ -264,7 +277,8 @@ namespace OpenRange.Network
         }
 
         /// <summary>
-        /// Disconnect from GSPro using graceful TCP close sequence.
+        /// Disconnect from GSPro.
+        /// Uses graceful TCP shutdown with proper FIN sequence.
         /// </summary>
         public void Disconnect()
         {
@@ -279,49 +293,32 @@ namespace OpenRange.Network
                 _isConnected = false;
             }
 
-            // Graceful TCP close sequence:
-            // 1. Shutdown send side to signal we're done sending (sends FIN to peer)
-            // 2. Drain receive buffer until peer closes (recv returns 0) or timeout
-            // 3. Close the socket
+            // Graceful shutdown sequence:
+            // 1. Shutdown socket (sends FIN)
+            // 2. Wait briefly for FIN-ACK
+            // 3. Close stream and client
             try
             {
                 var socket = _client?.Client;
                 if (socket != null && socket.Connected)
                 {
-                    // Step 1: Shutdown send - tells peer we're done sending
-                    socket.Shutdown(SocketShutdown.Send);
+                    // Set linger to wait up to 1 second for buffered data
+                    socket.LingerState = new LingerOption(true, 1);
 
-                    // Step 2: Drain - read until peer closes or timeout
-                    // This waits for the peer to acknowledge our FIN
-                    socket.ReceiveTimeout = 500; // 500ms timeout - don't block too long
-                    var drainBuffer = new byte[1024];
-                    try
-                    {
-                        while (true)
-                        {
-                            int bytesRead = socket.Receive(drainBuffer);
-                            if (bytesRead == 0)
-                            {
-                                // Peer has closed their end - graceful shutdown complete
-                                Debug.Log("GSProClient: Graceful shutdown completed");
-                                break;
-                            }
-                            // Discard received data and continue draining
-                        }
-                    }
-                    catch (SocketException)
-                    {
-                        // Timeout or error during drain - proceed to close
-                    }
+                    // Send FIN to signal we're done sending
+                    socket.Shutdown(SocketShutdown.Both);
+                    Debug.Log("GSProClient: Socket shutdown (FIN sent)");
                 }
             }
             catch (Exception ex)
             {
-                // Shutdown/drain failed - proceed to close anyway
-                Debug.LogWarning($"GSProClient: Graceful shutdown error: {ex.Message}");
+                Debug.LogWarning($"GSProClient: Error during shutdown: {ex.Message}");
             }
 
-            // Step 3: Close stream and socket
+            // Brief delay for FIN-ACK exchange
+            System.Threading.Thread.Sleep(100);
+
+            // Close stream
             try
             {
                 _stream?.Close();
@@ -330,7 +327,9 @@ namespace OpenRange.Network
             {
                 // Ignore close errors
             }
+            _stream = null;
 
+            // Close/dispose TcpClient
             try
             {
                 _client?.Close();
@@ -339,8 +338,6 @@ namespace OpenRange.Network
             {
                 // Ignore close errors
             }
-
-            _stream = null;
             _client = null;
 
             if (wasConnected)
@@ -613,6 +610,9 @@ namespace OpenRange.Network
             }
         }
 
+        /// <summary>Maximum number of send retry attempts.</summary>
+        private const int MaxSendRetries = 3;
+
         private async Task SendMessageAsync(GSProMessage message)
         {
             if (_stream == null || !_stream.CanWrite)
@@ -623,8 +623,31 @@ namespace OpenRange.Network
             var json = message.ToJson();
             var bytes = Encoding.UTF8.GetBytes(json);
 
-            await _stream.WriteAsync(bytes, 0, bytes.Length);
-            await _stream.FlushAsync();
+            // Retry up to MaxSendRetries times on failure
+            Exception lastException = null;
+            for (int attempt = 1; attempt <= MaxSendRetries; attempt++)
+            {
+                try
+                {
+                    await _stream.WriteAsync(bytes, 0, bytes.Length);
+                    await _stream.FlushAsync();
+                    return; // Success
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    Debug.LogWarning($"GSProClient: Send attempt {attempt}/{MaxSendRetries} failed: {ex.Message}");
+
+                    if (attempt < MaxSendRetries)
+                    {
+                        // Brief delay before retry
+                        await Task.Delay(100);
+                    }
+                }
+            }
+
+            // All retries failed
+            throw new InvalidOperationException($"Failed to send after {MaxSendRetries} attempts", lastException);
         }
 
         private void HandleDisconnection()

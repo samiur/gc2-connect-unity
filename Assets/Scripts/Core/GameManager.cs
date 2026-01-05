@@ -2,6 +2,7 @@
 // ABOUTME: Coordinates mode switching, connection state, and device status events.
 
 using System;
+using System.Threading.Tasks;
 using UnityEngine;
 using OpenRange.GC2;
 using OpenRange.Network;
@@ -288,10 +289,18 @@ namespace OpenRange.Core
             Debug.LogWarning("GameManager: Native bridge service not available, falling back to Unity client");
 #endif
             // On macOS/Editor, or fallback: use Unity's GSProClient
-            if (_gsProClient == null)
+            // Always create a fresh instance to ensure clean state on reconnect
+            if (_gsProClient != null)
             {
-                _gsProClient = new GSProClient();
+                Debug.Log("GameManager: Disposing old GSProClient, waiting 3s for GSPro to reset...");
+                _gsProClient.Dispose();
+                _gsProClient = null;
+
+                // Wait for GSPro to fully reset its connection state
+                // GSPro's Open Connect server may need time to accept new connections
+                await Task.Delay(3000);
             }
+            _gsProClient = new GSProClient();
 
             Debug.Log($"GameManager: Connecting to GSPro at {host}:{port} (with retry)...");
 
