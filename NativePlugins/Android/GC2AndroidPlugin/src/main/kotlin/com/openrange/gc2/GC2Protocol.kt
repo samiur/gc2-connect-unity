@@ -43,7 +43,9 @@ class GC2Protocol {
         const val MISREAD_SPIN_VALUE = 2222
 
         // GC2 field names (0H shot data)
+        // Note: Some GC2 firmware sends "SHOT" instead of "SHOT_ID"
         const val FIELD_SHOT_ID = "SHOT_ID"
+        const val FIELD_SHOT = "SHOT"  // Alias for SHOT_ID
         const val FIELD_SPEED_MPH = "SPEED_MPH"
         const val FIELD_ELEVATION_DEG = "ELEVATION_DEG"
         const val FIELD_AZIMUTH_DEG = "AZIMUTH_DEG"
@@ -103,10 +105,13 @@ class GC2Protocol {
             processLine(line, onMessage)
         }
 
-        // Check for message terminator
+        // Check for message terminator - just clear buffer, don't force finalize.
+        // Shot finalization happens in processShotLine when BACK_RPM/SIDE_RPM are received.
+        // The GC2 sends two 0H messages per shot:
+        // 1. First 0H: ball data (speed, angle, etc.) - no spin
+        // 2. Second 0H: spin data (BACK_RPM, SIDE_RPM)
+        // We must wait for the second message before emitting the shot.
         if (lineBuffer.contains(MESSAGE_TERMINATOR)) {
-            // Message complete, finalize any pending shot
-            finalizeShotIfReady(onMessage)
             lineBuffer.clear()
         }
     }
@@ -133,35 +138,61 @@ class GC2Protocol {
 
     /**
      * Processes a shot data line (0H prefix).
+     *
+     * The GC2 may send fields in various formats:
+     * - Space-separated: "SPEED_MPH=148.9 ELEVATION_DEG=11.7"
+     * - Concatenated: "BACK_RPM=3095.SIDE_RPM=-419."
+     * - Single field: "SHOT=1"
+     *
+     * We use regex to extract all KEY=VALUE pairs reliably.
      */
     private fun processShotLine(line: String, onMessage: (String, String) -> Unit) {
-        // Parse KEY=VALUE pairs
-        val parts = line.split(",", " ").filter { it.contains("=") }
+        // Regex to match KEY=VALUE pairs
+        // KEY: uppercase letter followed by uppercase letters, digits, or underscores
+        // VALUE: anything that's not part of the next KEY= pattern (non-greedy until next uppercase sequence + =)
+        val keyValuePattern = Regex("""([A-Z][A-Z0-9_]*)=([^=]*?)(?=[A-Z][A-Z0-9_]*=|$)""")
 
-        for (part in parts) {
-            val keyValue = part.split("=", limit = 2)
-            if (keyValue.size == 2) {
-                val key = keyValue[0].trim()
-                val value = keyValue[1].trim()
+        val matches = keyValuePattern.findAll(line)
 
-                // Check for new shot (different SHOT_ID)
-                if (key == FIELD_SHOT_ID && value != lastShotId) {
-                    // Finalize previous shot if exists
-                    finalizeShotIfReady(onMessage)
+        for (match in matches) {
+            val key = match.groupValues[1].trim()
+            var value = match.groupValues[2].trim()
 
-                    // Start new shot
-                    currentShotData.clear()
-                    lastShotId = value
-                }
-
-                currentShotData[key] = value
+            // Remove trailing period if present (GC2 sends "3095." format)
+            if (value.endsWith(".") && value.length > 1 && value[value.length - 2].isDigit()) {
+                value = value.dropLast(1)
             }
+
+            Log.v(TAG, "Parsed field: $key = $value")
+
+            // Check for new shot (different SHOT_ID or SHOT)
+            // GC2 may use either "SHOT_ID" or "SHOT" depending on firmware
+            val isShotIdField = (key == FIELD_SHOT_ID || key == FIELD_SHOT)
+            if (isShotIdField && value != lastShotId) {
+                // Finalize previous shot if exists
+                finalizeShotIfReady(onMessage)
+
+                // Start new shot
+                currentShotData.clear()
+                lastShotId = value
+                Log.d(TAG, "New shot detected: ID=$value")
+            }
+
+            // Normalize SHOT to SHOT_ID for consistent internal handling
+            val normalizedKey = if (key == FIELD_SHOT) FIELD_SHOT_ID else key
+            currentShotData[normalizedKey] = value
         }
 
         // Check if shot is complete (has spin data)
         if (currentShotData.containsKey(FIELD_BACK_RPM) &&
             currentShotData.containsKey(FIELD_SIDE_RPM)) {
+            Log.d(TAG, "Shot complete - has BACK_RPM and SIDE_RPM, finalizing...")
             finalizeShotIfReady(onMessage)
+        } else {
+            Log.d(TAG, "Shot incomplete - waiting for spin data. " +
+                    "Has BACK_RPM: ${currentShotData.containsKey(FIELD_BACK_RPM)}, " +
+                    "Has SIDE_RPM: ${currentShotData.containsKey(FIELD_SIDE_RPM)}, " +
+                    "Current fields: ${currentShotData.keys}")
         }
     }
 
@@ -221,16 +252,42 @@ class GC2Protocol {
 
     /**
      * Validates shot data for misreads and out-of-range values.
+     *
+     * Shot is only valid if:
+     * - SPEED_MPH is present and in range (1.1-250 mph)
+     * - BACK_RPM and SIDE_RPM are present (spin data required)
+     * - Spin is not zero (misread) or 2222 (error code)
      */
     private fun isValidShot(data: Map<String, String>): Boolean {
         // Check for required fields
-        val speed = data[FIELD_SPEED_MPH]?.toFloatOrNull() ?: return false
-        val backSpin = data[FIELD_BACK_RPM]?.toIntOrNull()
-        val sideSpin = data[FIELD_SIDE_RPM]?.toIntOrNull()
+        val speed = data[FIELD_SPEED_MPH]?.toFloatOrNull() ?: run {
+            Log.d(TAG, "Missing SPEED_MPH")
+            return false
+        }
+
+        // Spin data is REQUIRED - must be present (not just non-zero)
+        val backSpinStr = data[FIELD_BACK_RPM]
+        val sideSpinStr = data[FIELD_SIDE_RPM]
+
+        if (backSpinStr == null || sideSpinStr == null) {
+            Log.d(TAG, "Missing spin data - BACK_RPM=$backSpinStr, SIDE_RPM=$sideSpinStr")
+            return false
+        }
+
+        // Parse as double first since GC2 may send "3095." format (trailing decimal)
+        val backSpin = backSpinStr.toDoubleOrNull()?.toInt() ?: run {
+            Log.d(TAG, "Invalid BACK_RPM value: $backSpinStr")
+            return false
+        }
+
+        val sideSpin = sideSpinStr.toDoubleOrNull()?.toInt() ?: run {
+            Log.d(TAG, "Invalid SIDE_RPM value: $sideSpinStr")
+            return false
+        }
 
         // Speed range check
         if (speed < MIN_BALL_SPEED_MPH || speed > MAX_BALL_SPEED_MPH) {
-            Log.d(TAG, "Invalid speed: $speed mph")
+            Log.d(TAG, "Invalid speed: $speed mph (range: $MIN_BALL_SPEED_MPH-$MAX_BALL_SPEED_MPH)")
             return false
         }
 
