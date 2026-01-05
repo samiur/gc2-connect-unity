@@ -16,8 +16,11 @@ import org.json.JSONObject
  *
  * Messages are terminated by "\n\t" (newline + tab).
  *
- * Shot data arrives across multiple packets and must be accumulated
- * until BACK_RPM and SIDE_RPM are received to ensure complete data.
+ * IMPORTANT: The GC2 sends data across multiple USB packets. A single message
+ * may span 4+ packets. We must:
+ * 1. Track which message type (0H/0M) we're currently in
+ * 2. Accumulate all fields until message terminator or next message header
+ * 3. Only finalize shots when we have BACK_RPM and SIDE_RPM (spin data)
  */
 class GC2Protocol {
 
@@ -74,14 +77,21 @@ class GC2Protocol {
     object MessageType {
         const val SHOT = "SHOT"
         const val STATUS = "STATUS"
+        const val NONE = "NONE"
     }
 
-    // Buffer for accumulating multi-packet messages
-    private val lineBuffer = StringBuilder()
+    // Buffer for accumulating raw data across USB packets
+    private val rawBuffer = StringBuilder()
 
-    // Current shot data being accumulated
+    // Current message type we're accumulating (SHOT, STATUS, or NONE)
+    private var currentMessageType = MessageType.NONE
+
+    // Current shot data being accumulated (persists across multiple 0H messages until spin data arrives)
     private val currentShotData = mutableMapOf<String, String>()
     private var lastShotId: String? = null
+
+    // Current status data being accumulated (within a single 0M message)
+    private val currentStatusData = mutableMapOf<String, String>()
 
     /**
      * Processes incoming data and calls the callback when complete messages are parsed.
@@ -90,29 +100,35 @@ class GC2Protocol {
      * @param onMessage Callback invoked with message type and JSON data
      */
     fun processData(data: String, onMessage: (String, String) -> Unit) {
-        lineBuffer.append(data)
+        rawBuffer.append(data)
 
-        // Process complete lines
+        // Process complete lines from the buffer
         while (true) {
-            val newlineIndex = lineBuffer.indexOf('\n')
+            val newlineIndex = rawBuffer.indexOf('\n')
             if (newlineIndex < 0) break
 
-            val line = lineBuffer.substring(0, newlineIndex).trim()
-            lineBuffer.delete(0, newlineIndex + 1)
+            val line = rawBuffer.substring(0, newlineIndex).trim()
+            rawBuffer.delete(0, newlineIndex + 1)
+
+            // Check for message terminator (tab at start of line after newline)
+            if (line == "\t" || line.isEmpty() && rawBuffer.startsWith("\t")) {
+                // Message terminator found - finalize current message
+                finalizeCurrentMessage(onMessage)
+                if (rawBuffer.startsWith("\t")) {
+                    rawBuffer.delete(0, 1)
+                }
+                continue
+            }
 
             if (line.isEmpty()) continue
 
             processLine(line, onMessage)
         }
 
-        // Check for message terminator - just clear buffer, don't force finalize.
-        // Shot finalization happens in processShotLine when BACK_RPM/SIDE_RPM are received.
-        // The GC2 sends two 0H messages per shot:
-        // 1. First 0H: ball data (speed, angle, etc.) - no spin
-        // 2. Second 0H: spin data (BACK_RPM, SIDE_RPM)
-        // We must wait for the second message before emitting the shot.
-        if (lineBuffer.contains(MESSAGE_TERMINATOR)) {
-            lineBuffer.clear()
+        // Check if buffer starts with tab (terminator without preceding newline in buffer)
+        if (rawBuffer.startsWith("\t")) {
+            finalizeCurrentMessage(onMessage)
+            rawBuffer.delete(0, 1)
         }
     }
 
@@ -122,34 +138,78 @@ class GC2Protocol {
     private fun processLine(line: String, onMessage: (String, String) -> Unit) {
         when {
             line.startsWith(SHOT_MESSAGE_PREFIX) -> {
-                processShotLine(line.removePrefix(SHOT_MESSAGE_PREFIX).trim(), onMessage)
-            }
-            line.startsWith(STATUS_MESSAGE_PREFIX) -> {
-                processStatusLine(line.removePrefix(STATUS_MESSAGE_PREFIX).trim(), onMessage)
-            }
-            else -> {
-                // May be continuation of shot data without prefix
-                if (line.contains("=")) {
-                    processShotLine(line, onMessage)
+                // Starting a new shot message - finalize any pending status
+                if (currentMessageType == MessageType.STATUS) {
+                    finalizeStatus(onMessage)
+                }
+                currentMessageType = MessageType.SHOT
+                // Process any fields on the same line as 0H
+                val remainder = line.removePrefix(SHOT_MESSAGE_PREFIX).trim()
+                if (remainder.isNotEmpty()) {
+                    accumulateShotFields(remainder)
                 }
             }
+            line.startsWith(STATUS_MESSAGE_PREFIX) -> {
+                // Starting a new status message - clear status buffer
+                currentStatusData.clear()
+                currentMessageType = MessageType.STATUS
+                // Process any fields on the same line as 0M
+                val remainder = line.removePrefix(STATUS_MESSAGE_PREFIX).trim()
+                if (remainder.isNotEmpty()) {
+                    accumulateStatusFields(remainder)
+                }
+            }
+            else -> {
+                // Continuation line - add to current message type
+                if (line.contains("=")) {
+                    when (currentMessageType) {
+                        MessageType.SHOT -> accumulateShotFields(line)
+                        MessageType.STATUS -> accumulateStatusFields(line)
+                        else -> {
+                            // No message type set yet - probably orphaned data, treat as shot
+                            Log.w(TAG, "Orphaned data line (no message type): $line")
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check if shot is complete (has all required data including spin)
+        if (currentMessageType == MessageType.SHOT &&
+            currentShotData.containsKey(FIELD_BACK_RPM) &&
+            currentShotData.containsKey(FIELD_SIDE_RPM)) {
+            Log.d(TAG, "Shot complete - has BACK_RPM and SIDE_RPM, finalizing...")
+            finalizeShot(onMessage)
         }
     }
 
     /**
-     * Processes a shot data line (0H prefix).
-     *
-     * The GC2 may send fields in various formats:
+     * Finalizes the current message based on type.
+     */
+    private fun finalizeCurrentMessage(onMessage: (String, String) -> Unit) {
+        when (currentMessageType) {
+            MessageType.STATUS -> finalizeStatus(onMessage)
+            MessageType.SHOT -> {
+                // Don't finalize shot on terminator - wait for spin data
+                // The shot may span multiple 0H messages
+                Log.d(TAG, "Message terminator - shot has ${currentShotData.size} fields, " +
+                        "waiting for spin data. Has BACK_RPM: ${currentShotData.containsKey(FIELD_BACK_RPM)}")
+            }
+        }
+        // Don't reset message type - shot data accumulates across messages
+    }
+
+    /**
+     * Accumulates fields from a shot data line.
+     * Uses regex to handle various GC2 formats:
      * - Space-separated: "SPEED_MPH=148.9 ELEVATION_DEG=11.7"
      * - Concatenated: "BACK_RPM=3095.SIDE_RPM=-419."
      * - Single field: "SHOT=1"
-     *
-     * We use regex to extract all KEY=VALUE pairs reliably.
      */
-    private fun processShotLine(line: String, onMessage: (String, String) -> Unit) {
+    private fun accumulateShotFields(line: String) {
         // Regex to match KEY=VALUE pairs
         // KEY: uppercase letter followed by uppercase letters, digits, or underscores
-        // VALUE: anything that's not part of the next KEY= pattern (non-greedy until next uppercase sequence + =)
+        // VALUE: anything that's not part of the next KEY= pattern
         val keyValuePattern = Regex("""([A-Z][A-Z0-9_]*)=([^=]*?)(?=[A-Z][A-Z0-9_]*=|$)""")
 
         val matches = keyValuePattern.findAll(line)
@@ -163,16 +223,23 @@ class GC2Protocol {
                 value = value.dropLast(1)
             }
 
-            Log.v(TAG, "Parsed field: $key = $value")
+            // Skip status fields that might appear in shot messages (they come from 0M, not 0H)
+            if (key == FIELD_FLAGS || key == FIELD_BALLS || key.startsWith("BALL")) {
+                Log.v(TAG, "Skipping status field in shot context: $key = $value")
+                continue
+            }
+
+            Log.v(TAG, "Shot field: $key = $value")
 
             // Check for new shot (different SHOT_ID or SHOT)
-            // GC2 may use either "SHOT_ID" or "SHOT" depending on firmware
             val isShotIdField = (key == FIELD_SHOT_ID || key == FIELD_SHOT)
             if (isShotIdField && value != lastShotId) {
-                // Finalize previous shot if exists
-                finalizeShotIfReady(onMessage)
-
-                // Start new shot
+                // New shot starting - DON'T finalize previous shot here
+                // The previous shot without spin data should have been rejected already
+                // Just clear and start fresh
+                if (currentShotData.isNotEmpty()) {
+                    Log.d(TAG, "New shot ID=$value, clearing incomplete previous shot data")
+                }
                 currentShotData.clear()
                 lastShotId = value
                 Log.d(TAG, "New shot detected: ID=$value")
@@ -182,41 +249,43 @@ class GC2Protocol {
             val normalizedKey = if (key == FIELD_SHOT) FIELD_SHOT_ID else key
             currentShotData[normalizedKey] = value
         }
+    }
 
-        // Check if shot is complete (has spin data)
-        if (currentShotData.containsKey(FIELD_BACK_RPM) &&
-            currentShotData.containsKey(FIELD_SIDE_RPM)) {
-            Log.d(TAG, "Shot complete - has BACK_RPM and SIDE_RPM, finalizing...")
-            finalizeShotIfReady(onMessage)
-        } else {
-            Log.d(TAG, "Shot incomplete - waiting for spin data. " +
-                    "Has BACK_RPM: ${currentShotData.containsKey(FIELD_BACK_RPM)}, " +
-                    "Has SIDE_RPM: ${currentShotData.containsKey(FIELD_SIDE_RPM)}, " +
-                    "Current fields: ${currentShotData.keys}")
+    /**
+     * Accumulates fields from a status data line.
+     */
+    private fun accumulateStatusFields(line: String) {
+        // Parse KEY=VALUE pairs (simpler format for status)
+        val keyValuePattern = Regex("""([A-Z][A-Z0-9_]*)=([^\s,]+)""")
+
+        val matches = keyValuePattern.findAll(line)
+
+        for (match in matches) {
+            val key = match.groupValues[1].trim()
+            val value = match.groupValues[2].trim()
+
+            Log.v(TAG, "Status field: $key = $value")
+            currentStatusData[key] = value
         }
     }
 
     /**
-     * Processes a status line (0M prefix).
+     * Finalizes and emits the current status message.
      */
-    private fun processStatusLine(line: String, onMessage: (String, String) -> Unit) {
-        val statusData = mutableMapOf<String, String>()
-
-        // Parse KEY=VALUE pairs
-        val parts = line.split(",", " ").filter { it.contains("=") }
-        for (part in parts) {
-            val keyValue = part.split("=", limit = 2)
-            if (keyValue.size == 2) {
-                statusData[keyValue[0].trim()] = keyValue[1].trim()
-            }
+    private fun finalizeStatus(onMessage: (String, String) -> Unit) {
+        if (currentStatusData.isEmpty()) {
+            Log.d(TAG, "No status data to finalize")
+            return
         }
 
         // Convert to device status JSON
-        val flags = statusData[FIELD_FLAGS]?.toIntOrNull() ?: 0
-        val balls = statusData[FIELD_BALLS]?.toIntOrNull() ?: 0
+        val flags = currentStatusData[FIELD_FLAGS]?.toIntOrNull() ?: 0
+        val balls = currentStatusData[FIELD_BALLS]?.toIntOrNull() ?: 0
 
         val isReady = flags == 7  // Green light
         val ballDetected = balls > 0
+
+        Log.d(TAG, "Finalizing status: FLAGS=$flags, BALLS=$balls -> IsReady=$isReady, BallDetected=$ballDetected")
 
         val json = JSONObject().apply {
             put("IsReady", isReady)
@@ -226,12 +295,13 @@ class GC2Protocol {
         }
 
         onMessage(MessageType.STATUS, json.toString())
+        currentStatusData.clear()
     }
 
     /**
      * Finalizes and sends the current shot if valid.
      */
-    private fun finalizeShotIfReady(onMessage: (String, String) -> Unit) {
+    private fun finalizeShot(onMessage: (String, String) -> Unit) {
         if (currentShotData.isEmpty()) return
 
         // Validate shot data
@@ -244,6 +314,8 @@ class GC2Protocol {
         // Convert to JSON matching GC2ShotData C# properties
         val json = convertToJson(currentShotData)
         if (json != null) {
+            Log.i(TAG, "Shot finalized successfully: ${currentShotData[FIELD_SPEED_MPH]} mph, " +
+                    "spin: ${currentShotData[FIELD_BACK_RPM]}/${currentShotData[FIELD_SIDE_RPM]}")
             onMessage(MessageType.SHOT, json)
         }
 
@@ -260,8 +332,8 @@ class GC2Protocol {
      */
     private fun isValidShot(data: Map<String, String>): Boolean {
         // Check for required fields
-        val speed = data[FIELD_SPEED_MPH]?.toFloatOrNull() ?: run {
-            Log.d(TAG, "Missing SPEED_MPH")
+        val speed = data[FIELD_SPEED_MPH]?.toDoubleOrNull()?.toFloat() ?: run {
+            Log.d(TAG, "Missing or invalid SPEED_MPH: ${data[FIELD_SPEED_MPH]}")
             return false
         }
 
@@ -275,13 +347,14 @@ class GC2Protocol {
         }
 
         // Parse as double first since GC2 may send "3095." format (trailing decimal)
-        val backSpin = backSpinStr.toDoubleOrNull()?.toInt() ?: run {
-            Log.d(TAG, "Invalid BACK_RPM value: $backSpinStr")
+        // Also handle leading spaces like " 3500"
+        val backSpin = backSpinStr.trim().toDoubleOrNull()?.toInt() ?: run {
+            Log.d(TAG, "Invalid BACK_RPM value: '$backSpinStr'")
             return false
         }
 
-        val sideSpin = sideSpinStr.toDoubleOrNull()?.toInt() ?: run {
-            Log.d(TAG, "Invalid SIDE_RPM value: $sideSpinStr")
+        val sideSpin = sideSpinStr.trim().toDoubleOrNull()?.toInt() ?: run {
+            Log.d(TAG, "Invalid SIDE_RPM value: '$sideSpinStr'")
             return false
         }
 
@@ -303,6 +376,7 @@ class GC2Protocol {
             return false
         }
 
+        Log.d(TAG, "Shot validation passed: speed=$speed, backSpin=$backSpin, sideSpin=$sideSpin")
         return true
     }
 
@@ -316,14 +390,15 @@ class GC2Protocol {
 
             // Required fields (map GC2 names to C# property names)
             // Note: Must use Double, not Float - Android JSONObject has put(String, double) not put(String, Float)
-            json.put("ShotId", data[FIELD_SHOT_ID]?.toIntOrNull() ?: 0)
-            json.put("BallSpeed", data[FIELD_SPEED_MPH]?.toDoubleOrNull() ?: 0.0)
-            json.put("LaunchAngle", data[FIELD_ELEVATION_DEG]?.toDoubleOrNull() ?: 0.0)
-            json.put("LaunchDirection", data[FIELD_AZIMUTH_DEG]?.toDoubleOrNull() ?: 0.0)
-            json.put("TotalSpin", data[FIELD_SPIN_RPM]?.toDoubleOrNull() ?: 0.0)
-            json.put("BackSpin", data[FIELD_BACK_RPM]?.toDoubleOrNull() ?: 0.0)
-            json.put("SideSpin", data[FIELD_SIDE_RPM]?.toDoubleOrNull() ?: 0.0)
-            json.put("SpinAxis", data[FIELD_SPIN_AXIS]?.toDoubleOrNull() ?: 0.0)
+            // Also trim values to handle leading/trailing spaces
+            json.put("ShotId", data[FIELD_SHOT_ID]?.trim()?.toIntOrNull() ?: 0)
+            json.put("BallSpeed", data[FIELD_SPEED_MPH]?.trim()?.toDoubleOrNull() ?: 0.0)
+            json.put("LaunchAngle", data[FIELD_ELEVATION_DEG]?.trim()?.toDoubleOrNull() ?: 0.0)
+            json.put("LaunchDirection", data[FIELD_AZIMUTH_DEG]?.trim()?.toDoubleOrNull() ?: 0.0)
+            json.put("TotalSpin", data[FIELD_SPIN_RPM]?.trim()?.toDoubleOrNull() ?: 0.0)
+            json.put("BackSpin", data[FIELD_BACK_RPM]?.trim()?.toDoubleOrNull() ?: 0.0)
+            json.put("SideSpin", data[FIELD_SIDE_RPM]?.trim()?.toDoubleOrNull() ?: 0.0)
+            json.put("SpinAxis", data[FIELD_SPIN_AXIS]?.trim()?.toDoubleOrNull() ?: 0.0)
 
             // Timestamp
             json.put("Timestamp", System.currentTimeMillis())
@@ -333,11 +408,11 @@ class GC2Protocol {
             json.put("HasClubData", hasClubData)
 
             if (hasClubData) {
-                json.put("ClubSpeed", data[FIELD_CLUBSPEED_MPH]?.toDoubleOrNull() ?: 0.0)
-                json.put("ClubPath", data[FIELD_HPATH_DEG]?.toDoubleOrNull() ?: 0.0)
-                json.put("AttackAngle", data[FIELD_VPATH_DEG]?.toDoubleOrNull() ?: 0.0)
-                json.put("FaceToTarget", data[FIELD_FACE_T_DEG]?.toDoubleOrNull() ?: 0.0)
-                json.put("DynamicLoft", data[FIELD_LOFT_DEG]?.toDoubleOrNull() ?: 0.0)
+                json.put("ClubSpeed", data[FIELD_CLUBSPEED_MPH]?.trim()?.toDoubleOrNull() ?: 0.0)
+                json.put("ClubPath", data[FIELD_HPATH_DEG]?.trim()?.toDoubleOrNull() ?: 0.0)
+                json.put("AttackAngle", data[FIELD_VPATH_DEG]?.trim()?.toDoubleOrNull() ?: 0.0)
+                json.put("FaceToTarget", data[FIELD_FACE_T_DEG]?.trim()?.toDoubleOrNull() ?: 0.0)
+                json.put("DynamicLoft", data[FIELD_LOFT_DEG]?.trim()?.toDoubleOrNull() ?: 0.0)
             }
 
             json.toString()
@@ -351,8 +426,10 @@ class GC2Protocol {
      * Resets the parser state.
      */
     fun reset() {
-        lineBuffer.clear()
+        rawBuffer.clear()
         currentShotData.clear()
+        currentStatusData.clear()
+        currentMessageType = MessageType.NONE
         lastShotId = null
     }
 }
