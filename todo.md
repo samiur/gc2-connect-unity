@@ -296,6 +296,8 @@ Use case: Moonlight streaming - run OpenRange on Android in background, stream G
 
 ## Recent Issue Log
 
+**2026-01-04**: Fixed native GSPro client integration in Android Bridge Mode. GC2Plugin.sendShotData() now calls GC2BridgeService.sendShotToGSPro() to route shots from USB directly to GSPro via native client. This ensures shots are relayed even when app is backgrounded. Previously shots were only sent to Unity via UnitySendMessage which fails when app isn't active.
+
 **2026-01-04**: Fixed Android runtime crashes in GC2Protocol.kt (PR #78). Two issues from real device testing with GC2: (1) `NoClassDefFoundError: EnumEntriesKt` - Kotlin 1.9+ enum class generates EnumEntriesKt not bundled with Unity Android; fixed by using object with String constants. (2) `NoSuchMethodError: JSONObject.put(String, Float)` - Android JSONObject only has put(String, double); fixed by using toDoubleOrNull() instead of toFloatOrNull().
 
 **2026-01-04**: Prompt 58 complete (PR #77). Bridge Mode UI: BridgeModeOverlay.cs (floating status with drag, expand/collapse, status colors), BridgeModeToggle.cs (enable toggle with GSPro config, battery warning), BridgeModeUIGenerator.cs (prefab creation). 73 new tests, 1901 total.
