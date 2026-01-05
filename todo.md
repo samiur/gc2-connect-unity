@@ -185,13 +185,13 @@
 
 Visual inspiration: ProceduralGolf (toon shaders), Super-Golf (tropical aesthetic), golf_simulator (custom shaders)
 
-- [ ] **Prompt 47**: Stylized Skybox and Lighting Setup
-  - [ ] Create StylizedSkybox.shader (procedural gradient, clouds, sun)
-  - [ ] Create MarinaSkybox.mat with "Golden Hour" preset
-  - [ ] Configure directional light, ambient, reflection probe
-  - [ ] Create LightingSetupGenerator.cs editor tool
-  - [ ] Quality tier integration (soft/hard/no shadows)
-  - [ ] Unit tests
+- [x] **Prompt 47**: Stylized Skybox and Lighting Setup ✅ (PR #80)
+  - [x] Create StylizedSkybox.shader (procedural gradient, clouds, sun)
+  - [x] Create MarinaSkybox.mat with "Golden Hour" preset
+  - [x] Configure directional light, ambient, reflection probe
+  - [x] Create LightingSetupGenerator.cs editor tool
+  - [x] Quality tier integration (soft/hard/no shadows)
+  - [x] Unit tests (43 tests)
 
 - [ ] **Prompt 48**: Enhanced Grass Shader with Wind Animation
   - [ ] Create StylizedGrass.shader (vertex displacement, wind)
@@ -295,6 +295,8 @@ Use case: Moonlight streaming - run OpenRange on Android in background, stream G
 ---
 
 ## Recent Issue Log
+
+**2026-01-04**: Prompt 47 complete (PR #80). Stylized Skybox and Lighting Setup: StylizedSkybox.shader (URP procedural gradient, HDR sun, FBM clouds), LightingController.cs (3 presets, quality tier integration, QualityManager subscription), LightingSetupGenerator.cs (editor tools). 43 new tests, 1901 total.
 
 **2026-01-04**: Fixed Android Bridge Mode GC2 connection state tracking. The notification showed "GC2 Disconnected" because `isGC2Connected` was only being set from shot data, not from actual USB connection state. Fix: (1) Added `updateGC2ConnectionState(connected: Boolean)` method to GC2BridgeService.kt that is the authoritative source for GC2 connection status. (2) Updated `GC2Plugin.sendConnectionChanged()` to call `GC2BridgeService.getInstance()?.updateGC2ConnectionState(connected)` when USB connection state changes. (3) Removed shot-based `isGC2Connected = true` from `sendShotToGSPro()` and `sendShotFromIntent()`. The GC2 connection state now correctly reflects USB device attach/detach events.
 
