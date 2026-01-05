@@ -355,11 +355,15 @@ namespace OpenRange.UI
                 // Set GSPro mode from saved settings
                 _gsProModeUI.SetMode(settings.GSProModeEnabled);
 
-                // If GSPro mode was previously enabled, restore bridge mode (GSPro mode = bridge mode)
+                // If GSPro mode was previously enabled, restore bridge mode on Android
+                // On Android, bridge mode is required for background GSPro relay
+                // On macOS/Editor, the user clicks Connect button which uses GameManager.ConnectToGSPro()
+#if UNITY_ANDROID && !UNITY_EDITOR
                 if (settings.GSProModeEnabled)
                 {
                     RestoreBridgeMode();
                 }
+#endif
             }
 
             // Wire up the GSProClient from GameManager for status updates
