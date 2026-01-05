@@ -256,10 +256,11 @@ class GC2Plugin private constructor() {
         Log.d(TAG, "Requesting USB permission")
         pendingConnectionContext = context
 
+        // Android 14+ requires explicit intents when using FLAG_MUTABLE
         val permissionIntent = PendingIntent.getBroadcast(
             context,
             0,
-            Intent(ACTION_USB_PERMISSION),
+            Intent(ACTION_USB_PERMISSION).apply { setPackage(context.packageName) },
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             } else {
