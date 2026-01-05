@@ -293,8 +293,11 @@ namespace OpenRange.Core
                 _gsProClient = new GSProClient();
             }
 
-            Debug.Log($"GameManager: Connecting to GSPro at {host}:{port}...");
-            bool success = await _gsProClient.ConnectAsync(host, port);
+            Debug.Log($"GameManager: Connecting to GSPro at {host}:{port} (with retry)...");
+
+            // Use ConnectWithRetryAsync to keep trying until GSPro accepts the connection.
+            // This handles the common case where GSPro still thinks a previous client is connected.
+            bool success = await _gsProClient.ConnectWithRetryAsync(host, port);
 
             if (success)
             {

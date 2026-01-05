@@ -30,6 +30,12 @@ namespace OpenRange.Network
         /// <summary>Timeout for shot response in milliseconds.</summary>
         public const int ShotResponseTimeoutMs = 5000;
 
+        /// <summary>Maximum retry attempts for initial connection (0 = unlimited).</summary>
+        public const int MaxConnectRetries = 0;
+
+        /// <summary>Delay between connection retries in milliseconds.</summary>
+        private static readonly int[] ConnectRetryDelaysMs = { 1000, 2000, 3000, 5000, 5000 };
+
         /// <summary>Size of receive buffer for reading responses.</summary>
         private const int ReceiveBufferSize = 4096;
 
@@ -37,6 +43,7 @@ namespace OpenRange.Network
         private NetworkStream _stream;
         private CancellationTokenSource _heartbeatCts;
         private CancellationTokenSource _reconnectCts;
+        private CancellationTokenSource _connectRetryCts;
 
         private string _host;
         private int _port;
@@ -187,6 +194,81 @@ namespace OpenRange.Network
         }
 
         /// <summary>
+        /// Connect to GSPro with automatic retry.
+        /// This method will keep retrying until connected or cancelled.
+        /// Useful when GSPro may still think a previous client is connected.
+        /// </summary>
+        /// <param name="host">Host address.</param>
+        /// <param name="port">Port number (default 921).</param>
+        /// <param name="maxRetries">Maximum retries (0 = unlimited).</param>
+        /// <returns>True if connection successful.</returns>
+        public async Task<bool> ConnectWithRetryAsync(string host, int port = DefaultPort, int maxRetries = 0)
+        {
+            // Cancel any existing retry operation
+            CancelConnectRetry();
+            _connectRetryCts = new CancellationTokenSource();
+            var ct = _connectRetryCts.Token;
+
+            int attempt = 0;
+
+            while (!ct.IsCancellationRequested)
+            {
+                attempt++;
+
+                // Try to connect
+                bool success = await ConnectAsync(host, port);
+                if (success)
+                {
+                    Debug.Log($"GSProClient: Connected on attempt {attempt}");
+                    return true;
+                }
+
+                // Check if we've hit max retries
+                if (maxRetries > 0 && attempt >= maxRetries)
+                {
+                    Debug.Log($"GSProClient: Max retries ({maxRetries}) reached");
+                    OnError?.Invoke($"Failed to connect after {maxRetries} attempts");
+                    return false;
+                }
+
+                // Calculate delay with backoff
+                int delayIndex = Math.Min(attempt - 1, ConnectRetryDelaysMs.Length - 1);
+                int delay = ConnectRetryDelaysMs[delayIndex];
+
+                Debug.Log($"GSProClient: Connection attempt {attempt} failed, retrying in {delay}ms...");
+
+                try
+                {
+                    await Task.Delay(delay, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    Debug.Log("GSProClient: Connection retry cancelled");
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Cancel any ongoing connection retry operation.
+        /// </summary>
+        public void CancelConnectRetry()
+        {
+            try
+            {
+                _connectRetryCts?.Cancel();
+                _connectRetryCts?.Dispose();
+            }
+            catch
+            {
+                // Ignore
+            }
+            _connectRetryCts = null;
+        }
+
+        /// <summary>
         /// Disconnect from GSPro.
         /// </summary>
         public void Disconnect()
@@ -195,6 +277,7 @@ namespace OpenRange.Network
 
             StopHeartbeat();
             StopReconnect();
+            CancelConnectRetry();
 
             bool wasConnected;
             lock (_lock)
@@ -204,20 +287,6 @@ namespace OpenRange.Network
             }
 
             Debug.Log($"GSProClient: wasConnected={wasConnected}");
-
-            // Set linger to 0 BEFORE closing anything - sends RST instead of FIN
-            try
-            {
-                if (_client?.Client != null && _client.Client.Connected)
-                {
-                    Debug.Log("GSProClient: Setting linger=0 for immediate RST...");
-                    _client.Client.LingerState = new System.Net.Sockets.LingerOption(true, 0);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"GSProClient: Error setting linger: {ex.Message}");
-            }
 
             // Flush stream to ensure any pending data is sent
             try
@@ -231,6 +300,34 @@ namespace OpenRange.Network
             catch (Exception ex)
             {
                 Debug.LogWarning($"GSProClient: Error flushing stream: {ex.Message}");
+            }
+
+            // Explicit socket shutdown - sends FIN to notify GSPro we're disconnecting
+            try
+            {
+                if (_client?.Client != null && _client.Client.Connected)
+                {
+                    Debug.Log("GSProClient: Shutting down socket (Both)...");
+                    _client.Client.Shutdown(SocketShutdown.Both);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"GSProClient: Error during socket shutdown: {ex.Message}");
+            }
+
+            // Set linger to 0 BEFORE closing - sends RST if data remains
+            try
+            {
+                if (_client?.Client != null)
+                {
+                    Debug.Log("GSProClient: Setting linger=0...");
+                    _client.Client.LingerState = new LingerOption(true, 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"GSProClient: Error setting linger: {ex.Message}");
             }
 
             // Close TcpClient (this also closes the stream and socket)
