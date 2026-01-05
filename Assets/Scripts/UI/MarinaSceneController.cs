@@ -458,7 +458,7 @@ namespace OpenRange.UI
             GameManager.Instance.DisconnectFromGSPro();
         }
 
-        private async void OnGSProModeChanged(bool isGSProMode)
+        private void OnGSProModeChanged(bool isGSProMode)
         {
             if (GameManager.Instance == null) return;
 
@@ -474,7 +474,23 @@ namespace OpenRange.UI
 
             Debug.Log($"MarinaSceneController: Mode changed to {newMode}");
 
-            // GSPro mode = bridge mode, so enable/disable bridge mode accordingly
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // On Android, use BridgeMode for background GSPro relay service
+            OnGSProModeChangedAndroid(isGSProMode, settings);
+#else
+            // On macOS/Editor, the toggle just enables GSPro mode UI.
+            // The user clicks the Connect button to actually connect.
+            // When disabling, disconnect if currently connected.
+            if (!isGSProMode)
+            {
+                GameManager.Instance.DisconnectFromGSPro();
+            }
+#endif
+        }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        private async void OnGSProModeChangedAndroid(bool isGSProMode, SettingsManager settings)
+        {
             var bridgeManager = BridgeModeManager.Instance;
             if (bridgeManager == null)
             {
@@ -521,6 +537,7 @@ namespace OpenRange.UI
                 bridgeManager.DisableBridgeMode();
             }
         }
+#endif
 
         private void OnDeviceStatusChanged(GC2DeviceStatus status)
         {
