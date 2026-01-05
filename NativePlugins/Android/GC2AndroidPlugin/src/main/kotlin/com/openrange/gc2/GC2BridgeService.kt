@@ -652,6 +652,56 @@ class GC2BridgeService : Service() {
     }
 
     /**
+     * Sends a shot to GSPro directly from GC2Plugin.
+     * Called when a shot is received from the GC2 USB device.
+     * This ensures shots are relayed via native client even when app is backgrounded.
+     *
+     * @param ballSpeed Ball speed in mph
+     * @param launchAngle Launch angle in degrees
+     * @param direction Launch direction in degrees
+     * @param totalSpin Total spin in rpm
+     * @param backSpin Back spin in rpm
+     * @param sideSpin Side spin in rpm
+     * @param spinAxis Spin axis in degrees
+     */
+    fun sendShotToGSPro(
+        ballSpeed: Float,
+        launchAngle: Float,
+        direction: Float,
+        totalSpin: Float,
+        backSpin: Float,
+        sideSpin: Float,
+        spinAxis: Float
+    ) {
+        val client = gsProClient
+        if (client == null || !client.isConnected()) {
+            Log.w(TAG, "Cannot send shot from GC2 - GSPro not connected")
+            return
+        }
+
+        Log.i(TAG, "Sending GC2 shot to GSPro: $ballSpeed mph, $launchAngle° launch, $totalSpin rpm spin")
+
+        // Set device status to ready with ball detected before sending shot
+        client.updateDeviceStatus(isReady = true, ballDetected = true)
+
+        client.sendShot(
+            ballSpeed = ballSpeed,
+            launchAngle = launchAngle,
+            direction = direction,
+            totalSpin = totalSpin,
+            backSpin = backSpin,
+            sideSpin = sideSpin,
+            spinAxis = spinAxis
+        )
+
+        // Increment shot count and update notification
+        shotsRelayed++
+        isGC2Connected = true  // Shot came from GC2, so it's connected
+        updateNotification()
+        sendToUnity("OnBridgeShotRelayed", shotsRelayed.toString())
+    }
+
+    /**
      * Sends a shot to GSPro from Unity intent data.
      * Called when Unity wants to send a shot through the native client.
      */
