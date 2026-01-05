@@ -1,10 +1,10 @@
 # GC2 Connect Unity - Development Todo
 
 ## Current Status
-**Phase**: 15 - Bridge Mode (In Progress)
-**Last Updated**: 2026-01-04
-**Next Prompt**: 59 (Bridge Mode Testing - manual testing phase)
-**Test Count**: 1901 EditMode tests passing
+**Phase**: 14 - Visual Enhancements (In Progress)
+**Last Updated**: 2026-01-05
+**Next Prompt**: 49 (Water Shader with Foam and Reflections)
+**Test Count**: 1953 EditMode tests passing
 
 > **Note**: All iOS/iPad work (Prompts 26-28, 38, 57) deferred until other phases complete.
 
@@ -193,13 +193,13 @@ Visual inspiration: ProceduralGolf (toon shaders), Super-Golf (tropical aestheti
   - [x] Quality tier integration (soft/hard/no shadows)
   - [x] Unit tests (43 tests)
 
-- [ ] **Prompt 48**: Enhanced Grass Shader with Wind Animation
-  - [ ] Create StylizedGrass.shader (vertex displacement, wind)
-  - [ ] Create WindController.cs singleton
-  - [ ] Create grass material presets (Fairway, Rough, Green)
-  - [ ] Create GrassShaderSetup.cs editor tool
-  - [ ] Integration with SettingsManager wind settings
-  - [ ] Unit tests
+- [x] **Prompt 48**: Enhanced Grass Shader with Wind Animation ✅ (PR #82)
+  - [x] Create StylizedGrass.shader (vertex displacement, wind)
+  - [x] Create WindController.cs singleton
+  - [x] Create grass material presets (Fairway, Rough, Green)
+  - [x] Create GrassShaderSetup.cs editor tool
+  - [x] Integration with SettingsManager wind settings
+  - [x] Unit tests (52 tests)
 
 - [ ] **Prompt 49**: Water Shader with Foam and Reflections
   - [ ] Create StylizedWater.shader (scrolling normals, depth foam)
@@ -295,6 +295,8 @@ Use case: Moonlight streaming - run OpenRange on Android in background, stream G
 ---
 
 ## Recent Issue Log
+
+**2026-01-05**: Prompt 48 complete (PR #82). Enhanced Grass Shader with Wind Animation: StylizedGrass.shader (URP vertex displacement, wind animation, turbulence, tip color gradient), WindController.cs (singleton with SettingsManager/QualityManager integration, gusting support), GrassShaderSetup.cs (editor tools for Fairway/Rough/Green presets). 52 new tests, 1953 total.
 
 **2026-01-04**: Prompt 47 complete (PR #80). Stylized Skybox and Lighting Setup: StylizedSkybox.shader (URP procedural gradient, HDR sun, FBM clouds), LightingController.cs (3 presets, quality tier integration, QualityManager subscription), LightingSetupGenerator.cs (editor tools). 43 new tests, 1901 total.
 
