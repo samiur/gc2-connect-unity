@@ -264,7 +264,7 @@ namespace OpenRange.Network
         }
 
         /// <summary>
-        /// Disconnect from GSPro.
+        /// Disconnect from GSPro using graceful TCP close sequence.
         /// </summary>
         public void Disconnect()
         {
@@ -279,6 +279,49 @@ namespace OpenRange.Network
                 _isConnected = false;
             }
 
+            // Graceful TCP close sequence:
+            // 1. Shutdown send side to signal we're done sending (sends FIN to peer)
+            // 2. Drain receive buffer until peer closes (recv returns 0) or timeout
+            // 3. Close the socket
+            try
+            {
+                var socket = _client?.Client;
+                if (socket != null && socket.Connected)
+                {
+                    // Step 1: Shutdown send - tells peer we're done sending
+                    socket.Shutdown(SocketShutdown.Send);
+
+                    // Step 2: Drain - read until peer closes or timeout
+                    // This waits for the peer to acknowledge our FIN
+                    socket.ReceiveTimeout = 500; // 500ms timeout - don't block too long
+                    var drainBuffer = new byte[1024];
+                    try
+                    {
+                        while (true)
+                        {
+                            int bytesRead = socket.Receive(drainBuffer);
+                            if (bytesRead == 0)
+                            {
+                                // Peer has closed their end - graceful shutdown complete
+                                Debug.Log("GSProClient: Graceful shutdown completed");
+                                break;
+                            }
+                            // Discard received data and continue draining
+                        }
+                    }
+                    catch (SocketException)
+                    {
+                        // Timeout or error during drain - proceed to close
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Shutdown/drain failed - proceed to close anyway
+                Debug.LogWarning($"GSProClient: Graceful shutdown error: {ex.Message}");
+            }
+
+            // Step 3: Close stream and socket
             try
             {
                 _stream?.Close();
