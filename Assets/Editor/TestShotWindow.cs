@@ -220,14 +220,20 @@ namespace OpenRange.Editor
             }
 
             // Create shot data with correct property names from GC2ShotData
+            float totalSpin = Mathf.Sqrt(_backSpin * _backSpin + _sideSpin * _sideSpin);
+            // SpinAxis = atan2(sidespin, backspin) in degrees
+            // Positive sidespin = fade/slice = positive spin axis
+            float spinAxis = Mathf.Atan2(_sideSpin, _backSpin) * Mathf.Rad2Deg;
+
             var shotData = new GC2ShotData
             {
                 BallSpeed = _ballSpeed,
                 LaunchAngle = _launchAngle,
                 Direction = _azimuth,
-                TotalSpin = Mathf.Sqrt(_backSpin * _backSpin + _sideSpin * _sideSpin),
+                TotalSpin = totalSpin,
                 BackSpin = _backSpin,
                 SideSpin = _sideSpin,
+                SpinAxis = spinAxis,
                 Timestamp = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 HasClubData = false
             };

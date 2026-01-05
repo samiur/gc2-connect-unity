@@ -302,6 +302,20 @@ namespace OpenRange.Network
                 Debug.LogWarning($"GSProClient: Error flushing stream: {ex.Message}");
             }
 
+            // Set linger BEFORE shutdown - ensures immediate close
+            try
+            {
+                if (_client?.Client != null && _client.Client.Connected)
+                {
+                    Debug.Log("GSProClient: Setting linger=0...");
+                    _client.Client.LingerState = new LingerOption(true, 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"GSProClient: Error setting linger: {ex.Message}");
+            }
+
             // Explicit socket shutdown - sends FIN to notify GSPro we're disconnecting
             try
             {
@@ -314,20 +328,6 @@ namespace OpenRange.Network
             catch (Exception ex)
             {
                 Debug.LogWarning($"GSProClient: Error during socket shutdown: {ex.Message}");
-            }
-
-            // Set linger to 0 BEFORE closing - sends RST if data remains
-            try
-            {
-                if (_client?.Client != null)
-                {
-                    Debug.Log("GSProClient: Setting linger=0...");
-                    _client.Client.LingerState = new LingerOption(true, 0);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"GSProClient: Error setting linger: {ex.Message}");
             }
 
             // Close TcpClient (this also closes the stream and socket)
@@ -454,13 +454,21 @@ namespace OpenRange.Network
         /// <returns>GSPro message.</returns>
         public GSProMessage CreateShotMessage(GC2ShotData shot, int shotNumber)
         {
+            // Calculate SpinAxis from BackSpin/SideSpin if not already set
+            // SpinAxis = atan2(sidespin, backspin) in degrees
+            float spinAxis = shot.SpinAxis;
+            if (spinAxis == 0f && (shot.SideSpin != 0f || shot.BackSpin != 0f))
+            {
+                spinAxis = (float)(Math.Atan2(shot.SideSpin, shot.BackSpin) * (180.0 / Math.PI));
+            }
+
             var message = new GSProMessage
             {
                 ShotNumber = shotNumber,
                 BallData = new GSProBallData
                 {
                     Speed = shot.BallSpeed,
-                    SpinAxis = shot.SpinAxis,
+                    SpinAxis = spinAxis,
                     TotalSpin = shot.TotalSpin,
                     BackSpin = shot.BackSpin,
                     SideSpin = shot.SideSpin,
