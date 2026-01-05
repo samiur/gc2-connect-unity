@@ -38,6 +38,9 @@ namespace OpenRange.Editor
             // Grass and wind prefabs
             GrassShaderSetup.CreateAllGrassAssets();
 
+            // Lighting and skybox prefabs
+            LightingSetupGenerator.CreateAllLightingAssets();
+
             // Environment prefabs
             EnvironmentGenerator.CreateAllEnvironmentPrefabs();
 
@@ -508,6 +511,31 @@ namespace OpenRange.Editor
             else
             {
                 Debug.LogWarning("SceneGenerator: WindController.prefab not found. Run 'OpenRange > Materials > Create All Grass Assets' first.");
+            }
+
+            // LightingController (drives skybox and scene lighting)
+            var lightingControllerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/LightingController.prefab");
+            if (lightingControllerPrefab != null)
+            {
+                var lightingController = PrefabUtility.InstantiatePrefab(lightingControllerPrefab) as GameObject;
+                lightingController.transform.position = Vector3.zero;
+
+                // Apply skybox to render settings
+                var skyboxMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Skybox/MarinaSkybox.mat");
+                if (skyboxMaterial != null)
+                {
+                    RenderSettings.skybox = skyboxMaterial;
+                    RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+                    RenderSettings.ambientSkyColor = new Color(0.4f, 0.5f, 0.7f);
+                    RenderSettings.ambientEquatorColor = new Color(0.6f, 0.5f, 0.4f);
+                    RenderSettings.ambientGroundColor = new Color(0.3f, 0.25f, 0.2f);
+                }
+
+                Debug.Log("SceneGenerator: Added LightingController to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: LightingController.prefab not found. Run 'OpenRange > Lighting > Create All Lighting Assets' first.");
             }
 
             // Event System
@@ -985,14 +1013,6 @@ namespace OpenRange.Editor
 
             string materialPath = $"{MaterialsPath}/Grass.mat";
 
-            // Check if material already exists - return it if valid
-            var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-            if (existingMaterial != null)
-            {
-                Debug.Log($"SceneGenerator: Using existing grass material with shader: {existingMaterial.shader?.name}");
-                return existingMaterial;
-            }
-
             // Try to find StylizedGrass shader first (for wind animation)
             Shader grassShader = Shader.Find("OpenRange/StylizedGrass");
             if (grassShader == null)
@@ -1002,6 +1022,12 @@ namespace OpenRange.Editor
 
             if (grassShader != null)
             {
+                // Delete existing Grass.mat if it exists (might have old shader)
+                if (AssetDatabase.LoadAssetAtPath<Material>(materialPath) != null)
+                {
+                    AssetDatabase.DeleteAsset(materialPath);
+                }
+
                 Debug.Log($"SceneGenerator: Using StylizedGrass shader for grass material");
                 var material = new Material(grassShader);
                 material.name = "Grass";
