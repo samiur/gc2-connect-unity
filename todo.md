@@ -296,6 +296,8 @@ Use case: Moonlight streaming - run OpenRange on Android in background, stream G
 
 ## Recent Issue Log
 
+**2026-01-04**: Rewrote GC2Protocol.kt message accumulation to fix multiple parsing issues discovered during real device testing: (1) Status parsing always returned zeros - `0M` on own line meant `FLAGS=7` continuation got routed to shot buffer; fixed by tracking `currentMessageType`. (2) Shot/status data mixing - status fields (FLAGS, BALLS) accumulated into shot data; fixed by skipping status fields when in shot context. (3) Added state machine with separate shot/status buffers, proper message type routing, and shot finalization only when BACK_RPM and SIDE_RPM present.
+
 **2026-01-04**: Fixed native GSPro client integration in Android Bridge Mode. GC2Plugin.sendShotData() now calls GC2BridgeService.sendShotToGSPro() to route shots from USB directly to GSPro via native client. This ensures shots are relayed even when app is backgrounded. Previously shots were only sent to Unity via UnitySendMessage which fails when app isn't active.
 
 **2026-01-04**: Fixed Android runtime crashes in GC2Protocol.kt (PR #78). Two issues from real device testing with GC2: (1) `NoClassDefFoundError: EnumEntriesKt` - Kotlin 1.9+ enum class generates EnumEntriesKt not bundled with Unity Android; fixed by using object with String constants. (2) `NoSuchMethodError: JSONObject.put(String, Float)` - Android JSONObject only has put(String, double); fixed by using toDoubleOrNull() instead of toFloatOrNull().
