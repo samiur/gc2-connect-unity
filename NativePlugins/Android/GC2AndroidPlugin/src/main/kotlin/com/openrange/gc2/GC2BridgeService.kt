@@ -704,6 +704,7 @@ class GC2BridgeService : Service() {
     /**
      * Sends a shot to GSPro from Unity intent data.
      * Called when Unity wants to send a shot through the native client.
+     * Unity sends shots here that it received from the GC2 USB device.
      */
     private fun sendShotFromIntent(intent: Intent) {
         val client = gsProClient
@@ -734,7 +735,9 @@ class GC2BridgeService : Service() {
         )
 
         // Increment shot count and update notification
+        // Shot came from Unity which received it from GC2, so GC2 is connected
         shotsRelayed++
+        isGC2Connected = true
         updateNotification()
         sendToUnity("OnBridgeShotRelayed", shotsRelayed.toString())
     }

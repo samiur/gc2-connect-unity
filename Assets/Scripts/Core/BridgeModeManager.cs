@@ -162,8 +162,12 @@ namespace OpenRange.Core
 
             // On Android, the native service handles ALL GSPro communication.
             // Unity's GSProRelay is NOT used - this prevents dual connection issues.
+            // IMPORTANT: Do NOT subscribe to OnShotReceived on Android!
+            // The native plugin (GC2Plugin.sendShotData) already sends shots to GSPro
+            // via GC2BridgeService.sendShotToGSPro(). Subscribing here would cause
+            // duplicate shot sending.
 #if UNITY_ANDROID && !UNITY_EDITOR
-            Debug.Log("BridgeModeManager: Android - native service will handle GSPro connection");
+            Debug.Log("BridgeModeManager: Android - native service will handle GSPro connection and shot relay");
 
             // Start platform service - it will handle GSPro connection
             if (_bridgeService != null)
@@ -179,11 +183,10 @@ namespace OpenRange.Core
                 return false;
             }
 
-            // Subscribe to GC2 shots (for relaying via native service)
-            if (GameManager.Instance?.GC2Connection != null)
-            {
-                GameManager.Instance.GC2Connection.OnShotReceived += HandleGC2Shot;
-            }
+            // NOTE: On Android, we do NOT subscribe to GC2 shots here!
+            // The native plugin (GC2Plugin.sendShotData) already sends shots to GSPro
+            // directly via GC2BridgeService.sendShotToGSPro() when shots are received
+            // from the USB device. Subscribing here would cause duplicate sends.
 #else
             // On other platforms (macOS, Editor), use Unity's GSProRelay
             // Create and connect relay

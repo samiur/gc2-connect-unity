@@ -363,7 +363,8 @@ namespace OpenRange.Core
 
         /// <summary>
         /// Relay shot data to GSPro if connected and in GSPro mode.
-        /// On Android, uses native service. On macOS/Editor, uses Unity client.
+        /// On Android, the native plugin handles GSPro relay directly - Unity should NOT also send.
+        /// On macOS/Editor, uses Unity's GSProClient.
         /// </summary>
         private void RelayToGSPro(GC2ShotData shot)
         {
@@ -371,21 +372,18 @@ namespace OpenRange.Core
                 return;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-            // On Android, use native service for shot relay
-            if (_isNativeGSProConnected)
-            {
-                var bridgeManager = BridgeModeManager.Instance;
-                if (bridgeManager?.BridgeService != null)
-                {
-                    var androidService = bridgeManager.BridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
-                    if (androidService != null)
-                    {
-                        androidService.SendShot(shot);
-                        return;
-                    }
-                }
-            }
-            return; // No fallback to Unity client on Android - native only
+            // On Android, do NOT send shots from Unity!
+            // The native plugin (GC2Plugin.sendShotData()) already sends shots directly
+            // to GSPro via GC2BridgeService.sendShotToGSPro() when they are received
+            // from the USB device. Sending here would cause duplicate shots in GSPro.
+            //
+            // The flow on Android is:
+            // 1. USB → GC2Device → GC2Protocol → GC2Plugin.sendShotData()
+            // 2. sendShotData() sends to Unity for UI update (OnNativeShotReceived)
+            // 3. sendShotData() ALSO sends to GSPro directly if bridge service is running
+            //
+            // So Unity's only job is to update the UI, not relay to GSPro.
+            return;
 #else
             if (_gsProClient == null || !_gsProClient.IsConnected)
                 return;
