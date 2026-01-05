@@ -256,10 +256,11 @@ class GC2Plugin private constructor() {
         Log.d(TAG, "Requesting USB permission")
         pendingConnectionContext = context
 
+        // Android 14+ requires explicit intents when using FLAG_MUTABLE
         val permissionIntent = PendingIntent.getBroadcast(
             context,
             0,
-            Intent(ACTION_USB_PERMISSION),
+            Intent(ACTION_USB_PERMISSION).apply { setPackage(context.packageName) },
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             } else {
@@ -333,17 +334,49 @@ class GC2Plugin private constructor() {
     }
 
     /**
-     * Sends a shot data callback to Unity.
+     * Sends a shot data callback to Unity AND to native GSPro client if running.
+     *
+     * When the bridge service is running and connected to GSPro, shots are sent
+     * directly via the native GSProClient. This ensures shots are relayed even
+     * when the Unity app is backgrounded.
      */
     internal fun sendShotData(jsonData: String) {
+        // Always send to Unity for UI update
         sendToUnity("OnNativeShotReceived", jsonData)
+
+        // Also send to native GSPro client if bridge service is running
+        val bridgeService = GC2BridgeService.getInstance()
+        if (bridgeService != null) {
+            try {
+                // Parse shot data and send to GSPro
+                val json = org.json.JSONObject(jsonData)
+                val ballSpeed = json.optDouble("BallSpeed", 0.0).toFloat()
+                val launchAngle = json.optDouble("LaunchAngle", 0.0).toFloat()
+                val direction = json.optDouble("LaunchDirection", 0.0).toFloat()
+                val totalSpin = json.optDouble("TotalSpin", 0.0).toFloat()
+                val backSpin = json.optDouble("BackSpin", 0.0).toFloat()
+                val sideSpin = json.optDouble("SideSpin", 0.0).toFloat()
+                val spinAxis = json.optDouble("SpinAxis", 0.0).toFloat()
+
+                Log.d(TAG, "Sending shot to bridge service: $ballSpeed mph, $totalSpin rpm")
+                bridgeService.sendShotToGSPro(
+                    ballSpeed, launchAngle, direction,
+                    totalSpin, backSpin, sideSpin, spinAxis
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send shot to bridge service: ${e.message}")
+            }
+        }
     }
 
     /**
-     * Sends a connection state change callback to Unity.
+     * Sends a connection state change callback to Unity and updates bridge service.
      */
     private fun sendConnectionChanged(connected: Boolean) {
         sendToUnity("OnNativeConnectionChanged", if (connected) "true" else "false")
+
+        // Also update bridge service if running (authoritative source for GC2 connection state)
+        GC2BridgeService.getInstance()?.updateGC2ConnectionState(connected)
     }
 
     /**

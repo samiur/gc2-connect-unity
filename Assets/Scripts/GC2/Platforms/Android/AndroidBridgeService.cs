@@ -88,6 +88,16 @@ namespace OpenRange.GC2.Platforms.Android
         /// </summary>
         private const string ActionSendShot = "com.openrange.gc2.action.SEND_SHOT";
 
+        /// <summary>
+        /// Action to connect to GSPro.
+        /// </summary>
+        private const string ActionConnectGSPro = "com.openrange.gc2.action.CONNECT_GSPRO";
+
+        /// <summary>
+        /// Action to disconnect from GSPro.
+        /// </summary>
+        private const string ActionDisconnectGSPro = "com.openrange.gc2.action.DISCONNECT_GSPRO";
+
         // Shot data extras
         private const string ExtraBallSpeed = "ball_speed";
         private const string ExtraLaunchAngle = "launch_angle";
@@ -397,11 +407,19 @@ namespace OpenRange.GC2.Platforms.Android
 
             try
             {
+                // Get the current test shot mode setting from SettingsManager
+                // This ensures the native service uses the latest setting value
+                bool autoTestShotsEnabled = Core.SettingsManager.Instance?.AutoTestShotsEnabled ?? false;
+                bool isGC2Connected = Core.GameManager.Instance?.GC2Connection?.IsConnected ?? false;
+                bool testShotMode = !isGC2Connected && autoTestShotsEnabled;
+
                 using (var intent = CreateServiceIntent(ActionAppBackgrounded))
                 {
+                    // Include the current test shot mode setting
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraTestShotMode, testShotMode);
                     _applicationContext.Call<AndroidJavaObject>("startService", intent);
                 }
-                Debug.Log("AndroidBridgeService: Sent APP_BACKGROUNDED intent to native service");
+                Debug.Log($"AndroidBridgeService: Sent APP_BACKGROUNDED intent to native service with testShotMode={testShotMode} (autoTestShots={autoTestShotsEnabled}, gc2={isGC2Connected})");
             }
             catch (Exception ex)
             {
@@ -475,6 +493,72 @@ namespace OpenRange.GC2.Platforms.Android
                 return false;
             }
         }
+
+        /// <summary>
+        /// Connects to GSPro through the native client.
+        /// On Android, the native service handles all GSPro communication (foreground and background).
+        /// </summary>
+        /// <param name="host">GSPro host address.</param>
+        /// <param name="port">GSPro port.</param>
+        /// <returns>True if the connect request was sent.</returns>
+        public bool ConnectToGSPro(string host, int port)
+        {
+            if (_isDisposed || _applicationContext == null)
+            {
+                Debug.LogWarning("AndroidBridgeService: Cannot connect - disposed or no context");
+                return false;
+            }
+
+            try
+            {
+                using (var intent = CreateServiceIntent(ActionConnectGSPro))
+                {
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraGSProHost, host);
+                    intent.Call<AndroidJavaObject>("putExtra", ExtraGSProPort, port);
+                    _applicationContext.Call<AndroidJavaObject>("startService", intent);
+                }
+                Debug.Log($"AndroidBridgeService: Requested native GSPro connection to {host}:{port}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"AndroidBridgeService: ConnectToGSPro failed - {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Disconnects from GSPro through the native client.
+        /// </summary>
+        /// <returns>True if the disconnect request was sent.</returns>
+        public bool DisconnectFromGSPro()
+        {
+            if (_isDisposed || _applicationContext == null)
+            {
+                Debug.LogWarning("AndroidBridgeService: Cannot disconnect - disposed or no context");
+                return false;
+            }
+
+            try
+            {
+                using (var intent = CreateServiceIntent(ActionDisconnectGSPro))
+                {
+                    _applicationContext.Call<AndroidJavaObject>("startService", intent);
+                }
+                Debug.Log("AndroidBridgeService: Requested native GSPro disconnection");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"AndroidBridgeService: DisconnectFromGSPro failed - {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether GSPro is connected via the native client.
+        /// </summary>
+        public bool IsGSProConnected => _isGSProConnected;
 
         #endregion
 
@@ -553,6 +637,37 @@ namespace OpenRange.GC2.Platforms.Android
             MainThreadDispatcher.Execute(() => NotifyError(error));
             Debug.LogError($"AndroidBridgeService: Native error - {error}");
         }
+
+        /// <summary>
+        /// Called by native service when GSPro connection status changes.
+        /// </summary>
+        /// <param name="connectedStr">"true" or "false"</param>
+        public void OnBridgeGSProConnectionChanged(string connectedStr)
+        {
+            if (_isDisposed)
+                return;
+
+            bool connected = connectedStr?.ToLower() == "true";
+            _isGSProConnected = connected;
+
+            MainThreadDispatcher.Execute(() =>
+            {
+                try
+                {
+                    OnGSProConnectionChanged?.Invoke(connected);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"AndroidBridgeService: GSPro connection callback error - {ex.Message}");
+                }
+            });
+            Debug.Log($"AndroidBridgeService: GSPro connection changed - {connected}");
+        }
+
+        /// <summary>
+        /// Fired when GSPro connection status changes.
+        /// </summary>
+        public event Action<bool> OnGSProConnectionChanged;
 
         #endregion
 

@@ -189,9 +189,19 @@ Message types:
 - 0H: Shot data (process) - SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, BACK_RPM, SIDE_RPM, etc.
 - 0M: Device status (parse for FLAGS/BALLS) - used for GSPro readiness
 
-Message format: KEY=VALUE pairs, newline-separated
+Message format: KEY=VALUE pairs, newline-separated (may also be concatenated without separator)
 Terminator: \n\t (newline + tab) indicates message complete
-Wait for: BACK_RPM and SIDE_RPM before processing shot (early readings may be incomplete)
+
+CRITICAL: Two 0H messages per shot!
+- First 0H (~128-180ms):  Ball data with PRELIMINARY spin (often BACK_RPM=3500, SIDE_RPM=0)
+- Second 0H (~800-1000ms): Same ball data with REAL spin values
+- Both have same SHOT_ID
+- Solution: Time-based accumulation - wait 1.2s timeout, merge/override fields from subsequent messages
+
+Field name variations:
+- SHOT or SHOT_ID: Some firmware uses "SHOT=1", others use "SHOT_ID=1"
+- Values may have trailing decimal: "3095." instead of "3095"
+- Fields may be concatenated: "BACK_RPM=3095.SIDE_RPM=-419."
 
 Key fields: SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, SPIN_RPM, BACK_RPM, SIDE_RPM
 HMT fields: CLUBSPEED_MPH, HPATH_DEG, VPATH_DEG, FACE_T_DEG, LOFT_DEG
@@ -743,6 +753,31 @@ When building native plugins for IL2CPP (standalone macOS/iOS builds):
    ```
 
    Both platforms keep 4 requests queued at all times - when one completes, it's immediately re-submitted while others continue receiving.
+
+6. **Android Kotlin/Java runtime compatibility** - Kotlin features may not be available at runtime on Unity Android:
+
+   - **Avoid Kotlin 1.9+ enum class** - The modern `enum class` generates a dependency on `EnumEntriesKt` which is part of kotlin-stdlib not bundled with Unity Android. Use `object` with `const val` instead:
+     ```kotlin
+     // BAD: Crashes with NoClassDefFoundError: EnumEntriesKt
+     enum class MessageType { SHOT, STATUS }
+
+     // GOOD: Works on Unity Android
+     object MessageType {
+         const val SHOT = "SHOT"
+         const val STATUS = "STATUS"
+     }
+     ```
+
+   - **Use Double, not Float, with JSONObject** - Android's `JSONObject.put()` only has `put(String, double)`, not `put(String, Float)`. Kotlin's `toFloatOrNull()` produces a boxed `Float` which fails:
+     ```kotlin
+     // BAD: NoSuchMethodError: JSONObject.put(String, Float)
+     json.put("BallSpeed", data["SPEED_MPH"]?.toFloatOrNull() ?: 0f)
+
+     // GOOD: Works because Double auto-unboxes to double
+     json.put("BallSpeed", data["SPEED_MPH"]?.toDoubleOrNull() ?: 0.0)
+     ```
+
+   - **Test on real Android devices** - These runtime issues don't appear in unit tests or emulator builds. Only real device testing reveals missing classes/methods.
 
 ### Batchmode Scene Generation
 

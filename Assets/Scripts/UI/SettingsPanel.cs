@@ -40,6 +40,7 @@ namespace OpenRange.UI
 
         [Header("Connection Settings")]
         [SerializeField] private SettingToggle _autoConnectToggle;
+        [SerializeField] private SettingToggle _autoTestShotsToggle;
 
         [Header("Audio Settings")]
         [SerializeField] private SettingSlider _masterVolumeSlider;
@@ -108,6 +109,9 @@ namespace OpenRange.UI
 
         /// <summary>Auto-connect toggle control.</summary>
         public SettingToggle AutoConnectToggle => _autoConnectToggle;
+
+        /// <summary>Auto test shots toggle control.</summary>
+        public SettingToggle AutoTestShotsToggle => _autoTestShotsToggle;
 
         /// <summary>Master volume slider control.</summary>
         public SettingSlider MasterVolumeSlider => _masterVolumeSlider;
@@ -262,6 +266,7 @@ namespace OpenRange.UI
             SettingSlider windSpeedSlider,
             SettingSlider windDirectionSlider,
             SettingToggle autoConnectToggle,
+            SettingToggle autoTestShotsToggle,
             SettingSlider masterVolumeSlider,
             SettingSlider effectsVolumeSlider)
         {
@@ -280,6 +285,7 @@ namespace OpenRange.UI
             _windSpeedSlider = windSpeedSlider;
             _windDirectionSlider = windDirectionSlider;
             _autoConnectToggle = autoConnectToggle;
+            _autoTestShotsToggle = autoTestShotsToggle;
             _masterVolumeSlider = masterVolumeSlider;
             _effectsVolumeSlider = effectsVolumeSlider;
         }
@@ -383,6 +389,11 @@ namespace OpenRange.UI
             if (_autoConnectToggle != null)
             {
                 _autoConnectToggle.Label = "Auto-Connect";
+            }
+
+            if (_autoTestShotsToggle != null)
+            {
+                _autoTestShotsToggle.Label = "Auto Test Shots";
             }
 
             // Audio
@@ -535,6 +546,11 @@ namespace OpenRange.UI
                 _autoConnectToggle.OnValueChanged += OnAutoConnectChanged;
             }
 
+            if (_autoTestShotsToggle != null)
+            {
+                _autoTestShotsToggle.OnValueChanged += OnAutoTestShotsChanged;
+            }
+
             // Audio
             if (_masterVolumeSlider != null)
             {
@@ -611,6 +627,11 @@ namespace OpenRange.UI
             if (_autoConnectToggle != null)
             {
                 _autoConnectToggle.OnValueChanged -= OnAutoConnectChanged;
+            }
+
+            if (_autoTestShotsToggle != null)
+            {
+                _autoTestShotsToggle.OnValueChanged -= OnAutoTestShotsChanged;
             }
 
             // Audio
@@ -703,6 +724,11 @@ namespace OpenRange.UI
             if (_autoConnectToggle != null)
             {
                 _autoConnectToggle.SetWithoutNotify(_settingsManager.AutoConnect);
+            }
+
+            if (_autoTestShotsToggle != null)
+            {
+                _autoTestShotsToggle.SetWithoutNotify(_settingsManager.AutoTestShotsEnabled);
             }
 
             // Audio (convert 0-1 to 0-100 percent)
@@ -847,6 +873,14 @@ namespace OpenRange.UI
             if (_settingsManager != null && !_suppressSettingsEvents)
             {
                 _settingsManager.AutoConnect = value;
+            }
+        }
+
+        private void OnAutoTestShotsChanged(bool value)
+        {
+            if (_settingsManager != null && !_suppressSettingsEvents)
+            {
+                _settingsManager.AutoTestShotsEnabled = value;
             }
         }
 

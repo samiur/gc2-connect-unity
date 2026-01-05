@@ -622,6 +622,7 @@ namespace OpenRange.Editor
             SettingSlider windSpeedSlider = null;
             SettingSlider windDirectionSlider = null;
             SettingToggle autoConnectToggle = null;
+            SettingToggle autoTestShotsToggle = null;
             SettingSlider masterVolumeSlider = null;
             SettingSlider effectsVolumeSlider = null;
 
@@ -648,6 +649,7 @@ namespace OpenRange.Editor
             // Connection Section
             CreateSectionHeader(contentGo.transform, "Connection");
             autoConnectToggle = InstantiateToggle(togglePrefab, contentGo.transform, "Auto-Connect");
+            autoTestShotsToggle = InstantiateToggle(togglePrefab, contentGo.transform, "Auto Test Shots");
 
             // Audio Section
             CreateSectionHeader(contentGo.transform, "Audio");
@@ -683,6 +685,7 @@ namespace OpenRange.Editor
             so.FindProperty("_windSpeedSlider").objectReferenceValue = windSpeedSlider;
             so.FindProperty("_windDirectionSlider").objectReferenceValue = windDirectionSlider;
             so.FindProperty("_autoConnectToggle").objectReferenceValue = autoConnectToggle;
+            so.FindProperty("_autoTestShotsToggle").objectReferenceValue = autoTestShotsToggle;
             so.FindProperty("_masterVolumeSlider").objectReferenceValue = masterVolumeSlider;
             so.FindProperty("_effectsVolumeSlider").objectReferenceValue = effectsVolumeSlider;
             so.ApplyModifiedPropertiesWithoutUndo();

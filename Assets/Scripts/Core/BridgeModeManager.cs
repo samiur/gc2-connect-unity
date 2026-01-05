@@ -30,6 +30,12 @@ namespace OpenRange.Core
         private IBridgeService _bridgeService;
         private BridgeModeStatistics _statistics;
 
+        /// <summary>
+        /// Access to the platform-specific bridge service.
+        /// On Android, this is AndroidBridgeService which handles native GSPro connection.
+        /// </summary>
+        public IBridgeService BridgeService => _bridgeService;
+
         // Test shot support when GC2 not connected
         private Coroutine _testShotCoroutine;
         private int _testShotIndex;
@@ -93,6 +99,15 @@ namespace OpenRange.Core
 
             _statistics = new BridgeModeStatistics();
 
+            // Load GSPro host/port from saved settings
+            var settings = SettingsManager.Instance;
+            if (settings != null)
+            {
+                _gsProHost = settings.GSProHost;
+                _gsProPort = settings.GSProPort;
+                Debug.Log($"BridgeModeManager: Loaded settings - host={_gsProHost}, port={_gsProPort}");
+            }
+
             // Create platform-specific bridge service
             if (BridgeServiceFactory.IsBridgeModeSupported())
             {
@@ -147,8 +162,12 @@ namespace OpenRange.Core
 
             // On Android, the native service handles ALL GSPro communication.
             // Unity's GSProRelay is NOT used - this prevents dual connection issues.
+            // IMPORTANT: Do NOT subscribe to OnShotReceived on Android!
+            // The native plugin (GC2Plugin.sendShotData) already sends shots to GSPro
+            // via GC2BridgeService.sendShotToGSPro(). Subscribing here would cause
+            // duplicate shot sending.
 #if UNITY_ANDROID && !UNITY_EDITOR
-            Debug.Log("BridgeModeManager: Android - native service will handle GSPro connection");
+            Debug.Log("BridgeModeManager: Android - native service will handle GSPro connection and shot relay");
 
             // Start platform service - it will handle GSPro connection
             if (_bridgeService != null)
@@ -164,11 +183,10 @@ namespace OpenRange.Core
                 return false;
             }
 
-            // Subscribe to GC2 shots (for relaying via native service)
-            if (GameManager.Instance?.GC2Connection != null)
-            {
-                GameManager.Instance.GC2Connection.OnShotReceived += HandleGC2Shot;
-            }
+            // NOTE: On Android, we do NOT subscribe to GC2 shots here!
+            // The native plugin (GC2Plugin.sendShotData) already sends shots to GSPro
+            // directly via GC2BridgeService.sendShotToGSPro() when shots are received
+            // from the USB device. Subscribing here would cause duplicate sends.
 #else
             // On other platforms (macOS, Editor), use Unity's GSProRelay
             // Create and connect relay
@@ -401,7 +419,7 @@ namespace OpenRange.Core
 
         /// <summary>
         /// Configures the platform bridge service with GSPro connection parameters.
-        /// On Android, enables test shot mode when GC2 is not connected.
+        /// On Android, enables test shot mode when GC2 is not connected and setting is enabled.
         /// </summary>
         private void ConfigureBridgeServiceGSPro(bool isGC2Connected)
         {
@@ -410,11 +428,14 @@ namespace OpenRange.Core
             var androidService = _bridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
             if (androidService != null)
             {
-                // Enable test shot mode when GC2 is not connected
+                // Enable test shot mode when:
+                // 1. GC2 is not connected AND
+                // 2. AutoTestShotsEnabled setting is true
                 // Test shots will be sent by the native service when the app is backgrounded
-                bool testShotMode = !isGC2Connected;
+                bool autoTestShotsEnabled = SettingsManager.Instance?.AutoTestShotsEnabled ?? false;
+                bool testShotMode = !isGC2Connected && autoTestShotsEnabled;
                 androidService.ConfigureGSPro(_gsProHost, _gsProPort, testShotMode);
-                Debug.Log($"BridgeModeManager: Configured Android service - testShotMode={testShotMode}");
+                Debug.Log($"BridgeModeManager: Configured Android service - testShotMode={testShotMode} (autoTestShotsEnabled={autoTestShotsEnabled}, isGC2Connected={isGC2Connected})");
             }
 #endif
         }
