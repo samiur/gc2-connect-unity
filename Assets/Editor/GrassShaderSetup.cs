@@ -152,15 +152,7 @@ namespace OpenRange.Editor
             string materialName = GetMaterialName(preset);
             string materialPath = $"{MaterialsPath}/{materialName}.mat";
 
-            // Check if material already exists
-            var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-            if (existingMaterial != null)
-            {
-                Debug.Log($"GrassShaderSetup: Material already exists at {materialPath}");
-                return existingMaterial;
-            }
-
-            // Find the shader
+            // Find the shader first
             var shader = Shader.Find("OpenRange/StylizedGrass");
             if (shader == null)
             {
@@ -171,6 +163,22 @@ namespace OpenRange.Editor
             {
                 Debug.LogError("GrassShaderSetup: Could not find StylizedGrass shader. Make sure it exists at " + ShaderPath);
                 return null;
+            }
+
+            // Check if material already exists
+            var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (existingMaterial != null)
+            {
+                // Check if it has the correct shader
+                if (existingMaterial.shader == shader)
+                {
+                    Debug.Log($"GrassShaderSetup: Material already exists with correct shader at {materialPath}");
+                    return existingMaterial;
+                }
+
+                // Delete material with wrong shader and recreate
+                Debug.Log($"GrassShaderSetup: Deleting material with wrong shader ({existingMaterial.shader?.name ?? "NULL"}) at {materialPath}");
+                AssetDatabase.DeleteAsset(materialPath);
             }
 
             // Create material
@@ -184,7 +192,7 @@ namespace OpenRange.Editor
             // Save asset
             AssetDatabase.CreateAsset(material, materialPath);
 
-            Debug.Log($"GrassShaderSetup: Created grass material at {materialPath}");
+            Debug.Log($"GrassShaderSetup: Created grass material with StylizedGrass shader at {materialPath}");
             return material;
         }
 
