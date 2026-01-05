@@ -744,6 +744,31 @@ When building native plugins for IL2CPP (standalone macOS/iOS builds):
 
    Both platforms keep 4 requests queued at all times - when one completes, it's immediately re-submitted while others continue receiving.
 
+6. **Android Kotlin/Java runtime compatibility** - Kotlin features may not be available at runtime on Unity Android:
+
+   - **Avoid Kotlin 1.9+ enum class** - The modern `enum class` generates a dependency on `EnumEntriesKt` which is part of kotlin-stdlib not bundled with Unity Android. Use `object` with `const val` instead:
+     ```kotlin
+     // BAD: Crashes with NoClassDefFoundError: EnumEntriesKt
+     enum class MessageType { SHOT, STATUS }
+
+     // GOOD: Works on Unity Android
+     object MessageType {
+         const val SHOT = "SHOT"
+         const val STATUS = "STATUS"
+     }
+     ```
+
+   - **Use Double, not Float, with JSONObject** - Android's `JSONObject.put()` only has `put(String, double)`, not `put(String, Float)`. Kotlin's `toFloatOrNull()` produces a boxed `Float` which fails:
+     ```kotlin
+     // BAD: NoSuchMethodError: JSONObject.put(String, Float)
+     json.put("BallSpeed", data["SPEED_MPH"]?.toFloatOrNull() ?: 0f)
+
+     // GOOD: Works because Double auto-unboxes to double
+     json.put("BallSpeed", data["SPEED_MPH"]?.toDoubleOrNull() ?: 0.0)
+     ```
+
+   - **Test on real Android devices** - These runtime issues don't appear in unit tests or emulator builds. Only real device testing reveals missing classes/methods.
+
 ### Batchmode Scene Generation
 
 **Critical Issue:** `EditorUtility.DisplayDialog()` returns `false` in batchmode (CLI), causing menu methods to exit early without doing work.
