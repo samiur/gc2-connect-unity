@@ -30,12 +30,6 @@ namespace OpenRange.Network
         /// <summary>Timeout for shot response in milliseconds.</summary>
         public const int ShotResponseTimeoutMs = 5000;
 
-        /// <summary>Maximum retry attempts for initial connection (0 = unlimited).</summary>
-        public const int MaxConnectRetries = 0;
-
-        /// <summary>Delay between connection retries in milliseconds.</summary>
-        private static readonly int[] ConnectRetryDelaysMs = { 1000, 2000, 3000, 5000, 5000 };
-
         /// <summary>Size of receive buffer for reading responses.</summary>
         private const int ReceiveBufferSize = 4096;
 
@@ -210,6 +204,7 @@ namespace OpenRange.Network
             var ct = _connectRetryCts.Token;
 
             int attempt = 0;
+            int[] retryDelays = { 1000, 2000, 3000, 5000, 5000 };
 
             while (!ct.IsCancellationRequested)
             {
@@ -232,8 +227,8 @@ namespace OpenRange.Network
                 }
 
                 // Calculate delay with backoff
-                int delayIndex = Math.Min(attempt - 1, ConnectRetryDelaysMs.Length - 1);
-                int delay = ConnectRetryDelaysMs[delayIndex];
+                int delayIndex = Math.Min(attempt - 1, retryDelays.Length - 1);
+                int delay = retryDelays[delayIndex];
 
                 Debug.Log($"GSProClient: Connection attempt {attempt} failed, retrying in {delay}ms...");
 
@@ -273,8 +268,6 @@ namespace OpenRange.Network
         /// </summary>
         public void Disconnect()
         {
-            Debug.Log("GSProClient: Disconnect() called");
-
             StopHeartbeat();
             StopReconnect();
             CancelConnectRetry();
@@ -286,76 +279,32 @@ namespace OpenRange.Network
                 _isConnected = false;
             }
 
-            Debug.Log($"GSProClient: wasConnected={wasConnected}");
-
-            // Flush stream to ensure any pending data is sent
             try
             {
-                if (_stream != null && _stream.CanWrite)
-                {
-                    Debug.Log("GSProClient: Flushing stream...");
-                    _stream.Flush();
-                }
+                _stream?.Close();
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.LogWarning($"GSProClient: Error flushing stream: {ex.Message}");
+                // Ignore close errors
             }
 
-            // Set linger BEFORE shutdown - ensures immediate close
             try
             {
-                if (_client?.Client != null && _client.Client.Connected)
-                {
-                    Debug.Log("GSProClient: Setting linger=0...");
-                    _client.Client.LingerState = new LingerOption(true, 0);
-                }
+                _client?.Close();
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.LogWarning($"GSProClient: Error setting linger: {ex.Message}");
-            }
-
-            // Explicit socket shutdown - sends FIN to notify GSPro we're disconnecting
-            try
-            {
-                if (_client?.Client != null && _client.Client.Connected)
-                {
-                    Debug.Log("GSProClient: Shutting down socket (Both)...");
-                    _client.Client.Shutdown(SocketShutdown.Both);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"GSProClient: Error during socket shutdown: {ex.Message}");
-            }
-
-            // Close TcpClient (this also closes the stream and socket)
-            if (_client != null)
-            {
-                try
-                {
-                    Debug.Log("GSProClient: Closing TcpClient...");
-                    _client.Close();
-                    Debug.Log("GSProClient: TcpClient closed");
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogWarning($"GSProClient: Error closing client: {ex.Message}");
-                }
+                // Ignore close errors
             }
 
             _stream = null;
             _client = null;
 
-            // Notify listeners if we were connected
             if (wasConnected)
             {
-                Debug.Log("GSProClient: Firing OnDisconnected event");
+                Debug.Log("GSProClient: Disconnected from GSPro");
                 OnDisconnected?.Invoke();
             }
-
-            Debug.Log("GSProClient: Disconnect complete");
         }
 
         /// <summary>
@@ -454,21 +403,13 @@ namespace OpenRange.Network
         /// <returns>GSPro message.</returns>
         public GSProMessage CreateShotMessage(GC2ShotData shot, int shotNumber)
         {
-            // Calculate SpinAxis from BackSpin/SideSpin if not already set
-            // SpinAxis = atan2(sidespin, backspin) in degrees
-            float spinAxis = shot.SpinAxis;
-            if (spinAxis == 0f && (shot.SideSpin != 0f || shot.BackSpin != 0f))
-            {
-                spinAxis = (float)(Math.Atan2(shot.SideSpin, shot.BackSpin) * (180.0 / Math.PI));
-            }
-
             var message = new GSProMessage
             {
                 ShotNumber = shotNumber,
                 BallData = new GSProBallData
                 {
                     Speed = shot.BallSpeed,
-                    SpinAxis = spinAxis,
+                    SpinAxis = shot.SpinAxis,
                     TotalSpin = shot.TotalSpin,
                     BackSpin = shot.BackSpin,
                     SideSpin = shot.SideSpin,
