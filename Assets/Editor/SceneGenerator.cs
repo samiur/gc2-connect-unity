@@ -37,6 +37,7 @@ namespace OpenRange.Editor
 
             // Grass and wind prefabs
             GrassShaderSetup.CreateAllGrassAssets();
+            GrassSystemSetup.CreateAllGrassAssets();
 
             // Lighting and skybox prefabs
             LightingSetupGenerator.CreateAllLightingAssets();
@@ -536,6 +537,19 @@ namespace OpenRange.Editor
             else
             {
                 Debug.LogWarning("SceneGenerator: LightingController.prefab not found. Run 'OpenRange > Lighting > Create All Lighting Assets' first.");
+            }
+
+            // GrassRenderer (GPU instanced grass near tee)
+            var grassRendererPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/GrassRenderer.prefab");
+            if (grassRendererPrefab != null)
+            {
+                var grassRenderer = PrefabUtility.InstantiatePrefab(grassRendererPrefab) as GameObject;
+                grassRenderer.transform.position = Vector3.zero;
+                Debug.Log("SceneGenerator: Added GrassRenderer to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: GrassRenderer.prefab not found. Run 'OpenRange > Grass System > Create All Grass Assets' first.");
             }
 
             // Event System
