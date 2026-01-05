@@ -189,9 +189,19 @@ Message types:
 - 0H: Shot data (process) - SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, BACK_RPM, SIDE_RPM, etc.
 - 0M: Device status (parse for FLAGS/BALLS) - used for GSPro readiness
 
-Message format: KEY=VALUE pairs, newline-separated
+Message format: KEY=VALUE pairs, newline-separated (may also be concatenated without separator)
 Terminator: \n\t (newline + tab) indicates message complete
-Wait for: BACK_RPM and SIDE_RPM before processing shot (early readings may be incomplete)
+
+CRITICAL: Two 0H messages per shot!
+- First 0H (~128-180ms):  Ball data with PRELIMINARY spin (often BACK_RPM=3500, SIDE_RPM=0)
+- Second 0H (~800-1000ms): Same ball data with REAL spin values
+- Both have same SHOT_ID
+- Solution: Time-based accumulation - wait 1.2s timeout, merge/override fields from subsequent messages
+
+Field name variations:
+- SHOT or SHOT_ID: Some firmware uses "SHOT=1", others use "SHOT_ID=1"
+- Values may have trailing decimal: "3095." instead of "3095"
+- Fields may be concatenated: "BACK_RPM=3095.SIDE_RPM=-419."
 
 Key fields: SPEED_MPH, ELEVATION_DEG, AZIMUTH_DEG, SPIN_RPM, BACK_RPM, SIDE_RPM
 HMT fields: CLUBSPEED_MPH, HPATH_DEG, VPATH_DEG, FACE_T_DEG, LOFT_DEG

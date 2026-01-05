@@ -16,11 +16,15 @@ import org.json.JSONObject
  *
  * Messages are terminated by "\n\t" (newline + tab).
  *
- * IMPORTANT: The GC2 sends data across multiple USB packets. A single message
- * may span 4+ packets. We must:
- * 1. Track which message type (0H/0M) we're currently in
- * 2. Accumulate all fields until message terminator or next message header
- * 3. Only finalize shots when we have BACK_RPM and SIDE_RPM (spin data)
+ * IMPORTANT: The GC2 sends TWO 0H messages per shot:
+ * 1. Initial message (~128-180ms): Ball data with preliminary/default spin
+ * 2. Final message (~800-1000ms): Same ball data with real spin values
+ *
+ * We use time-based accumulation:
+ * - First message starts a pending shot with timestamp
+ * - Subsequent messages with same SHOT_ID merge/override fields
+ * - After SHOT_TIMEOUT_MS, we finalize with whatever data we have
+ * - 0M status messages can arrive between shot messages and are handled separately
  */
 class GC2Protocol {
 
@@ -44,6 +48,13 @@ class GC2Protocol {
 
         /** Error pattern indicating a misread */
         const val MISREAD_SPIN_VALUE = 2222
+
+        /**
+         * Time to wait for additional shot data before finalizing (ms).
+         * GC2 sends initial message at ~128-180ms and final at ~800-1000ms,
+         * so 1200ms gives buffer for the second message to arrive.
+         */
+        const val SHOT_TIMEOUT_MS = 1200L
 
         // GC2 field names (0H shot data)
         // Note: Some GC2 firmware sends "SHOT" instead of "SHOT_ID"
@@ -86,9 +97,10 @@ class GC2Protocol {
     // Current message type we're accumulating (SHOT, STATUS, or NONE)
     private var currentMessageType = MessageType.NONE
 
-    // Current shot data being accumulated (persists across multiple 0H messages until spin data arrives)
-    private val currentShotData = mutableMapOf<String, String>()
-    private var lastShotId: String? = null
+    // Pending shot data with time-based accumulation
+    private val pendingShotData = mutableMapOf<String, String>()
+    private var pendingShotId: String? = null
+    private var pendingShotTimestamp: Long = 0L
 
     // Current status data being accumulated (within a single 0M message)
     private val currentStatusData = mutableMapOf<String, String>()
@@ -100,6 +112,9 @@ class GC2Protocol {
      * @param onMessage Callback invoked with message type and JSON data
      */
     fun processData(data: String, onMessage: (String, String) -> Unit) {
+        // Check for pending shot timeout FIRST (before processing new data)
+        checkPendingShotTimeout(onMessage)
+
         rawBuffer.append(data)
 
         // Process complete lines from the buffer
@@ -112,7 +127,7 @@ class GC2Protocol {
 
             // Check for message terminator (tab at start of line after newline)
             if (line == "\t" || line.isEmpty() && rawBuffer.startsWith("\t")) {
-                // Message terminator found - finalize current message
+                // Message terminator found - finalize current message (status only)
                 finalizeCurrentMessage(onMessage)
                 if (rawBuffer.startsWith("\t")) {
                     rawBuffer.delete(0, 1)
@@ -130,6 +145,22 @@ class GC2Protocol {
             finalizeCurrentMessage(onMessage)
             rawBuffer.delete(0, 1)
         }
+
+        // Check timeout again after processing (in case we just started a new shot)
+        checkPendingShotTimeout(onMessage)
+    }
+
+    /**
+     * Checks if pending shot has timed out and should be finalized.
+     */
+    private fun checkPendingShotTimeout(onMessage: (String, String) -> Unit) {
+        if (pendingShotData.isEmpty() || pendingShotTimestamp == 0L) return
+
+        val elapsed = System.currentTimeMillis() - pendingShotTimestamp
+        if (elapsed >= SHOT_TIMEOUT_MS) {
+            Log.d(TAG, "Pending shot timeout after ${elapsed}ms - finalizing with ${pendingShotData.size} fields")
+            finalizePendingShot(onMessage)
+        }
     }
 
     /**
@@ -146,11 +177,12 @@ class GC2Protocol {
                 // Process any fields on the same line as 0H
                 val remainder = line.removePrefix(SHOT_MESSAGE_PREFIX).trim()
                 if (remainder.isNotEmpty()) {
-                    accumulateShotFields(remainder)
+                    accumulateShotFields(remainder, onMessage)
                 }
             }
             line.startsWith(STATUS_MESSAGE_PREFIX) -> {
                 // Starting a new status message - clear status buffer
+                // Note: Status messages can arrive between shot messages, that's OK
                 currentStatusData.clear()
                 currentMessageType = MessageType.STATUS
                 // Process any fields on the same line as 0M
@@ -163,24 +195,17 @@ class GC2Protocol {
                 // Continuation line - add to current message type
                 if (line.contains("=")) {
                     when (currentMessageType) {
-                        MessageType.SHOT -> accumulateShotFields(line)
+                        MessageType.SHOT -> accumulateShotFields(line, onMessage)
                         MessageType.STATUS -> accumulateStatusFields(line)
                         else -> {
-                            // No message type set yet - probably orphaned data, treat as shot
+                            // No message type set yet - probably orphaned data
                             Log.w(TAG, "Orphaned data line (no message type): $line")
                         }
                     }
                 }
             }
         }
-
-        // Check if shot is complete (has all required data including spin)
-        if (currentMessageType == MessageType.SHOT &&
-            currentShotData.containsKey(FIELD_BACK_RPM) &&
-            currentShotData.containsKey(FIELD_SIDE_RPM)) {
-            Log.d(TAG, "Shot complete - has BACK_RPM and SIDE_RPM, finalizing...")
-            finalizeShot(onMessage)
-        }
+        // Note: Shot finalization is now time-based, not triggered here
     }
 
     /**
@@ -190,10 +215,10 @@ class GC2Protocol {
         when (currentMessageType) {
             MessageType.STATUS -> finalizeStatus(onMessage)
             MessageType.SHOT -> {
-                // Don't finalize shot on terminator - wait for spin data
+                // Don't finalize shot on terminator - use time-based finalization
                 // The shot may span multiple 0H messages
-                Log.d(TAG, "Message terminator - shot has ${currentShotData.size} fields, " +
-                        "waiting for spin data. Has BACK_RPM: ${currentShotData.containsKey(FIELD_BACK_RPM)}")
+                Log.d(TAG, "Message terminator - shot has ${pendingShotData.size} fields, " +
+                        "waiting for timeout. Has BACK_RPM: ${pendingShotData.containsKey(FIELD_BACK_RPM)}")
             }
         }
         // Don't reset message type - shot data accumulates across messages
@@ -205,8 +230,13 @@ class GC2Protocol {
      * - Space-separated: "SPEED_MPH=148.9 ELEVATION_DEG=11.7"
      * - Concatenated: "BACK_RPM=3095.SIDE_RPM=-419."
      * - Single field: "SHOT=1"
+     *
+     * Time-based accumulation:
+     * - First message for a SHOT_ID starts the timer
+     * - Subsequent messages with same SHOT_ID merge/override fields
+     * - Different SHOT_ID finalizes previous and starts new
      */
-    private fun accumulateShotFields(line: String) {
+    private fun accumulateShotFields(line: String, onMessage: (String, String) -> Unit) {
         // Regex to match KEY=VALUE pairs
         // KEY: uppercase letter followed by uppercase letters, digits, or underscores
         // VALUE: anything that's not part of the next KEY= pattern
@@ -233,21 +263,21 @@ class GC2Protocol {
 
             // Check for new shot (different SHOT_ID or SHOT)
             val isShotIdField = (key == FIELD_SHOT_ID || key == FIELD_SHOT)
-            if (isShotIdField && value != lastShotId) {
-                // New shot starting - DON'T finalize previous shot here
-                // The previous shot without spin data should have been rejected already
-                // Just clear and start fresh
-                if (currentShotData.isNotEmpty()) {
-                    Log.d(TAG, "New shot ID=$value, clearing incomplete previous shot data")
+            if (isShotIdField && value != pendingShotId) {
+                // New shot ID - finalize any pending shot first
+                if (pendingShotData.isNotEmpty()) {
+                    Log.d(TAG, "New shot ID=$value arrived, finalizing previous shot ID=$pendingShotId")
+                    finalizePendingShot(onMessage)
                 }
-                currentShotData.clear()
-                lastShotId = value
-                Log.d(TAG, "New shot detected: ID=$value")
+                // Start new pending shot
+                pendingShotId = value
+                pendingShotTimestamp = System.currentTimeMillis()
+                Log.d(TAG, "New shot detected: ID=$value, timestamp=$pendingShotTimestamp")
             }
 
             // Normalize SHOT to SHOT_ID for consistent internal handling
             val normalizedKey = if (key == FIELD_SHOT) FIELD_SHOT_ID else key
-            currentShotData[normalizedKey] = value
+            pendingShotData[normalizedKey] = value
         }
     }
 
@@ -299,27 +329,40 @@ class GC2Protocol {
     }
 
     /**
-     * Finalizes and sends the current shot if valid.
+     * Finalizes and sends the pending shot if valid.
+     * Called when timeout expires or new shot ID arrives.
      */
-    private fun finalizeShot(onMessage: (String, String) -> Unit) {
-        if (currentShotData.isEmpty()) return
+    private fun finalizePendingShot(onMessage: (String, String) -> Unit) {
+        if (pendingShotData.isEmpty()) return
+
+        val elapsed = System.currentTimeMillis() - pendingShotTimestamp
+        Log.d(TAG, "Finalizing pending shot after ${elapsed}ms with ${pendingShotData.size} fields")
 
         // Validate shot data
-        if (!isValidShot(currentShotData)) {
-            Log.d(TAG, "Shot rejected as invalid: $currentShotData")
-            currentShotData.clear()
+        if (!isValidShot(pendingShotData)) {
+            Log.d(TAG, "Shot rejected as invalid: $pendingShotData")
+            clearPendingShot()
             return
         }
 
         // Convert to JSON matching GC2ShotData C# properties
-        val json = convertToJson(currentShotData)
+        val json = convertToJson(pendingShotData)
         if (json != null) {
-            Log.i(TAG, "Shot finalized successfully: ${currentShotData[FIELD_SPEED_MPH]} mph, " +
-                    "spin: ${currentShotData[FIELD_BACK_RPM]}/${currentShotData[FIELD_SIDE_RPM]}")
+            Log.i(TAG, "Shot finalized successfully: ${pendingShotData[FIELD_SPEED_MPH]} mph, " +
+                    "spin: ${pendingShotData[FIELD_BACK_RPM]}/${pendingShotData[FIELD_SIDE_RPM]}")
             onMessage(MessageType.SHOT, json)
         }
 
-        currentShotData.clear()
+        clearPendingShot()
+    }
+
+    /**
+     * Clears pending shot state.
+     */
+    private fun clearPendingShot() {
+        pendingShotData.clear()
+        pendingShotId = null
+        pendingShotTimestamp = 0L
     }
 
     /**
@@ -427,9 +470,22 @@ class GC2Protocol {
      */
     fun reset() {
         rawBuffer.clear()
-        currentShotData.clear()
+        clearPendingShot()
         currentStatusData.clear()
         currentMessageType = MessageType.NONE
-        lastShotId = null
+    }
+
+    /**
+     * Forces finalization of any pending shot.
+     * Useful for testing or when disconnecting.
+     */
+    fun flush(onMessage: (String, String) -> Unit) {
+        if (pendingShotData.isNotEmpty()) {
+            Log.d(TAG, "Flush requested - finalizing pending shot")
+            finalizePendingShot(onMessage)
+        }
+        if (currentStatusData.isNotEmpty()) {
+            finalizeStatus(onMessage)
+        }
     }
 }
