@@ -370,10 +370,13 @@ class GC2Plugin private constructor() {
     }
 
     /**
-     * Sends a connection state change callback to Unity.
+     * Sends a connection state change callback to Unity and updates bridge service.
      */
     private fun sendConnectionChanged(connected: Boolean) {
         sendToUnity("OnNativeConnectionChanged", if (connected) "true" else "false")
+
+        // Also update bridge service if running (authoritative source for GC2 connection state)
+        GC2BridgeService.getInstance()?.updateGC2ConnectionState(connected)
     }
 
     /**

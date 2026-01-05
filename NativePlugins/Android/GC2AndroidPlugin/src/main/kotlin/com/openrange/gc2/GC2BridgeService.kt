@@ -276,6 +276,22 @@ class GC2BridgeService : Service() {
         updateNotification()
     }
 
+    /**
+     * Updates the GC2 connection state.
+     * Called by GC2Plugin when USB connection state changes.
+     * This is the authoritative source for GC2 connection status.
+     *
+     * @param connected Whether the GC2 device is connected
+     */
+    fun updateGC2ConnectionState(connected: Boolean) {
+        if (isGC2Connected != connected) {
+            Log.i(TAG, "GC2 connection state changed: $connected")
+            isGC2Connected = connected
+            updateNotification()
+            sendToUnity("OnBridgeGC2ConnectionChanged", if (connected) "true" else "false")
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Private methods
     // -------------------------------------------------------------------------
@@ -695,8 +711,9 @@ class GC2BridgeService : Service() {
         )
 
         // Increment shot count and update notification
+        // Note: isGC2Connected is set by GC2Plugin.sendConnectionChanged(), not here.
+        // This method is only called when GC2 is already connected.
         shotsRelayed++
-        isGC2Connected = true  // Shot came from GC2, so it's connected
         updateNotification()
         sendToUnity("OnBridgeShotRelayed", shotsRelayed.toString())
     }
@@ -735,9 +752,9 @@ class GC2BridgeService : Service() {
         )
 
         // Increment shot count and update notification
-        // Shot came from Unity which received it from GC2, so GC2 is connected
+        // Note: isGC2Connected is set by GC2Plugin.sendConnectionChanged(), not here.
+        // If Unity is sending shots, GC2 must be connected (Unity received them from GC2).
         shotsRelayed++
-        isGC2Connected = true
         updateNotification()
         sendToUnity("OnBridgeShotRelayed", shotsRelayed.toString())
     }
