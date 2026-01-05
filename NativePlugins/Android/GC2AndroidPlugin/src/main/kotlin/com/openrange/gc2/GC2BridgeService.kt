@@ -61,6 +61,12 @@ class GC2BridgeService : Service() {
         /** Action to send a shot to GSPro */
         const val ACTION_SEND_SHOT = "com.openrange.gc2.action.SEND_SHOT"
 
+        /** Action to connect to GSPro */
+        const val ACTION_CONNECT_GSPRO = "com.openrange.gc2.action.CONNECT_GSPRO"
+
+        /** Action to disconnect from GSPro */
+        const val ACTION_DISCONNECT_GSPRO = "com.openrange.gc2.action.DISCONNECT_GSPRO"
+
         // Shot data extras
         const val EXTRA_BALL_SPEED = "ball_speed"
         const val EXTRA_LAUNCH_ANGLE = "launch_angle"
@@ -195,9 +201,11 @@ class GC2BridgeService : Service() {
             ACTION_START -> startBridgeMode(intent)
             ACTION_STOP -> stopBridgeMode()
             ACTION_UPDATE_NOTIFICATION -> updateNotificationFromIntent(intent)
-            ACTION_APP_BACKGROUNDED -> onAppBackgrounded()
+            ACTION_APP_BACKGROUNDED -> onAppBackgrounded(intent)
             ACTION_APP_RESUMED -> onAppResumed()
             ACTION_SEND_SHOT -> sendShotFromIntent(intent)
+            ACTION_CONNECT_GSPRO -> connectToGSProFromIntent(intent)
+            ACTION_DISCONNECT_GSPRO -> disconnectFromGSProAction()
         }
 
         // Restart if killed
@@ -471,6 +479,7 @@ class GC2BridgeService : Service() {
                 Log.i(TAG, "Native GSPro client connected successfully to $host:$port")
                 isGSProConnected = true
                 updateNotification()
+                sendToUnity("OnBridgeGSProConnectionChanged", "true")
 
                 // Note: Test shots are only started when app goes to background
                 // via onAppBackgrounded(), not when GSPro first connects.
@@ -485,15 +494,58 @@ class GC2BridgeService : Service() {
                 Log.e(TAG, "Native GSPro client FAILED to connect to $host:$port")
                 isGSProConnected = false
                 updateNotification()
+                sendToUnity("OnBridgeGSProConnectionChanged", "false")
             }
         }
     }
 
     /**
+     * Handles ACTION_CONNECT_GSPRO intent from Unity.
+     * Connects to GSPro with the host/port from the intent.
+     */
+    private fun connectToGSProFromIntent(intent: Intent?) {
+        val host = intent?.getStringExtra(EXTRA_GSPRO_HOST) ?: pendingGSProHost
+        val port = intent?.getIntExtra(EXTRA_GSPRO_PORT, GSProClient.DEFAULT_PORT) ?: pendingGSProPort
+
+        Log.i(TAG, "Connecting to GSPro from Unity request: $host:$port")
+
+        // Save for later reconnection if needed
+        pendingGSProHost = host
+        pendingGSProPort = port
+
+        // Disconnect existing connection if any
+        if (gsProClient?.isConnected() == true) {
+            Log.d(TAG, "Disconnecting existing GSPro connection before reconnecting")
+            gsProClient?.disconnect()
+            gsProClient = null
+            isGSProConnected = false
+        }
+
+        connectToGSPro(host, port)
+    }
+
+    /**
+     * Handles ACTION_DISCONNECT_GSPRO intent from Unity.
+     * Disconnects from GSPro.
+     */
+    private fun disconnectFromGSProAction() {
+        Log.i(TAG, "Disconnecting from GSPro (Unity request)")
+        disconnectFromGSPro()
+        sendToUnity("OnBridgeGSProConnectionChanged", "false")
+    }
+
+    /**
      * Called when Unity app goes to background.
      * Starts test shots if conditions are met (GSPro already connected from startBridgeMode).
+     *
+     * @param intent The intent containing the current test_shot_mode setting.
      */
-    private fun onAppBackgrounded() {
+    private fun onAppBackgrounded(intent: Intent?) {
+        // Update testShotModeEnabled from intent if provided (allows runtime setting changes)
+        if (intent?.hasExtra(EXTRA_TEST_SHOT_MODE) == true) {
+            testShotModeEnabled = intent.getBooleanExtra(EXTRA_TEST_SHOT_MODE, testShotModeEnabled)
+        }
+
         Log.i(TAG, "App backgrounded")
         Log.i(TAG, "  testShotModeEnabled=$testShotModeEnabled")
         Log.i(TAG, "  isGC2Connected=$isGC2Connected")

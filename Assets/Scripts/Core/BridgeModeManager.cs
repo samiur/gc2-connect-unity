@@ -30,6 +30,12 @@ namespace OpenRange.Core
         private IBridgeService _bridgeService;
         private BridgeModeStatistics _statistics;
 
+        /// <summary>
+        /// Access to the platform-specific bridge service.
+        /// On Android, this is AndroidBridgeService which handles native GSPro connection.
+        /// </summary>
+        public IBridgeService BridgeService => _bridgeService;
+
         // Test shot support when GC2 not connected
         private Coroutine _testShotCoroutine;
         private int _testShotIndex;

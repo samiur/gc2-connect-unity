@@ -29,6 +29,10 @@ namespace OpenRange.Core
         private GC2DeviceStatus? _currentDeviceStatus;
         private GSProClient _gsProClient;
 
+#if UNITY_ANDROID && !UNITY_EDITOR
+        private bool _isNativeGSProConnected;
+#endif
+
         public AppMode CurrentMode => _currentMode;
         public ConnectionState ConnectionState => _connectionState;
         public IGC2Connection GC2Connection => _gc2Connection;
@@ -87,6 +91,19 @@ namespace OpenRange.Core
                 CleanupGC2Connection();
                 _gsProClient?.Dispose();
                 _gsProClient = null;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+                // Unsubscribe from native GSPro connection events
+                var bridgeManager = BridgeModeManager.Instance;
+                if (bridgeManager?.BridgeService != null)
+                {
+                    var androidService = bridgeManager.BridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+                    if (androidService != null)
+                    {
+                        androidService.OnGSProConnectionChanged -= HandleNativeGSProConnectionChanged;
+                    }
+                }
+#endif
             }
         }
 
@@ -237,12 +254,40 @@ namespace OpenRange.Core
 
         /// <summary>
         /// Connect to GSPro at the specified host and port.
+        /// On Android, uses native service for all GSPro communication.
+        /// On macOS/Editor, uses Unity's GSProClient.
         /// </summary>
         /// <param name="host">GSPro host address.</param>
         /// <param name="port">GSPro port (default 921).</param>
         public async void ConnectToGSPro(string host, int port = GSProClient.DefaultPort)
         {
-            // Create client if needed
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // On Android, use native service for ALL GSPro communication (foreground and background)
+            var bridgeManager = BridgeModeManager.Instance;
+            if (bridgeManager?.BridgeService != null)
+            {
+                var androidService = bridgeManager.BridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+                if (androidService != null)
+                {
+                    // Subscribe to connection changes (only once)
+                    androidService.OnGSProConnectionChanged -= HandleNativeGSProConnectionChanged;
+                    androidService.OnGSProConnectionChanged += HandleNativeGSProConnectionChanged;
+
+                    Debug.Log($"GameManager: Connecting to GSPro via native service at {host}:{port}...");
+                    bool requested = androidService.ConnectToGSPro(host, port);
+
+                    if (!requested)
+                    {
+                        Debug.LogWarning("GameManager: Failed to request native GSPro connection");
+                    }
+                    return;
+                }
+            }
+
+            // Fallback to Unity client if native service not available
+            Debug.LogWarning("GameManager: Native bridge service not available, falling back to Unity client");
+#endif
+            // On macOS/Editor, or fallback: use Unity's GSProClient
             if (_gsProClient == null)
             {
                 _gsProClient = new GSProClient();
@@ -268,35 +313,107 @@ namespace OpenRange.Core
 
         /// <summary>
         /// Disconnect from GSPro.
+        /// On Android, uses native service.
         /// </summary>
         public void DisconnectFromGSPro()
         {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // On Android, use native service
+            var bridgeManager = BridgeModeManager.Instance;
+            if (bridgeManager?.BridgeService != null)
+            {
+                var androidService = bridgeManager.BridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+                if (androidService != null)
+                {
+                    Debug.Log("GameManager: Disconnecting from GSPro via native service");
+                    androidService.DisconnectFromGSPro();
+                    return;
+                }
+            }
+
+            Debug.LogWarning("GameManager: Native bridge service not available, falling back to Unity client");
+#endif
             _gsProClient?.Disconnect();
             Debug.Log("GameManager: Disconnected from GSPro");
         }
 
+#if UNITY_ANDROID && !UNITY_EDITOR
+        /// <summary>
+        /// Handle native GSPro connection state changes.
+        /// </summary>
+        private void HandleNativeGSProConnectionChanged(bool connected)
+        {
+            _isNativeGSProConnected = connected;
+
+            if (connected)
+            {
+                Debug.Log("GameManager: Native GSPro client connected");
+                // Switch to GSPro mode if not already
+                if (_currentMode != AppMode.GSPro)
+                {
+                    SetMode(AppMode.GSPro);
+                }
+            }
+            else
+            {
+                Debug.Log("GameManager: Native GSPro client disconnected");
+            }
+        }
+#endif
+
         /// <summary>
         /// Relay shot data to GSPro if connected and in GSPro mode.
+        /// On Android, uses native service. On macOS/Editor, uses Unity client.
         /// </summary>
         private void RelayToGSPro(GC2ShotData shot)
         {
-            if (_currentMode != AppMode.GSPro || _gsProClient == null || !_gsProClient.IsConnected)
+            if (_currentMode != AppMode.GSPro)
+                return;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // On Android, use native service for shot relay
+            if (_isNativeGSProConnected)
+            {
+                var bridgeManager = BridgeModeManager.Instance;
+                if (bridgeManager?.BridgeService != null)
+                {
+                    var androidService = bridgeManager.BridgeService as OpenRange.GC2.Platforms.Android.AndroidBridgeService;
+                    if (androidService != null)
+                    {
+                        androidService.SendShot(shot);
+                        return;
+                    }
+                }
+            }
+            return; // No fallback to Unity client on Android - native only
+#else
+            if (_gsProClient == null || !_gsProClient.IsConnected)
                 return;
 
             _gsProClient.SendShot(shot);
+#endif
         }
 
         /// <summary>
         /// Update GSPro with device ready state from GC2 0M messages.
+        /// On Android, uses native service. On macOS/Editor, uses Unity client.
         /// </summary>
         private void UpdateGSProReadyState()
         {
+            bool isReady = _currentDeviceStatus?.IsReady ?? false;
+            bool ballDetected = _currentDeviceStatus?.BallDetected ?? false;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // On Android, native service handles device status updates
+            // The native service maintains its own device status from GC2
+            // No explicit call needed here - the service gets status directly
+            return;
+#else
             if (_gsProClient == null || !_gsProClient.IsConnected)
                 return;
 
-            bool isReady = _currentDeviceStatus?.IsReady ?? false;
-            bool ballDetected = _currentDeviceStatus?.BallDetected ?? false;
             _gsProClient.UpdateReadyState(isReady, ballDetected);
+#endif
         }
 
         #endregion
