@@ -114,6 +114,7 @@ class GC2Protocol {
     private var pendingShotId: String? = null
     private var pendingShotTimestamp: Long = 0L
     private var pending0HMessageCount: Int = 0  // Track how many 0H messages received for this shot
+    private var sawNew0HHeader: Boolean = false  // Track if we saw a new 0H header (cleared after processing SHOT_ID)
 
     // Current status data being accumulated (within a single 0M message)
     private val currentStatusData = mutableMapOf<String, String>()
@@ -189,14 +190,13 @@ class GC2Protocol {
                 currentMessageType = MessageType.SHOT
 
                 // Track 0H message count for same shot ID
-                // The count is incremented when we see SHOT_ID in accumulateShotFields
-                // Mark that we're starting a new 0H message
-                val isNewShotMessage = true  // Flag used below
+                // Mark that we saw a new 0H header - this flag persists until SHOT_ID is processed
+                sawNew0HHeader = true
 
                 // Process any fields on the same line as 0H
                 val remainder = line.removePrefix(SHOT_MESSAGE_PREFIX).trim()
                 if (remainder.isNotEmpty()) {
-                    accumulateShotFields(remainder, onMessage, isNewShotMessage)
+                    accumulateShotFields(remainder, onMessage)
                 }
             }
             line.startsWith(STATUS_MESSAGE_PREFIX) -> {
@@ -214,7 +214,7 @@ class GC2Protocol {
                 // Continuation line - add to current message type
                 if (line.contains("=")) {
                     when (currentMessageType) {
-                        MessageType.SHOT -> accumulateShotFields(line, onMessage, false)
+                        MessageType.SHOT -> accumulateShotFields(line, onMessage)
                         MessageType.STATUS -> accumulateStatusFields(line)
                         else -> {
                             // No message type set yet - probably orphaned data
@@ -275,9 +275,9 @@ class GC2Protocol {
      * - Different SHOT_ID finalizes previous and starts new
      * - Tracks conditions for early finalization (checked at message terminator)
      *
-     * @param isNew0HMessage True if this is the start of a new 0H message (vs continuation line)
+     * Uses sawNew0HHeader member variable to track 0H message boundaries.
      */
-    private fun accumulateShotFields(line: String, onMessage: (String, String) -> Unit, isNew0HMessage: Boolean) {
+    private fun accumulateShotFields(line: String, onMessage: (String, String) -> Unit) {
         // Regex to match KEY=VALUE pairs
         // KEY: uppercase letter followed by uppercase letters, digits, or underscores
         // VALUE: anything that's not part of the next KEY= pattern
@@ -316,11 +316,13 @@ class GC2Protocol {
                     pendingShotTimestamp = System.currentTimeMillis()
                     pending0HMessageCount = 1  // First 0H message
                     Log.d(TAG, "New shot detected: ID=$value, timestamp=$pendingShotTimestamp")
-                } else if (isNew0HMessage) {
+                } else if (sawNew0HHeader) {
                     // Same shot ID but new 0H message - this is the second (or later) message
                     pending0HMessageCount++
                     Log.d(TAG, "Received 0H message #$pending0HMessageCount for shot ID=$value")
                 }
+                // Clear the header flag after processing SHOT_ID
+                sawNew0HHeader = false
             }
 
             // Normalize SHOT to SHOT_ID for consistent internal handling
@@ -414,6 +416,7 @@ class GC2Protocol {
         pendingShotId = null
         pendingShotTimestamp = 0L
         pending0HMessageCount = 0
+        sawNew0HHeader = false
     }
 
     /**
@@ -524,6 +527,7 @@ class GC2Protocol {
         clearPendingShot()
         currentStatusData.clear()
         currentMessageType = MessageType.NONE
+        sawNew0HHeader = false
     }
 
     /**
