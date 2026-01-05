@@ -53,8 +53,20 @@ class GC2Protocol {
          * Time to wait for additional shot data before finalizing (ms).
          * GC2 sends initial message at ~128-180ms and final at ~800-1000ms,
          * so 1200ms gives buffer for the second message to arrive.
+         * Note: This is now a fallback - we usually finalize faster via
+         * MSEC_SINCE_CONTACT > 500ms or second 0H message detection.
          */
         const val SHOT_TIMEOUT_MS = 1200L
+
+        /**
+         * MSEC_SINCE_CONTACT threshold for final message detection.
+         * When this field is > 500ms, it indicates the second (final) 0H message
+         * which contains the real spin values. We can finalize immediately.
+         */
+        const val FINAL_MESSAGE_MSEC_THRESHOLD = 500
+
+        // Additional field for timing
+        const val FIELD_MSEC_SINCE_CONTACT = "MSEC_SINCE_CONTACT"
 
         // GC2 field names (0H shot data)
         // Note: Some GC2 firmware sends "SHOT" instead of "SHOT_ID"
@@ -101,6 +113,7 @@ class GC2Protocol {
     private val pendingShotData = mutableMapOf<String, String>()
     private var pendingShotId: String? = null
     private var pendingShotTimestamp: Long = 0L
+    private var pending0HMessageCount: Int = 0  // Track how many 0H messages received for this shot
 
     // Current status data being accumulated (within a single 0M message)
     private val currentStatusData = mutableMapOf<String, String>()
@@ -174,10 +187,16 @@ class GC2Protocol {
                     finalizeStatus(onMessage)
                 }
                 currentMessageType = MessageType.SHOT
+
+                // Track 0H message count for same shot ID
+                // The count is incremented when we see SHOT_ID in accumulateShotFields
+                // Mark that we're starting a new 0H message
+                val isNewShotMessage = true  // Flag used below
+
                 // Process any fields on the same line as 0H
                 val remainder = line.removePrefix(SHOT_MESSAGE_PREFIX).trim()
                 if (remainder.isNotEmpty()) {
-                    accumulateShotFields(remainder, onMessage)
+                    accumulateShotFields(remainder, onMessage, isNewShotMessage)
                 }
             }
             line.startsWith(STATUS_MESSAGE_PREFIX) -> {
@@ -195,7 +214,7 @@ class GC2Protocol {
                 // Continuation line - add to current message type
                 if (line.contains("=")) {
                     when (currentMessageType) {
-                        MessageType.SHOT -> accumulateShotFields(line, onMessage)
+                        MessageType.SHOT -> accumulateShotFields(line, onMessage, false)
                         MessageType.STATUS -> accumulateStatusFields(line)
                         else -> {
                             // No message type set yet - probably orphaned data
@@ -210,15 +229,34 @@ class GC2Protocol {
 
     /**
      * Finalizes the current message based on type.
+     * For shots, checks if we should finalize immediately based on:
+     * - MSEC_SINCE_CONTACT > 500 (final message indicator)
+     * - Second or later 0H message for same shot ID
+     * - Having BACK_RPM data (spin data required for valid shot)
      */
     private fun finalizeCurrentMessage(onMessage: (String, String) -> Unit) {
         when (currentMessageType) {
             MessageType.STATUS -> finalizeStatus(onMessage)
             MessageType.SHOT -> {
-                // Don't finalize shot on terminator - use time-based finalization
-                // The shot may span multiple 0H messages
-                Log.d(TAG, "Message terminator - shot has ${pendingShotData.size} fields, " +
-                        "waiting for timeout. Has BACK_RPM: ${pendingShotData.containsKey(FIELD_BACK_RPM)}")
+                // Check if we should finalize immediately
+                val hasFinalMsec = pendingShotData[FIELD_MSEC_SINCE_CONTACT]?.toIntOrNull()
+                    ?.let { it > FINAL_MESSAGE_MSEC_THRESHOLD } ?: false
+                val hasSecondMessage = pending0HMessageCount >= 2
+                val hasBackRpm = pendingShotData.containsKey(FIELD_BACK_RPM)
+
+                if ((hasFinalMsec || hasSecondMessage) && hasBackRpm) {
+                    val reason = when {
+                        hasFinalMsec && hasSecondMessage -> "MSEC_SINCE_CONTACT > $FINAL_MESSAGE_MSEC_THRESHOLD and message #$pending0HMessageCount"
+                        hasFinalMsec -> "MSEC_SINCE_CONTACT > $FINAL_MESSAGE_MSEC_THRESHOLD"
+                        else -> "0H message #$pending0HMessageCount received"
+                    }
+                    Log.d(TAG, "Finalizing shot immediately at terminator: $reason (${pendingShotData.size} fields)")
+                    finalizePendingShot(onMessage)
+                } else {
+                    // Not ready yet - wait for more data or timeout
+                    Log.d(TAG, "Message terminator - shot has ${pendingShotData.size} fields, " +
+                            "msgCount=$pending0HMessageCount, hasFinalMsec=$hasFinalMsec, hasBackRpm=$hasBackRpm - waiting")
+                }
             }
         }
         // Don't reset message type - shot data accumulates across messages
@@ -231,12 +269,15 @@ class GC2Protocol {
      * - Concatenated: "BACK_RPM=3095.SIDE_RPM=-419."
      * - Single field: "SHOT=1"
      *
-     * Time-based accumulation:
+     * Time-based accumulation with early finalization:
      * - First message for a SHOT_ID starts the timer
      * - Subsequent messages with same SHOT_ID merge/override fields
      * - Different SHOT_ID finalizes previous and starts new
+     * - Tracks conditions for early finalization (checked at message terminator)
+     *
+     * @param isNew0HMessage True if this is the start of a new 0H message (vs continuation line)
      */
-    private fun accumulateShotFields(line: String, onMessage: (String, String) -> Unit) {
+    private fun accumulateShotFields(line: String, onMessage: (String, String) -> Unit, isNew0HMessage: Boolean) {
         // Regex to match KEY=VALUE pairs
         // KEY: uppercase letter followed by uppercase letters, digits, or underscores
         // VALUE: anything that's not part of the next KEY= pattern
@@ -263,22 +304,31 @@ class GC2Protocol {
 
             // Check for new shot (different SHOT_ID or SHOT)
             val isShotIdField = (key == FIELD_SHOT_ID || key == FIELD_SHOT)
-            if (isShotIdField && value != pendingShotId) {
-                // New shot ID - finalize any pending shot first
-                if (pendingShotData.isNotEmpty()) {
-                    Log.d(TAG, "New shot ID=$value arrived, finalizing previous shot ID=$pendingShotId")
-                    finalizePendingShot(onMessage)
+            if (isShotIdField) {
+                if (value != pendingShotId) {
+                    // New shot ID - finalize any pending shot first
+                    if (pendingShotData.isNotEmpty()) {
+                        Log.d(TAG, "New shot ID=$value arrived, finalizing previous shot ID=$pendingShotId")
+                        finalizePendingShot(onMessage)
+                    }
+                    // Start new pending shot
+                    pendingShotId = value
+                    pendingShotTimestamp = System.currentTimeMillis()
+                    pending0HMessageCount = 1  // First 0H message
+                    Log.d(TAG, "New shot detected: ID=$value, timestamp=$pendingShotTimestamp")
+                } else if (isNew0HMessage) {
+                    // Same shot ID but new 0H message - this is the second (or later) message
+                    pending0HMessageCount++
+                    Log.d(TAG, "Received 0H message #$pending0HMessageCount for shot ID=$value")
                 }
-                // Start new pending shot
-                pendingShotId = value
-                pendingShotTimestamp = System.currentTimeMillis()
-                Log.d(TAG, "New shot detected: ID=$value, timestamp=$pendingShotTimestamp")
             }
 
             // Normalize SHOT to SHOT_ID for consistent internal handling
             val normalizedKey = if (key == FIELD_SHOT) FIELD_SHOT_ID else key
             pendingShotData[normalizedKey] = value
         }
+        // Note: Finalization is deferred to finalizeCurrentMessage (message terminator)
+        // so that all fields are accumulated before checking conditions
     }
 
     /**
@@ -363,6 +413,7 @@ class GC2Protocol {
         pendingShotData.clear()
         pendingShotId = null
         pendingShotTimestamp = 0L
+        pending0HMessageCount = 0
     }
 
     /**
