@@ -331,16 +331,23 @@ namespace OpenRange.Visualization
         {
             if (_grassInstances.Count == 0) return;
 
-            // Create position buffer (simplified for now - using Vector4 for position + rotation)
-            int stride = sizeof(float) * 4; // x, y, z, rotation
-            _positionBuffer = new ComputeBuffer(_grassInstances.Count, stride);
+            // Create position buffer with scale data
+            // Using 2 Vector4s per instance:
+            //   positionBuffer[i*2+0] = position.xyz, rotation
+            //   positionBuffer[i*2+1] = height, width, tilt, colorVariation
+            int stride = sizeof(float) * 4; // Each Vector4
+            _positionBuffer = new ComputeBuffer(_grassInstances.Count * 2, stride);
 
-            // Pack instance data
-            Vector4[] packedData = new Vector4[_grassInstances.Count];
+            // Pack instance data (2 float4s per instance)
+            Vector4[] packedData = new Vector4[_grassInstances.Count * 2];
             for (int i = 0; i < _grassInstances.Count; i++)
             {
                 var inst = _grassInstances[i];
-                packedData[i] = new Vector4(inst.Position.x, inst.Position.y, inst.Position.z, inst.Rotation);
+                // First float4: position + rotation
+                packedData[i * 2] = new Vector4(inst.Position.x, inst.Position.y, inst.Position.z, inst.Rotation);
+                // Second float4: height, width, tilt, color variation (grayscale)
+                float colorVar = (inst.ColorTint.r + inst.ColorTint.g + inst.ColorTint.b) / 3f;
+                packedData[i * 2 + 1] = new Vector4(inst.Height, inst.Width, inst.Tilt, colorVar);
             }
             _positionBuffer.SetData(packedData);
 

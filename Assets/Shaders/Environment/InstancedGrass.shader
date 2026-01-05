@@ -44,7 +44,9 @@ Shader "OpenRange/InstancedGrass"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             // Per-instance data from compute buffer
-            // x, y, z = position, w = rotation (radians)
+            // Data is packed as 2 float4s per instance:
+            //   _PositionBuffer[instanceID * 2 + 0] = position.xyz, rotation (radians)
+            //   _PositionBuffer[instanceID * 2 + 1] = height, width, tilt, colorVariation
             StructuredBuffer<float4> _PositionBuffer;
 
             struct Attributes
@@ -112,22 +114,41 @@ Shader "OpenRange/InstancedGrass"
             {
                 Varyings output;
 
-                // Get instance data
-                float4 instanceData = _PositionBuffer[input.instanceID];
-                float3 instancePos = instanceData.xyz;
-                float instanceRotation = instanceData.w;
+                // Get instance data (2 float4s per instance)
+                uint baseIndex = input.instanceID * 2;
+                float4 positionData = _PositionBuffer[baseIndex];
+                float4 scaleData = _PositionBuffer[baseIndex + 1];
+
+                float3 instancePos = positionData.xyz;
+                float instanceRotation = positionData.w;
+                float instanceHeight = scaleData.x;  // 0.08-0.2 meters
+                float instanceWidth = scaleData.y;   // 0.015-0.03 meters
+                float instanceTilt = scaleData.z;    // Forward tilt in radians
+                // scaleData.w = colorVariation (unused for now)
 
                 // Get vertex height factor (0 at base, 1 at tip)
                 float heightFactor = saturate(input.positionOS.y);
                 output.heightFactor = heightFactor;
 
+                // Scale vertex by per-instance dimensions
+                // The mesh is 1x1 unit, so scale it to actual grass blade size
+                float3 scaledPos = float3(
+                    input.positionOS.x * instanceWidth,
+                    input.positionOS.y * instanceHeight,
+                    input.positionOS.z * instanceWidth  // Z uses width for forward curve
+                );
+
+                // Apply forward tilt (only affects upper portion)
+                float tiltAmount = heightFactor * sin(instanceTilt);
+                scaledPos.z += tiltAmount * instanceHeight * 0.2;
+
                 // Rotate vertex around Y axis
                 float sinR = sin(instanceRotation);
                 float cosR = cos(instanceRotation);
                 float3 rotatedPos = float3(
-                    input.positionOS.x * cosR - input.positionOS.z * sinR,
-                    input.positionOS.y,
-                    input.positionOS.x * sinR + input.positionOS.z * cosR
+                    scaledPos.x * cosR - scaledPos.z * sinR,
+                    scaledPos.y,
+                    scaledPos.x * sinR + scaledPos.z * cosR
                 );
 
                 // Wind animation (only affects upper portion of blade)
@@ -242,17 +263,38 @@ Shader "OpenRange/InstancedGrass"
             {
                 Varyings output;
 
-                float4 instanceData = _PositionBuffer[input.instanceID];
-                float3 instancePos = instanceData.xyz;
-                float instanceRotation = instanceData.w;
+                // Get instance data (2 float4s per instance)
+                uint baseIndex = input.instanceID * 2;
+                float4 positionData = _PositionBuffer[baseIndex];
+                float4 scaleData = _PositionBuffer[baseIndex + 1];
+
+                float3 instancePos = positionData.xyz;
+                float instanceRotation = positionData.w;
+                float instanceHeight = scaleData.x;
+                float instanceWidth = scaleData.y;
+                float instanceTilt = scaleData.z;
+
+                // Get vertex height factor
+                float heightFactor = saturate(input.positionOS.y);
+
+                // Scale vertex
+                float3 scaledPos = float3(
+                    input.positionOS.x * instanceWidth,
+                    input.positionOS.y * instanceHeight,
+                    input.positionOS.z * instanceWidth
+                );
+
+                // Apply tilt
+                float tiltAmount = heightFactor * sin(instanceTilt);
+                scaledPos.z += tiltAmount * instanceHeight * 0.2;
 
                 // Rotate
                 float sinR = sin(instanceRotation);
                 float cosR = cos(instanceRotation);
                 float3 rotatedPos = float3(
-                    input.positionOS.x * cosR - input.positionOS.z * sinR,
-                    input.positionOS.y,
-                    input.positionOS.x * sinR + input.positionOS.z * cosR
+                    scaledPos.x * cosR - scaledPos.z * sinR,
+                    scaledPos.y,
+                    scaledPos.x * sinR + scaledPos.z * cosR
                 );
 
                 float3 worldPos = rotatedPos + instancePos;
