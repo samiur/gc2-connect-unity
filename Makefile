@@ -193,6 +193,8 @@ build: check-unity test generate
 		-buildTarget StandaloneOSX \
 		-buildOSXUniversalPlayer "$(PROJECT_PATH)/$(MACOS_BUILD)" \
 		-logFile $(BUILD_DIR)/build.log
+	@echo "Ad-hoc signing app bundle..."
+	@codesign --force --deep --sign - "$(MACOS_BUILD)"
 	@echo "Build complete: $(MACOS_BUILD)"
 
 # Build development build (faster, with debugging)
@@ -207,6 +209,8 @@ build-dev: check-unity generate
 		-development \
 		-buildOSXUniversalPlayer "$(PROJECT_PATH)/$(MACOS_BUILD)" \
 		-logFile $(BUILD_DIR)/build-dev.log
+	@echo "Ad-hoc signing app bundle..."
+	@codesign --force --deep --sign - "$(MACOS_BUILD)"
 	@echo "Dev build complete: $(MACOS_BUILD)"
 
 # Clean build artifacts
