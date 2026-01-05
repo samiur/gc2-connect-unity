@@ -66,10 +66,12 @@ class GC2Protocol {
 
     /**
      * Message types that can be parsed.
+     * Note: Using object with String constants instead of enum to avoid
+     * Kotlin 1.9+ EnumEntriesKt dependency which isn't bundled with Unity Android.
      */
-    enum class MessageType {
-        SHOT,
-        STATUS
+    object MessageType {
+        const val SHOT = "SHOT"
+        const val STATUS = "STATUS"
     }
 
     // Buffer for accumulating multi-packet messages
@@ -85,7 +87,7 @@ class GC2Protocol {
      * @param data Raw string data from USB
      * @param onMessage Callback invoked with message type and JSON data
      */
-    fun processData(data: String, onMessage: (MessageType, String) -> Unit) {
+    fun processData(data: String, onMessage: (String, String) -> Unit) {
         lineBuffer.append(data)
 
         // Process complete lines
@@ -112,7 +114,7 @@ class GC2Protocol {
     /**
      * Processes a single line of data.
      */
-    private fun processLine(line: String, onMessage: (MessageType, String) -> Unit) {
+    private fun processLine(line: String, onMessage: (String, String) -> Unit) {
         when {
             line.startsWith(SHOT_MESSAGE_PREFIX) -> {
                 processShotLine(line.removePrefix(SHOT_MESSAGE_PREFIX).trim(), onMessage)
@@ -132,7 +134,7 @@ class GC2Protocol {
     /**
      * Processes a shot data line (0H prefix).
      */
-    private fun processShotLine(line: String, onMessage: (MessageType, String) -> Unit) {
+    private fun processShotLine(line: String, onMessage: (String, String) -> Unit) {
         // Parse KEY=VALUE pairs
         val parts = line.split(",", " ").filter { it.contains("=") }
 
@@ -166,7 +168,7 @@ class GC2Protocol {
     /**
      * Processes a status line (0M prefix).
      */
-    private fun processStatusLine(line: String, onMessage: (MessageType, String) -> Unit) {
+    private fun processStatusLine(line: String, onMessage: (String, String) -> Unit) {
         val statusData = mutableMapOf<String, String>()
 
         // Parse KEY=VALUE pairs
@@ -198,7 +200,7 @@ class GC2Protocol {
     /**
      * Finalizes and sends the current shot if valid.
      */
-    private fun finalizeShotIfReady(onMessage: (MessageType, String) -> Unit) {
+    private fun finalizeShotIfReady(onMessage: (String, String) -> Unit) {
         if (currentShotData.isEmpty()) return
 
         // Validate shot data
@@ -249,20 +251,22 @@ class GC2Protocol {
 
     /**
      * Converts parsed shot data to JSON matching Unity's GC2ShotData properties.
+     * Note: Android's JSONObject.put() requires double, not Float. Using toDoubleOrNull().
      */
     private fun convertToJson(data: Map<String, String>): String? {
         return try {
             val json = JSONObject()
 
             // Required fields (map GC2 names to C# property names)
+            // Note: Must use Double, not Float - Android JSONObject has put(String, double) not put(String, Float)
             json.put("ShotId", data[FIELD_SHOT_ID]?.toIntOrNull() ?: 0)
-            json.put("BallSpeed", data[FIELD_SPEED_MPH]?.toFloatOrNull() ?: 0f)
-            json.put("LaunchAngle", data[FIELD_ELEVATION_DEG]?.toFloatOrNull() ?: 0f)
-            json.put("LaunchDirection", data[FIELD_AZIMUTH_DEG]?.toFloatOrNull() ?: 0f)
-            json.put("TotalSpin", data[FIELD_SPIN_RPM]?.toFloatOrNull() ?: 0f)
-            json.put("BackSpin", data[FIELD_BACK_RPM]?.toFloatOrNull() ?: 0f)
-            json.put("SideSpin", data[FIELD_SIDE_RPM]?.toFloatOrNull() ?: 0f)
-            json.put("SpinAxis", data[FIELD_SPIN_AXIS]?.toFloatOrNull() ?: 0f)
+            json.put("BallSpeed", data[FIELD_SPEED_MPH]?.toDoubleOrNull() ?: 0.0)
+            json.put("LaunchAngle", data[FIELD_ELEVATION_DEG]?.toDoubleOrNull() ?: 0.0)
+            json.put("LaunchDirection", data[FIELD_AZIMUTH_DEG]?.toDoubleOrNull() ?: 0.0)
+            json.put("TotalSpin", data[FIELD_SPIN_RPM]?.toDoubleOrNull() ?: 0.0)
+            json.put("BackSpin", data[FIELD_BACK_RPM]?.toDoubleOrNull() ?: 0.0)
+            json.put("SideSpin", data[FIELD_SIDE_RPM]?.toDoubleOrNull() ?: 0.0)
+            json.put("SpinAxis", data[FIELD_SPIN_AXIS]?.toDoubleOrNull() ?: 0.0)
 
             // Timestamp
             json.put("Timestamp", System.currentTimeMillis())
@@ -272,11 +276,11 @@ class GC2Protocol {
             json.put("HasClubData", hasClubData)
 
             if (hasClubData) {
-                json.put("ClubSpeed", data[FIELD_CLUBSPEED_MPH]?.toFloatOrNull() ?: 0f)
-                json.put("ClubPath", data[FIELD_HPATH_DEG]?.toFloatOrNull() ?: 0f)
-                json.put("AttackAngle", data[FIELD_VPATH_DEG]?.toFloatOrNull() ?: 0f)
-                json.put("FaceToTarget", data[FIELD_FACE_T_DEG]?.toFloatOrNull() ?: 0f)
-                json.put("DynamicLoft", data[FIELD_LOFT_DEG]?.toFloatOrNull() ?: 0f)
+                json.put("ClubSpeed", data[FIELD_CLUBSPEED_MPH]?.toDoubleOrNull() ?: 0.0)
+                json.put("ClubPath", data[FIELD_HPATH_DEG]?.toDoubleOrNull() ?: 0.0)
+                json.put("AttackAngle", data[FIELD_VPATH_DEG]?.toDoubleOrNull() ?: 0.0)
+                json.put("FaceToTarget", data[FIELD_FACE_T_DEG]?.toDoubleOrNull() ?: 0.0)
+                json.put("DynamicLoft", data[FIELD_LOFT_DEG]?.toDoubleOrNull() ?: 0.0)
             }
 
             json.toString()
