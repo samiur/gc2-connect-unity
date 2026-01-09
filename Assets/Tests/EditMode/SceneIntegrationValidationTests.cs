@@ -34,6 +34,7 @@ namespace OpenRange.Tests.EditMode
 
             // Environment
             "Assets/Prefabs/Environment/DistanceMarker.prefab",
+            "Assets/Prefabs/Environment/GrassRenderer.prefab",
             "Assets/Prefabs/Environment/LightingController.prefab",
             "Assets/Prefabs/Environment/TargetGreen.prefab",
             "Assets/Prefabs/Environment/TeeMat.prefab",
