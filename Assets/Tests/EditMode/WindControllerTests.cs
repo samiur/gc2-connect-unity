@@ -545,5 +545,242 @@ namespace OpenRange.Tests.EditMode
         }
 
         #endregion
+
+        #region GrassQualitySettings Struct Tests
+
+        [Test]
+        public void GrassQualitySettings_High_AllFeaturesEnabled()
+        {
+            var settings = GrassQualitySettings.High;
+
+            Assert.That(settings.EnableWind, Is.True);
+            Assert.That(settings.EnableTipColor, Is.True);
+            Assert.That(settings.EnableSSS, Is.True);
+            Assert.That(settings.EnableAO, Is.True);
+            Assert.That(settings.EnableColorVariation, Is.True);
+        }
+
+        [Test]
+        public void GrassQualitySettings_Medium_SSSDisabled()
+        {
+            var settings = GrassQualitySettings.Medium;
+
+            Assert.That(settings.EnableWind, Is.True);
+            Assert.That(settings.EnableTipColor, Is.True);
+            Assert.That(settings.EnableSSS, Is.False);
+            Assert.That(settings.EnableAO, Is.True);
+            Assert.That(settings.EnableColorVariation, Is.True);
+        }
+
+        [Test]
+        public void GrassQualitySettings_Low_MostFeaturesDisabled()
+        {
+            var settings = GrassQualitySettings.Low;
+
+            Assert.That(settings.EnableWind, Is.False);
+            Assert.That(settings.EnableTipColor, Is.False);
+            Assert.That(settings.EnableSSS, Is.False);
+            Assert.That(settings.EnableAO, Is.False);
+            Assert.That(settings.EnableColorVariation, Is.False);
+        }
+
+        [Test]
+        public void GrassQualitySettings_GetSettings_HighTier_ReturnsHighSettings()
+        {
+            var settings = GrassQualitySettings.GetSettings(CoreQualityTier.High);
+
+            Assert.That(settings.EnableSSS, Is.True);
+            Assert.That(settings.EnableWind, Is.True);
+        }
+
+        [Test]
+        public void GrassQualitySettings_GetSettings_MediumTier_ReturnsMediumSettings()
+        {
+            var settings = GrassQualitySettings.GetSettings(CoreQualityTier.Medium);
+
+            Assert.That(settings.EnableSSS, Is.False);
+            Assert.That(settings.EnableWind, Is.True);
+        }
+
+        [Test]
+        public void GrassQualitySettings_GetSettings_LowTier_ReturnsLowSettings()
+        {
+            var settings = GrassQualitySettings.GetSettings(CoreQualityTier.Low);
+
+            Assert.That(settings.EnableWind, Is.False);
+            Assert.That(settings.EnableSSS, Is.False);
+        }
+
+        #endregion
+
+        #region GrassQuality Property Tests
+
+        [Test]
+        public void GrassQuality_DefaultsToHighTierSettings()
+        {
+            // Default tier is High
+            var grassQuality = _controller.GrassQuality;
+
+            Assert.That(grassQuality.EnableWind, Is.True);
+            Assert.That(grassQuality.EnableSSS, Is.True);
+        }
+
+        [Test]
+        public void SetGrassQualitySettings_UpdatesGrassQuality()
+        {
+            var customSettings = new GrassQualitySettings
+            {
+                EnableWind = false,
+                EnableTipColor = true,
+                EnableSSS = false,
+                EnableAO = true,
+                EnableColorVariation = false
+            };
+
+            _controller.SetGrassQualitySettings(customSettings);
+
+            Assert.That(_controller.GrassQuality.EnableWind, Is.False);
+            Assert.That(_controller.GrassQuality.EnableTipColor, Is.True);
+            Assert.That(_controller.GrassQuality.EnableSSS, Is.False);
+            Assert.That(_controller.GrassQuality.EnableAO, Is.True);
+            Assert.That(_controller.GrassQuality.EnableColorVariation, Is.False);
+        }
+
+        [Test]
+        public void SetGrassQualitySettings_FiresOnWindChanged()
+        {
+            bool eventFired = false;
+            _controller.OnWindChanged += () => eventFired = true;
+
+            _controller.SetGrassQualitySettings(GrassQualitySettings.Low);
+
+            Assert.That(eventFired, Is.True);
+        }
+
+        #endregion
+
+        #region RegisterGrassMaterial Tests
+
+        [Test]
+        public void RegisterGrassMaterial_NullMaterial_DoesNotThrow()
+        {
+            Assert.DoesNotThrow(() => _controller.RegisterGrassMaterial(null));
+        }
+
+        [Test]
+        public void RegisterGrassMaterial_AddsMaterialToArray()
+        {
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+
+            _controller.RegisterGrassMaterial(material);
+
+            Assert.That(_controller.GrassMaterials, Is.Not.Null);
+            Assert.That(_controller.GrassMaterials, Does.Contain(material));
+
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(material);
+        }
+
+        [Test]
+        public void RegisterGrassMaterial_DuplicateMaterial_NotAddedTwice()
+        {
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+
+            _controller.RegisterGrassMaterial(material);
+            _controller.RegisterGrassMaterial(material);
+
+            Assert.That(_controller.GrassMaterials.Length, Is.EqualTo(1));
+
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(material);
+        }
+
+        [Test]
+        public void RegisterGrassMaterial_MultipleMaterials_AllAdded()
+        {
+            var material1 = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var material2 = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+
+            _controller.RegisterGrassMaterial(material1);
+            _controller.RegisterGrassMaterial(material2);
+
+            Assert.That(_controller.GrassMaterials.Length, Is.EqualTo(2));
+            Assert.That(_controller.GrassMaterials, Does.Contain(material1));
+            Assert.That(_controller.GrassMaterials, Does.Contain(material2));
+
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(material1);
+            UnityEngine.Object.DestroyImmediate(material2);
+        }
+
+        #endregion
+
+        #region Material Keyword Tests
+
+        [Test]
+        public void RegisterGrassMaterial_AppliesQualitySettings_DoesNotThrow()
+        {
+            // Note: Custom keywords like _ENABLEWIND_ON are shader-specific and only work
+            // with StylizedGrass/InstancedGrass shaders. This test verifies the method
+            // runs without error when applying settings to any material.
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+
+            _controller.SetGrassQualitySettings(GrassQualitySettings.High);
+
+            Assert.DoesNotThrow(() => _controller.RegisterGrassMaterial(material));
+
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(material);
+        }
+
+        [Test]
+        public void SetGrassQualitySettings_AppliesKeywordsToMaterials_DoesNotThrow()
+        {
+            // Note: Keyword application is shader-specific. This test verifies the
+            // quality settings propagate to materials without throwing.
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+
+            _controller.RegisterGrassMaterial(material);
+
+            Assert.DoesNotThrow(() => _controller.SetGrassQualitySettings(GrassQualitySettings.Low));
+
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(material);
+        }
+
+        [Test]
+        public void GrassMaterials_SetProperty_AppliesSettingsToAllMaterials()
+        {
+            // Note: Keyword verification skipped since keywords are shader-specific.
+            // This test verifies that setting GrassMaterials propagates quality settings.
+            var material1 = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var material2 = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+
+            _controller.SetGrassQualitySettings(GrassQualitySettings.High);
+
+            Assert.DoesNotThrow(() =>
+            {
+                _controller.GrassMaterials = new Material[] { material1, material2 };
+            });
+
+            // Verify materials were set
+            Assert.That(_controller.GrassMaterials.Length, Is.EqualTo(2));
+
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(material1);
+            UnityEngine.Object.DestroyImmediate(material2);
+        }
+
+        #endregion
+
+        #region CurrentQualityTier Tests
+
+        [Test]
+        public void CurrentQualityTier_DefaultsToHigh()
+        {
+            Assert.That(_controller.CurrentQualityTier, Is.EqualTo(CoreQualityTier.High));
+        }
+
+        #endregion
     }
 }

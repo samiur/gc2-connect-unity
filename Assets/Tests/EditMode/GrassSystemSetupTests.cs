@@ -128,6 +128,54 @@ namespace OpenRange.Tests.EditMode
             Assert.IsTrue(material.HasProperty("_WindStrength"), "Material should have _WindStrength property");
         }
 
+        [Test]
+        public void InstancedGrassMaterial_HasSubsurfaceColor()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain/InstancedGrass.mat");
+            Assert.IsNotNull(material);
+            Assert.IsTrue(material.HasProperty("_SubsurfaceColor"), "Material should have _SubsurfaceColor property");
+        }
+
+        [Test]
+        public void InstancedGrassMaterial_HasSubsurfacePower()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain/InstancedGrass.mat");
+            Assert.IsNotNull(material);
+            Assert.IsTrue(material.HasProperty("_SubsurfacePower"), "Material should have _SubsurfacePower property");
+        }
+
+        [Test]
+        public void InstancedGrassMaterial_HasAOStrength()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain/InstancedGrass.mat");
+            Assert.IsNotNull(material);
+            Assert.IsTrue(material.HasProperty("_AOStrength"), "Material should have _AOStrength property");
+        }
+
+        [Test]
+        public void InstancedGrassMaterial_HasColorVariation()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain/InstancedGrass.mat");
+            Assert.IsNotNull(material);
+            Assert.IsTrue(material.HasProperty("_ColorVariation"), "Material should have _ColorVariation property");
+        }
+
+        [Test]
+        public void InstancedGrassMaterial_HasWrapLighting()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain/InstancedGrass.mat");
+            Assert.IsNotNull(material);
+            Assert.IsTrue(material.HasProperty("_WrapLighting"), "Material should have _WrapLighting property");
+        }
+
+        [Test]
+        public void InstancedGrassMaterial_HasSecondaryWindScale()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain/InstancedGrass.mat");
+            Assert.IsNotNull(material);
+            Assert.IsTrue(material.HasProperty("_SecondaryWindScale"), "Material should have _SecondaryWindScale property");
+        }
+
         #endregion
 
         #region GrassRenderer Prefab Tests
