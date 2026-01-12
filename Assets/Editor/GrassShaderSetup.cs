@@ -34,17 +34,45 @@ namespace OpenRange.Editor
         /// </summary>
         public struct GrassPresetConfig
         {
+            // Colors
             public Color BaseColor;
             public Color TipColor;
             public float TipBlendStart;
             public float TipBlendEnd;
+
+            // Grass properties
             public float GrassHeight;
+
+            // Wind
             public float WindStrength;
             public float WindSpeed;
             public float Turbulence;
             public float GustStrength;
+            public float SecondaryWindScale;
+
+            // Subsurface scattering
+            public Color SubsurfaceColor;
+            public float SubsurfacePower;
+            public float SubsurfaceDistortion;
+
+            // Ambient occlusion
+            public float AOStrength;
+            public float AOHeight;
+
+            // Color variation
+            public float ColorVariation;
+            public float ColorVariationScale;
+            public Color VariationColor;
+
+            // Lighting
+            public float WrapLighting;
+
+            // Quality toggles
             public bool EnableWind;
             public bool EnableTipColor;
+            public bool EnableSSS;
+            public bool EnableAO;
+            public bool EnableColorVariation;
         }
 
         [MenuItem("OpenRange/Materials/Create Grass Materials", priority = 210)]
@@ -128,13 +156,69 @@ namespace OpenRange.Editor
             Selection.activeObject = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
         }
 
+        /// <summary>
+        /// Creates or updates the WindController prefab with grass materials.
+        /// </summary>
+        private static void CreateOrUpdateWindControllerPrefab(Material fairway, Material rough, Material green)
+        {
+            string prefabPath = $"{PrefabsPath}/WindController.prefab";
+
+            var existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (existingPrefab == null)
+            {
+                // Create new prefab first
+                CreateWindControllerPrefab();
+                existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            }
+
+            if (existingPrefab == null)
+            {
+                Debug.LogError("GrassShaderSetup: Failed to create WindController prefab");
+                return;
+            }
+
+            // Load and modify the prefab
+            var prefabContents = PrefabUtility.LoadPrefabContents(prefabPath);
+            var controller = prefabContents.GetComponent<WindController>();
+
+            if (controller != null)
+            {
+                // Build materials array (only include non-null materials)
+                var materials = new System.Collections.Generic.List<Material>();
+                if (fairway != null) materials.Add(fairway);
+                if (rough != null) materials.Add(rough);
+                if (green != null) materials.Add(green);
+
+                // Wire up materials using SerializedObject
+                var so = new SerializedObject(controller);
+                var materialsProperty = so.FindProperty("_grassMaterials");
+                materialsProperty.arraySize = materials.Count;
+                for (int i = 0; i < materials.Count; i++)
+                {
+                    materialsProperty.GetArrayElementAtIndex(i).objectReferenceValue = materials[i];
+                }
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                Debug.Log($"GrassShaderSetup: Wired {materials.Count} grass materials to WindController prefab");
+            }
+
+            // Save the modified prefab
+            PrefabUtility.SaveAsPrefabAsset(prefabContents, prefabPath);
+            PrefabUtility.UnloadPrefabContents(prefabContents);
+        }
+
         [MenuItem("OpenRange/Materials/Create All Grass Assets", priority = 209)]
         public static void CreateAllGrassAssets()
         {
             EnsureDirectoriesExist();
 
-            CreateGrassMaterials();
-            CreateWindControllerPrefab();
+            // Create materials first
+            var fairwayMat = CreateGrassMaterial(GrassPreset.Fairway);
+            var roughMat = CreateGrassMaterial(GrassPreset.Rough);
+            var greenMat = CreateGrassMaterial(GrassPreset.Green);
+
+            // Create or update WindController prefab with materials
+            CreateOrUpdateWindControllerPrefab(fairwayMat, roughMat, greenMat);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -165,6 +249,8 @@ namespace OpenRange.Editor
                 return null;
             }
 
+            var config = GetPresetConfig(preset);
+
             // Check if material already exists
             var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (existingMaterial != null)
@@ -172,7 +258,10 @@ namespace OpenRange.Editor
                 // Check if it has the correct shader
                 if (existingMaterial.shader == shader)
                 {
-                    Debug.Log($"GrassShaderSetup: Material already exists with correct shader at {materialPath}");
+                    // Update existing material with current properties
+                    ApplyConfigToMaterial(existingMaterial, config);
+                    EditorUtility.SetDirty(existingMaterial);
+                    Debug.Log($"GrassShaderSetup: Updated existing material at {materialPath}");
                     return existingMaterial;
                 }
 
@@ -186,7 +275,6 @@ namespace OpenRange.Editor
             material.name = materialName;
 
             // Apply preset configuration
-            var config = GetPresetConfig(preset);
             ApplyConfigToMaterial(material, config);
 
             // Save asset
@@ -217,8 +305,26 @@ namespace OpenRange.Editor
                     WindSpeed = 1.5f,
                     Turbulence = 0.4f,
                     GustStrength = 0.2f,
+                    SecondaryWindScale = 0.4f,
+                    // Subsurface scattering - bright yellow-green glow when backlit
+                    SubsurfaceColor = new Color(0.5f, 0.8f, 0.3f, 1f),
+                    SubsurfacePower = 0.8f,
+                    SubsurfaceDistortion = 0.5f,
+                    // Ambient occlusion - moderate darkening at base
+                    AOStrength = 0.4f,
+                    AOHeight = 0.3f,
+                    // Color variation - subtle variation
+                    ColorVariation = 0.12f,
+                    ColorVariationScale = 0.1f,
+                    VariationColor = new Color(0.25f, 0.45f, 0.12f, 1f),
+                    // Lighting
+                    WrapLighting = 0.5f,
+                    // Quality toggles
                     EnableWind = true,
-                    EnableTipColor = true
+                    EnableTipColor = true,
+                    EnableSSS = true,
+                    EnableAO = true,
+                    EnableColorVariation = true
                 },
                 GrassPreset.Rough => new GrassPresetConfig
                 {
@@ -232,8 +338,26 @@ namespace OpenRange.Editor
                     WindSpeed = 2.0f,
                     Turbulence = 0.7f,
                     GustStrength = 0.4f,
+                    SecondaryWindScale = 0.5f,
+                    // Subsurface scattering - more yellow for rough grass
+                    SubsurfaceColor = new Color(0.55f, 0.75f, 0.25f, 1f),
+                    SubsurfacePower = 1.0f,
+                    SubsurfaceDistortion = 0.5f,
+                    // Ambient occlusion - stronger for taller grass
+                    AOStrength = 0.5f,
+                    AOHeight = 0.35f,
+                    // Color variation - more variation for rough
+                    ColorVariation = 0.2f,
+                    ColorVariationScale = 0.08f,
+                    VariationColor = new Color(0.35f, 0.5f, 0.15f, 1f),
+                    // Lighting
+                    WrapLighting = 0.5f,
+                    // Quality toggles
                     EnableWind = true,
-                    EnableTipColor = true
+                    EnableTipColor = true,
+                    EnableSSS = true,
+                    EnableAO = true,
+                    EnableColorVariation = true
                 },
                 GrassPreset.Green => new GrassPresetConfig
                 {
@@ -247,8 +371,26 @@ namespace OpenRange.Editor
                     WindSpeed = 0f,
                     Turbulence = 0f,
                     GustStrength = 0f,
+                    SecondaryWindScale = 0f,
+                    // Subsurface scattering - subtle for short grass
+                    SubsurfaceColor = new Color(0.4f, 0.7f, 0.35f, 1f),
+                    SubsurfacePower = 0.3f,
+                    SubsurfaceDistortion = 0.5f,
+                    // Ambient occlusion - very subtle
+                    AOStrength = 0.15f,
+                    AOHeight = 0.2f,
+                    // Color variation - minimal for manicured green
+                    ColorVariation = 0.05f,
+                    ColorVariationScale = 0.15f,
+                    VariationColor = new Color(0.2f, 0.55f, 0.2f, 1f),
+                    // Lighting
+                    WrapLighting = 0.4f,
+                    // Quality toggles - reduced for performance on putting surfaces
                     EnableWind = false,
-                    EnableTipColor = false
+                    EnableTipColor = false,
+                    EnableSSS = false,
+                    EnableAO = true,
+                    EnableColorVariation = true
                 },
                 _ => GetPresetConfig(GrassPreset.Fairway)
             };
@@ -288,61 +430,67 @@ namespace OpenRange.Editor
             material.SetFloat("_WindTurbulence", config.Turbulence);
             material.SetFloat("_GustStrength", config.GustStrength);
             material.SetFloat("_GustFrequency", 1.0f);
+            material.SetFloat("_SecondaryWindScale", config.SecondaryWindScale);
+
+            // Subsurface scattering
+            material.SetColor("_SubsurfaceColor", config.SubsurfaceColor);
+            material.SetFloat("_SubsurfacePower", config.SubsurfacePower);
+            material.SetFloat("_SubsurfaceDistortion", config.SubsurfaceDistortion);
+
+            // Ambient occlusion
+            material.SetFloat("_AOStrength", config.AOStrength);
+            material.SetFloat("_AOHeight", config.AOHeight);
+
+            // Color variation
+            material.SetFloat("_ColorVariation", config.ColorVariation);
+            material.SetFloat("_ColorVariationScale", config.ColorVariationScale);
+            material.SetColor("_VariationColor", config.VariationColor);
 
             // Lighting
             material.SetColor("_ShadowColor", new Color(0.08f, 0.15f, 0.08f, 1f));
             material.SetFloat("_Smoothness", 0.2f);
             material.SetFloat("_SpecularStrength", 0.1f);
+            material.SetFloat("_WrapLighting", config.WrapLighting);
 
-            // Quality toggles
+            // Quality toggles (float properties)
             material.SetFloat("_EnableWind", config.EnableWind ? 1f : 0f);
             material.SetFloat("_EnableTipColor", config.EnableTipColor ? 1f : 0f);
+            material.SetFloat("_EnableSSS", config.EnableSSS ? 1f : 0f);
+            material.SetFloat("_EnableAO", config.EnableAO ? 1f : 0f);
+            material.SetFloat("_EnableColorVariation", config.EnableColorVariation ? 1f : 0f);
 
             // Shader keywords
-            if (config.EnableWind)
-            {
-                material.EnableKeyword("_ENABLEWIND_ON");
-            }
-            else
-            {
-                material.DisableKeyword("_ENABLEWIND_ON");
-            }
+            SetKeyword(material, "_ENABLEWIND_ON", config.EnableWind);
+            SetKeyword(material, "_ENABLETIPCOLOR_ON", config.EnableTipColor);
+            SetKeyword(material, "_ENABLESSS_ON", config.EnableSSS);
+            SetKeyword(material, "_ENABLEAO_ON", config.EnableAO);
+            SetKeyword(material, "_ENABLECOLORVARIATION_ON", config.EnableColorVariation);
+        }
 
-            if (config.EnableTipColor)
-            {
-                material.EnableKeyword("_ENABLETIPCOLOR_ON");
-            }
+        private static void SetKeyword(Material material, string keyword, bool enabled)
+        {
+            if (enabled)
+                material.EnableKeyword(keyword);
             else
-            {
-                material.DisableKeyword("_ENABLETIPCOLOR_ON");
-            }
+                material.DisableKeyword(keyword);
         }
 
         private static void EnsureDirectoriesExist()
         {
-            if (!AssetDatabase.IsValidFolder("Assets/Materials"))
+            EnsureFolderExists("Assets", "Materials");
+            EnsureFolderExists("Assets/Materials", "Environment");
+            EnsureFolderExists("Assets", "Prefabs");
+            EnsureFolderExists("Assets/Prefabs", "Environment");
+            EnsureFolderExists("Assets", "Shaders");
+            EnsureFolderExists("Assets/Shaders", "Environment");
+        }
+
+        private static void EnsureFolderExists(string parentFolder, string newFolderName)
+        {
+            string fullPath = $"{parentFolder}/{newFolderName}";
+            if (!AssetDatabase.IsValidFolder(fullPath))
             {
-                AssetDatabase.CreateFolder("Assets", "Materials");
-            }
-            if (!AssetDatabase.IsValidFolder(MaterialsPath))
-            {
-                AssetDatabase.CreateFolder("Assets/Materials", "Environment");
-            }
-            if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
-            {
-                AssetDatabase.CreateFolder("Assets", "Prefabs");
-            }
-            if (!AssetDatabase.IsValidFolder(PrefabsPath))
-            {
-                AssetDatabase.CreateFolder("Assets/Prefabs", "Environment");
-            }
-            if (!AssetDatabase.IsValidFolder("Assets/Shaders"))
-            {
-                AssetDatabase.CreateFolder("Assets", "Shaders");
-            }
-            if (!AssetDatabase.IsValidFolder("Assets/Shaders/Environment"))
-            {
-                AssetDatabase.CreateFolder("Assets/Shaders", "Environment");
+                AssetDatabase.CreateFolder(parentFolder, newFolderName);
             }
         }
     }

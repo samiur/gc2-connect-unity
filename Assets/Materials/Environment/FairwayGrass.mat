@@ -12,6 +12,9 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
+  - _ENABLEAO_ON
+  - _ENABLECOLORVARIATION_ON
+  - _ENABLESSS_ON
   - _ENABLETIPCOLOR_ON
   - _ENABLEWIND_ON
   m_InvalidKeywords: []
@@ -27,22 +30,35 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _AOHeight: 0.3
+    - _AOStrength: 0.4
+    - _ColorVariation: 0.12
+    - _ColorVariationScale: 0.1
+    - _EnableAO: 1
+    - _EnableColorVariation: 1
+    - _EnableSSS: 1
     - _EnableTipColor: 1
     - _EnableWind: 1
     - _GrassHeight: 0.3
     - _GrassWidth: 0.1
     - _GustFrequency: 1
     - _GustStrength: 0.2
+    - _SecondaryWindScale: 0.4
     - _Smoothness: 0.2
     - _SpecularStrength: 0.1
+    - _SubsurfaceDistortion: 0.5
+    - _SubsurfacePower: 0.8
     - _TipBlendEnd: 0.9
     - _TipBlendStart: 0.4
     - _WindSpeed: 1.5
     - _WindStrength: 0.6
     - _WindTurbulence: 0.4
+    - _WrapLighting: 0.5
     m_Colors:
     - _BaseColor: {r: 0.18, g: 0.55, b: 0.15, a: 1}
     - _ShadowColor: {r: 0.08, g: 0.15, b: 0.08, a: 1}
+    - _SubsurfaceColor: {r: 0.5, g: 0.8, b: 0.3, a: 1}
     - _TipColor: {r: 0.35, g: 0.72, b: 0.25, a: 1}
+    - _VariationColor: {r: 0.25, g: 0.45, b: 0.12, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

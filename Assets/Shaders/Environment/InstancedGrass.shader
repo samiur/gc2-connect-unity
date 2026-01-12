@@ -1,5 +1,5 @@
 // ABOUTME: GPU instanced grass blade shader for rendering thousands of grass blades.
-// ABOUTME: Uses StructuredBuffer for per-instance data and wind animation via vertex displacement.
+// ABOUTME: Features SSS, ambient occlusion, color variation, and quality tier toggles.
 
 Shader "OpenRange/InstancedGrass"
 {
@@ -15,10 +15,32 @@ Shader "OpenRange/InstancedGrass"
         _WindStrength ("Wind Strength", Range(0, 2)) = 1.0
         _WindSpeed ("Wind Speed", Range(0, 10)) = 2.0
         _WindTurbulence ("Wind Turbulence", Range(0, 2)) = 0.5
+        _SecondaryWindScale ("Secondary Wind Scale", Range(0, 1)) = 0.4
+
+        [Header(Subsurface Scattering)]
+        _SubsurfaceColor ("Subsurface Color", Color) = (0.5, 0.8, 0.3, 1)
+        _SubsurfacePower ("Subsurface Power", Range(0, 2)) = 0.8
+        _SubsurfaceDistortion ("Subsurface Distortion", Range(0, 1)) = 0.5
+
+        [Header(Ambient Occlusion)]
+        _AOStrength ("AO Strength", Range(0, 1)) = 0.4
+        _AOHeight ("AO Height", Range(0, 1)) = 0.3
+
+        [Header(Color Variation)]
+        _ColorVariation ("Color Variation", Range(0, 0.5)) = 0.15
+        _ColorVariationScale ("Variation Scale", Range(0.01, 0.5)) = 0.1
+        _VariationColor ("Variation Tint", Color) = (0.3, 0.4, 0.15, 1)
 
         [Header(Appearance)]
         _Smoothness ("Smoothness", Range(0, 1)) = 0.1
+        _SpecularStrength ("Specular Strength", Range(0, 1)) = 0.1
+        _WrapLighting ("Wrap Lighting", Range(0, 1)) = 0.5
         _Cutoff ("Alpha Cutoff", Range(0, 1)) = 0.5
+
+        [Header(Quality)]
+        [Toggle] _EnableSSS ("Enable Subsurface Scattering", Float) = 1
+        [Toggle] _EnableAO ("Enable Ambient Occlusion", Float) = 1
+        [Toggle] _EnableColorVariation ("Enable Color Variation", Float) = 1
     }
 
     SubShader
@@ -37,6 +59,9 @@ Shader "OpenRange/InstancedGrass"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #pragma instancing_options procedural:setup
+            #pragma multi_compile_local _ _ENABLESSS_ON
+            #pragma multi_compile_local _ _ENABLEAO_ON
+            #pragma multi_compile_local _ _ENABLECOLORVARIATION_ON
             #pragma multi_compile_fog
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
 
@@ -65,6 +90,8 @@ Shader "OpenRange/InstancedGrass"
                 float3 normalWS : TEXCOORD2;
                 float fogFactor : TEXCOORD3;
                 float heightFactor : TEXCOORD4;
+                float colorVariation : TEXCOORD5;
+                float4 shadowCoord : TEXCOORD6;
             };
 
             CBUFFER_START(UnityPerMaterial)
@@ -75,8 +102,22 @@ Shader "OpenRange/InstancedGrass"
                 float _WindStrength;
                 float _WindSpeed;
                 float _WindTurbulence;
+                float _SecondaryWindScale;
+                float4 _SubsurfaceColor;
+                float _SubsurfacePower;
+                float _SubsurfaceDistortion;
+                float _AOStrength;
+                float _AOHeight;
+                float _ColorVariation;
+                float _ColorVariationScale;
+                float4 _VariationColor;
                 float _Smoothness;
+                float _SpecularStrength;
+                float _WrapLighting;
                 float _Cutoff;
+                float _EnableSSS;
+                float _EnableAO;
+                float _EnableColorVariation;
             CBUFFER_END
 
             // Global wind parameters (set by WindController)
@@ -85,13 +126,41 @@ Shader "OpenRange/InstancedGrass"
             float _GlobalWindSpeed;
             float _GlobalWindTime;
 
-            // Noise function for wind variation
+            // Gradient noise functions for smoother wind
+            float2 hash2(float2 p)
+            {
+                p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
+                return -1.0 + 2.0 * frac(sin(p) * 43758.5453123);
+            }
+
+            float gradientNoise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+
+                // Quintic interpolation for smoother results
+                float2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+
+                float2 ga = hash2(i + float2(0.0, 0.0));
+                float2 gb = hash2(i + float2(1.0, 0.0));
+                float2 gc = hash2(i + float2(0.0, 1.0));
+                float2 gd = hash2(i + float2(1.0, 1.0));
+
+                float va = dot(ga, f - float2(0.0, 0.0));
+                float vb = dot(gb, f - float2(1.0, 0.0));
+                float vc = dot(gc, f - float2(0.0, 1.0));
+                float vd = dot(gd, f - float2(1.0, 1.0));
+
+                return lerp(lerp(va, vb, u.x), lerp(vc, vd, u.x), u.y);
+            }
+
+            // Simple hash for color variation
             float hash(float2 p)
             {
                 return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
             }
 
-            float noise(float2 p)
+            float valueNoise(float2 p)
             {
                 float2 i = floor(p);
                 float2 f = frac(p);
@@ -124,11 +193,12 @@ Shader "OpenRange/InstancedGrass"
                 float instanceHeight = scaleData.x;  // 0.08-0.2 meters
                 float instanceWidth = scaleData.y;   // 0.015-0.03 meters
                 float instanceTilt = scaleData.z;    // Forward tilt in radians
-                // scaleData.w = colorVariation (unused for now)
+                float instanceColorVar = scaleData.w; // Per-instance color variation
 
                 // Get vertex height factor (0 at base, 1 at tip)
                 float heightFactor = saturate(input.positionOS.y);
                 output.heightFactor = heightFactor;
+                output.colorVariation = instanceColorVar;
 
                 // Scale vertex by per-instance dimensions
                 // The mesh is 1x1 unit, so scale it to actual grass blade size
@@ -151,23 +221,30 @@ Shader "OpenRange/InstancedGrass"
                     scaledPos.x * sinR + scaledPos.z * cosR
                 );
 
-                // Wind animation (only affects upper portion of blade)
+                // Wind animation with primary and secondary waves
                 float windTime = _GlobalWindTime * _GlobalWindSpeed * _WindSpeed;
                 float2 windUV = instancePos.xz * 0.1 + windTime * 0.5;
 
-                // Create wind displacement
-                float windNoise = noise(windUV) * 2.0 - 1.0;
-                float turbulence = noise(windUV * 2.0 + 100.0) * _WindTurbulence;
+                // Primary wind wave
+                float primaryNoise = gradientNoise(windUV);
+
+                // Secondary wind wave (higher frequency detail)
+                float secondaryNoise = gradientNoise(windUV * 2.3 + 100.0) * _SecondaryWindScale;
+
+                float windNoise = primaryNoise * 0.6 + secondaryNoise * 0.4;
+
+                // Additional turbulence
+                float turbulence = gradientNoise(windUV * 2.0 + 100.0) * _WindTurbulence;
 
                 float3 windDir = _GlobalWindDirection.xyz;
                 if (length(windDir) < 0.01) windDir = float3(1, 0, 0); // Default wind direction
 
-                // Wind effect increases with height
+                // Wind effect increases with height (quadratic)
                 float windEffect = heightFactor * heightFactor * _GlobalWindStrength * _WindStrength;
                 float3 windDisplacement = windDir * (windNoise + turbulence) * windEffect * 0.3;
 
                 // Add slight sway perpendicular to wind
-                float swayNoise = noise(windUV * 1.5 + 50.0);
+                float swayNoise = gradientNoise(windUV * 1.5 + 50.0);
                 float3 perpDir = cross(windDir, float3(0, 1, 0));
                 windDisplacement += perpDir * swayNoise * windEffect * 0.1;
 
@@ -179,6 +256,7 @@ Shader "OpenRange/InstancedGrass"
 
                 output.positionWS = worldPos;
                 output.positionCS = TransformWorldToHClip(worldPos);
+                output.shadowCoord = TransformWorldToShadowCoord(worldPos);
 
                 // Rotate normal
                 float3 rotatedNormal = float3(
@@ -196,24 +274,79 @@ Shader "OpenRange/InstancedGrass"
 
             half4 frag(Varyings input) : SV_Target
             {
-                // Blend between base and tip color based on height
-                float blendFactor = smoothstep(_TipBlendStart, _TipBlendEnd, input.heightFactor);
-                float3 albedo = lerp(_BaseColor.rgb, _TipColor.rgb, blendFactor);
+                float heightFactor = input.heightFactor;
 
-                // Simple lighting
+                // Start with base color
+                float3 baseColor = _BaseColor.rgb;
+
+                // Color variation - combine world-space noise with per-instance variation
+                #if defined(_ENABLECOLORVARIATION_ON)
+                {
+                    float worldVariation = valueNoise(input.positionWS.xz * _ColorVariationScale * 10.0);
+                    float totalVariation = (worldVariation * 0.5 + input.colorVariation * 0.5) * _ColorVariation;
+                    baseColor = lerp(baseColor, _VariationColor.rgb, totalVariation);
+                }
+                #endif
+
+                // Blend between base and tip color based on height
+                float blendFactor = smoothstep(_TipBlendStart, _TipBlendEnd, heightFactor);
+                float3 albedo = lerp(baseColor, _TipColor.rgb, blendFactor);
+
+                // Ambient occlusion - darken at base
+                half ao = 1.0;
+                #if defined(_ENABLEAO_ON)
+                {
+                    float aoFactor = smoothstep(0.0, _AOHeight, heightFactor);
+                    ao = lerp(1.0 - _AOStrength, 1.0, aoFactor);
+                }
+                #endif
+
+                // Lighting setup
                 float3 normalWS = normalize(input.normalWS);
 
                 // Flip normal for back faces to get correct lighting
                 normalWS = input.positionCS.w > 0 ? normalWS : -normalWS;
 
-                Light mainLight = GetMainLight();
-                float NdotL = saturate(dot(normalWS, mainLight.direction));
-                float3 diffuse = albedo * mainLight.color * NdotL;
+                float3 viewDirWS = normalize(_WorldSpaceCameraPos - input.positionWS);
+                Light mainLight = GetMainLight(input.shadowCoord);
+                float shadow = mainLight.shadowAttenuation;
+
+                // Wrap lighting for softer diffuse
+                float NdotL = dot(normalWS, mainLight.direction);
+                float wrappedNdotL = saturate((NdotL + _WrapLighting) / (1.0 + _WrapLighting));
+
+                float3 diffuse = albedo * mainLight.color * wrappedNdotL * shadow;
+
+                // Subsurface scattering - grass glows when backlit
+                half3 sssColor = half3(0, 0, 0);
+                #if defined(_ENABLESSS_ON)
+                {
+                    // Calculate view-dependent backlight transmission
+                    float3 H = normalize(mainLight.direction + normalWS * _SubsurfaceDistortion);
+                    float VdotH = saturate(dot(viewDirWS, -H));
+                    float sss = pow(VdotH, 3.0) * _SubsurfacePower;
+
+                    // SSS is stronger at grass tips (thinner) and when backlit
+                    float backFacing = saturate(-NdotL);
+                    sss *= heightFactor * (0.5 + backFacing * 0.5);
+
+                    sssColor = _SubsurfaceColor.rgb * mainLight.color * sss * shadow;
+                }
+                #endif
+
+                // Anisotropic specular (Kajiya-Kay style for grass blades)
+                float3 tangent = float3(0, 1, 0); // Grass blade direction (up)
+                float3 halfDir = normalize(mainLight.direction + viewDirWS);
+                float TdotH = dot(tangent, halfDir);
+                float sinTH = sqrt(max(0.0, 1.0 - TdotH * TdotH));
+                float spec = pow(sinTH, 32.0 * _Smoothness + 8.0) * _SpecularStrength;
+                half3 specularColor = spec * mainLight.color * shadow * saturate(NdotL);
 
                 // Ambient
                 float3 ambient = albedo * SampleSH(normalWS);
 
-                float3 finalColor = diffuse + ambient;
+                // Combine all lighting
+                float3 finalColor = (diffuse + sssColor + specularColor + ambient) * ao;
 
                 // Fog
                 finalColor = MixFog(finalColor, input.fogFactor);
@@ -254,6 +387,62 @@ Shader "OpenRange/InstancedGrass"
             {
                 float4 positionCS : SV_POSITION;
             };
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _BaseColor;
+                float4 _TipColor;
+                float _TipBlendStart;
+                float _TipBlendEnd;
+                float _WindStrength;
+                float _WindSpeed;
+                float _WindTurbulence;
+                float _SecondaryWindScale;
+                float4 _SubsurfaceColor;
+                float _SubsurfacePower;
+                float _SubsurfaceDistortion;
+                float _AOStrength;
+                float _AOHeight;
+                float _ColorVariation;
+                float _ColorVariationScale;
+                float4 _VariationColor;
+                float _Smoothness;
+                float _SpecularStrength;
+                float _WrapLighting;
+                float _Cutoff;
+                float _EnableSSS;
+                float _EnableAO;
+                float _EnableColorVariation;
+            CBUFFER_END
+
+            float4 _GlobalWindDirection;
+            float _GlobalWindStrength;
+            float _GlobalWindSpeed;
+            float _GlobalWindTime;
+
+            float2 hash2(float2 p)
+            {
+                p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
+                return -1.0 + 2.0 * frac(sin(p) * 43758.5453123);
+            }
+
+            float gradientNoise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+                float2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+
+                float2 ga = hash2(i + float2(0.0, 0.0));
+                float2 gb = hash2(i + float2(1.0, 0.0));
+                float2 gc = hash2(i + float2(0.0, 1.0));
+                float2 gd = hash2(i + float2(1.0, 1.0));
+
+                float va = dot(ga, f - float2(0.0, 0.0));
+                float vb = dot(gb, f - float2(1.0, 0.0));
+                float vc = dot(gc, f - float2(0.0, 1.0));
+                float vd = dot(gd, f - float2(1.0, 1.0));
+
+                return lerp(lerp(va, vb, u.x), lerp(vc, vd, u.x), u.y);
+            }
 
             float3 _LightDirection;
 
@@ -296,6 +485,17 @@ Shader "OpenRange/InstancedGrass"
                     scaledPos.y,
                     scaledPos.x * sinR + scaledPos.z * cosR
                 );
+
+                // Wind animation (simplified for shadow pass)
+                float windTime = _GlobalWindTime * _GlobalWindSpeed * _WindSpeed;
+                float2 windUV = instancePos.xz * 0.1 + windTime * 0.5;
+                float windNoise = gradientNoise(windUV);
+
+                float3 windDir = _GlobalWindDirection.xyz;
+                if (length(windDir) < 0.01) windDir = float3(1, 0, 0);
+
+                float windEffect = heightFactor * heightFactor * _GlobalWindStrength * _WindStrength;
+                rotatedPos += windDir * windNoise * windEffect * 0.3;
 
                 float3 worldPos = rotatedPos + instancePos;
                 output.positionCS = TransformWorldToHClip(worldPos);

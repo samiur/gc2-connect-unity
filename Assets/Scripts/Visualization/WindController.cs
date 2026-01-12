@@ -9,6 +9,69 @@ using CoreQualityTier = OpenRange.Core.QualityTier;
 namespace OpenRange.Visualization
 {
     /// <summary>
+    /// Settings for grass shader quality features.
+    /// </summary>
+    public struct GrassQualitySettings
+    {
+        /// <summary>Whether wind animation is enabled.</summary>
+        public bool EnableWind;
+
+        /// <summary>Whether tip color blending is enabled.</summary>
+        public bool EnableTipColor;
+
+        /// <summary>Whether subsurface scattering is enabled.</summary>
+        public bool EnableSSS;
+
+        /// <summary>Whether ambient occlusion is enabled.</summary>
+        public bool EnableAO;
+
+        /// <summary>Whether color variation is enabled.</summary>
+        public bool EnableColorVariation;
+
+        /// <summary>Gets high quality settings (all features enabled).</summary>
+        public static GrassQualitySettings High => new GrassQualitySettings
+        {
+            EnableWind = true,
+            EnableTipColor = true,
+            EnableSSS = true,
+            EnableAO = true,
+            EnableColorVariation = true
+        };
+
+        /// <summary>Gets medium quality settings (SSS disabled).</summary>
+        public static GrassQualitySettings Medium => new GrassQualitySettings
+        {
+            EnableWind = true,
+            EnableTipColor = true,
+            EnableSSS = false,
+            EnableAO = true,
+            EnableColorVariation = true
+        };
+
+        /// <summary>Gets low quality settings (most features disabled).</summary>
+        public static GrassQualitySettings Low => new GrassQualitySettings
+        {
+            EnableWind = false,
+            EnableTipColor = false,
+            EnableSSS = false,
+            EnableAO = false,
+            EnableColorVariation = false
+        };
+
+        /// <summary>Gets settings for a quality tier.</summary>
+        public static GrassQualitySettings GetSettings(CoreQualityTier tier)
+        {
+            return tier switch
+            {
+                CoreQualityTier.High => High,
+                CoreQualityTier.Medium => Medium,
+                CoreQualityTier.Low => Low,
+                _ => Medium
+            };
+        }
+    }
+
+    /// <summary>
     /// Controls global wind parameters for shader-based wind animation.
     /// Updates global shader properties that grass and foliage shaders read.
     /// </summary>
@@ -19,6 +82,13 @@ namespace OpenRange.Visualization
         private static readonly int GlobalWindSpeedId = Shader.PropertyToID("_GlobalWindSpeed");
         private static readonly int GlobalWindStrengthId = Shader.PropertyToID("_GlobalWindStrength");
         private static readonly int GlobalWindTimeId = Shader.PropertyToID("_GlobalWindTime");
+
+        // Shader keywords for grass quality features
+        private const string KeywordEnableWind = "_ENABLEWIND_ON";
+        private const string KeywordEnableTipColor = "_ENABLETIPCOLOR_ON";
+        private const string KeywordEnableSSS = "_ENABLESSS_ON";
+        private const string KeywordEnableAO = "_ENABLEAO_ON";
+        private const string KeywordEnableColorVariation = "_ENABLECOLORVARIATION_ON";
 
         /// <summary>
         /// Singleton instance.
@@ -39,9 +109,13 @@ namespace OpenRange.Visualization
         [Header("Quality Settings")]
         [SerializeField] private bool _windEnabled = true;
 
+        [Header("Grass Materials")]
+        [SerializeField] private Material[] _grassMaterials;
+
         private float _windTime;
         private Vector3 _windDirection = Vector3.forward;
         private CoreQualityTier _currentQualityTier = CoreQualityTier.High;
+        private GrassQualitySettings _grassQualitySettings;
         private bool _isInitialized;
         private bool _wasWindEnabled;
 
@@ -195,6 +269,24 @@ namespace OpenRange.Visualization
         public CoreQualityTier CurrentQualityTier => _currentQualityTier;
 
         /// <summary>
+        /// Current grass quality settings.
+        /// </summary>
+        public GrassQualitySettings GrassQuality => _grassQualitySettings;
+
+        /// <summary>
+        /// The grass materials managed by this controller.
+        /// </summary>
+        public Material[] GrassMaterials
+        {
+            get => _grassMaterials;
+            set
+            {
+                _grassMaterials = value;
+                ApplyGrassQualitySettings();
+            }
+        }
+
+        /// <summary>
         /// Whether the controller is initialized.
         /// </summary>
         public bool IsInitialized => _isInitialized;
@@ -281,6 +373,10 @@ namespace OpenRange.Visualization
                 QualityManager.Instance.OnQualityTierChanged += HandleQualityTierChanged;
             }
 
+            // Initialize grass quality settings based on current tier
+            _grassQualitySettings = GrassQualitySettings.GetSettings(_currentQualityTier);
+            ApplyGrassQualitySettings();
+
             _wasWindEnabled = _windEnabled;
             UpdateGlobalShaderProperties();
 
@@ -349,6 +445,39 @@ namespace OpenRange.Visualization
         {
             Instance = this;
             Initialize();
+        }
+
+        /// <summary>
+        /// Registers a grass material to be managed by this controller.
+        /// </summary>
+        /// <param name="material">The grass material to register.</param>
+        public void RegisterGrassMaterial(Material material)
+        {
+            if (material == null) return;
+
+            // Check if already registered
+            if (_grassMaterials != null && Array.IndexOf(_grassMaterials, material) >= 0)
+            {
+                return;
+            }
+
+            // Add to array
+            int currentLength = _grassMaterials?.Length ?? 0;
+            Array.Resize(ref _grassMaterials, currentLength + 1);
+            _grassMaterials[currentLength] = material;
+
+            ApplyGrassQualityToMaterial(material);
+        }
+
+        /// <summary>
+        /// Manually sets the grass quality settings and applies them to all registered materials.
+        /// </summary>
+        /// <param name="settings">The quality settings to apply.</param>
+        public void SetGrassQualitySettings(GrassQualitySettings settings)
+        {
+            _grassQualitySettings = settings;
+            ApplyGrassQualitySettings();
+            OnWindChanged?.Invoke();
         }
 
         #endregion
@@ -424,8 +553,39 @@ namespace OpenRange.Visualization
             }
 
             _currentQualityTier = tier;
+            _grassQualitySettings = GrassQualitySettings.GetSettings(tier);
+            ApplyGrassQualitySettings();
             UpdateGlobalShaderProperties();
             OnWindChanged?.Invoke();
+        }
+
+        private void ApplyGrassQualitySettings()
+        {
+            if (_grassMaterials == null) return;
+
+            foreach (var material in _grassMaterials)
+            {
+                ApplyGrassQualityToMaterial(material);
+            }
+        }
+
+        private void ApplyGrassQualityToMaterial(Material material)
+        {
+            if (material == null) return;
+
+            SetKeyword(material, KeywordEnableWind, _grassQualitySettings.EnableWind && _windEnabled);
+            SetKeyword(material, KeywordEnableTipColor, _grassQualitySettings.EnableTipColor);
+            SetKeyword(material, KeywordEnableSSS, _grassQualitySettings.EnableSSS);
+            SetKeyword(material, KeywordEnableAO, _grassQualitySettings.EnableAO);
+            SetKeyword(material, KeywordEnableColorVariation, _grassQualitySettings.EnableColorVariation);
+        }
+
+        private static void SetKeyword(Material material, string keyword, bool enabled)
+        {
+            if (enabled)
+                material.EnableKeyword(keyword);
+            else
+                material.DisableKeyword(keyword);
         }
 
         private void UnsubscribeFromManagers()
