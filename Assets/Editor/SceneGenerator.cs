@@ -35,6 +35,13 @@ namespace OpenRange.Editor
             LandingMarkerGenerator.CreateLandingMarkerPrefab();
             LandingMarkerGenerator.CreateLandingDustPrefab();
 
+            // Grass and wind prefabs
+            GrassShaderSetup.CreateAllGrassAssets();
+            GrassSystemSetup.CreateAllGrassAssets();
+
+            // Lighting and skybox prefabs
+            LightingSetupGenerator.CreateAllLightingAssets();
+
             // Environment prefabs
             EnvironmentGenerator.CreateAllEnvironmentPrefabs();
 
@@ -492,6 +499,57 @@ namespace OpenRange.Editor
             else
             {
                 Debug.LogWarning("SceneGenerator: TargetGreen.prefab not found. Run 'OpenRange > Create All Environment Prefabs' first.");
+            }
+
+            // WindController (drives grass shader wind animation)
+            var windControllerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/WindController.prefab");
+            if (windControllerPrefab != null)
+            {
+                var windController = PrefabUtility.InstantiatePrefab(windControllerPrefab) as GameObject;
+                windController.transform.position = Vector3.zero;
+                Debug.Log("SceneGenerator: Added WindController to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: WindController.prefab not found. Run 'OpenRange > Materials > Create All Grass Assets' first.");
+            }
+
+            // LightingController (drives skybox and scene lighting)
+            var lightingControllerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/LightingController.prefab");
+            if (lightingControllerPrefab != null)
+            {
+                var lightingController = PrefabUtility.InstantiatePrefab(lightingControllerPrefab) as GameObject;
+                lightingController.transform.position = Vector3.zero;
+
+                // Apply skybox to render settings
+                var skyboxMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Skybox/MarinaSkybox.mat");
+                if (skyboxMaterial != null)
+                {
+                    RenderSettings.skybox = skyboxMaterial;
+                    RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+                    RenderSettings.ambientSkyColor = new Color(0.4f, 0.5f, 0.7f);
+                    RenderSettings.ambientEquatorColor = new Color(0.6f, 0.5f, 0.4f);
+                    RenderSettings.ambientGroundColor = new Color(0.3f, 0.25f, 0.2f);
+                }
+
+                Debug.Log("SceneGenerator: Added LightingController to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: LightingController.prefab not found. Run 'OpenRange > Lighting > Create All Lighting Assets' first.");
+            }
+
+            // GrassRenderer (GPU instanced grass near tee)
+            var grassRendererPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Environment/GrassRenderer.prefab");
+            if (grassRendererPrefab != null)
+            {
+                var grassRenderer = PrefabUtility.InstantiatePrefab(grassRendererPrefab) as GameObject;
+                grassRenderer.transform.position = Vector3.zero;
+                Debug.Log("SceneGenerator: Added GrassRenderer to scene");
+            }
+            else
+            {
+                Debug.LogWarning("SceneGenerator: GrassRenderer.prefab not found. Run 'OpenRange > Grass System > Create All Grass Assets' first.");
             }
 
             // Event System
@@ -955,20 +1013,66 @@ namespace OpenRange.Editor
 
         /// <summary>
         /// Creates and saves a grass material for the ground plane.
+        /// Uses StylizedGrass shader if available for wind animation, otherwise falls back to URP Lit.
         /// </summary>
         private static Material CreateGrassMaterial()
         {
-            string materialPath = $"{MaterialsPath}/Grass.mat";
-
-            // Check if material already exists - return it if valid
-            var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-            if (existingMaterial != null)
+            // First check if FairwayGrass material exists (created by GrassShaderSetup)
+            var fairwayMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/FairwayGrass.mat");
+            if (fairwayMaterial != null)
             {
-                Debug.Log($"SceneGenerator: Using existing grass material with shader: {existingMaterial.shader?.name}");
-                return existingMaterial;
+                Debug.Log($"SceneGenerator: Using existing FairwayGrass material with shader: {fairwayMaterial.shader?.name}");
+                return fairwayMaterial;
             }
 
-            // Find URP Lit shader (same pattern as GolfBallPrefabGenerator which works)
+            string materialPath = $"{MaterialsPath}/Grass.mat";
+
+            // Try to find StylizedGrass shader first (for wind animation)
+            Shader grassShader = Shader.Find("OpenRange/StylizedGrass");
+            if (grassShader == null)
+            {
+                grassShader = AssetDatabase.LoadAssetAtPath<Shader>("Assets/Shaders/Environment/StylizedGrass.shader");
+            }
+
+            if (grassShader != null)
+            {
+                // Delete existing Grass.mat if it exists (might have old shader)
+                if (AssetDatabase.LoadAssetAtPath<Material>(materialPath) != null)
+                {
+                    AssetDatabase.DeleteAsset(materialPath);
+                }
+
+                Debug.Log($"SceneGenerator: Using StylizedGrass shader for grass material");
+                var material = new Material(grassShader);
+                material.name = "Grass";
+
+                // Apply fairway-like configuration
+                var config = GrassShaderSetup.GetPresetConfig(GrassShaderSetup.GrassPreset.Fairway);
+                material.SetColor("_BaseColor", config.BaseColor);
+                material.SetColor("_TipColor", config.TipColor);
+                material.SetFloat("_TipBlendStart", config.TipBlendStart);
+                material.SetFloat("_TipBlendEnd", config.TipBlendEnd);
+                material.SetFloat("_GrassHeight", config.GrassHeight);
+                material.SetFloat("_WindStrength", config.WindStrength);
+                material.SetFloat("_WindSpeed", config.WindSpeed);
+                material.SetFloat("_WindTurbulence", config.Turbulence);
+                material.SetFloat("_EnableWind", config.EnableWind ? 1f : 0f);
+                material.SetFloat("_EnableTipColor", config.EnableTipColor ? 1f : 0f);
+                if (config.EnableWind)
+                {
+                    material.EnableKeyword("_ENABLEWIND_ON");
+                }
+                if (config.EnableTipColor)
+                {
+                    material.EnableKeyword("_ENABLETIPCOLOR_ON");
+                }
+
+                AssetDatabase.CreateAsset(material, materialPath);
+                Debug.Log($"SceneGenerator: Created grass material at {materialPath}");
+                return material;
+            }
+
+            // Fall back to URP Lit shader
             Shader urpLitShader = Shader.Find("Universal Render Pipeline/Lit");
             if (urpLitShader == null)
             {
@@ -984,19 +1088,19 @@ namespace OpenRange.Editor
 
             Debug.Log($"SceneGenerator: Using shader '{urpLitShader.name}' for grass material");
 
-            var material = new Material(urpLitShader);
-            material.name = "Grass";
+            var fallbackMaterial = new Material(urpLitShader);
+            fallbackMaterial.name = "Grass";
 
             // Set grass-like green color
-            material.SetColor("_BaseColor", new Color(0.2f, 0.5f, 0.15f, 1f));
-            material.SetFloat("_Smoothness", 0.1f);
-            material.SetFloat("_Metallic", 0f);
+            fallbackMaterial.SetColor("_BaseColor", new Color(0.2f, 0.5f, 0.15f, 1f));
+            fallbackMaterial.SetFloat("_Smoothness", 0.1f);
+            fallbackMaterial.SetFloat("_Metallic", 0f);
 
             // Save the material as an asset (same pattern as GolfBallPrefabGenerator)
-            AssetDatabase.CreateAsset(material, materialPath);
+            AssetDatabase.CreateAsset(fallbackMaterial, materialPath);
             Debug.Log($"SceneGenerator: Created grass material at {materialPath}");
 
-            return material;
+            return fallbackMaterial;
         }
 
         private static void CreateEventSystem()
